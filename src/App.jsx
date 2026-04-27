@@ -17,6 +17,8 @@ import NotesPage from './pages/NotesPage';
 import SettingsPage from './pages/SettingsPage';
 import CashflowPage from './pages/CashflowPage';
 import DividendPage from './pages/DividendPage';
+import ScreenerPage from './pages/ScreenerPage';
+import CategoryPage from './pages/CategoryPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -49,6 +51,8 @@ function AppRoutes() {
       <Route path="/watchlist" element={<ProtectedRoute><WatchlistPage /></ProtectedRoute>} />
       <Route path="/notes" element={<ProtectedRoute><NotesPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/screener" element={<ProtectedRoute><ScreenerPage /></ProtectedRoute>} />
+      <Route path="/category" element={<ProtectedRoute><CategoryPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -50,6 +50,8 @@ export const NAV_ITEMS = [
   { path: '/analytics', label: 'Analitik', icon: '📈', section: 'MENU' },
   { path: '/calculator', label: 'Kalkulator', icon: '🧮', section: 'TOOLS' },
   { path: '/watchlist', label: 'Watchlist', icon: '👀', section: 'TOOLS' },
+  { path: '/screener', label: 'Screener', icon: '🔍', section: 'TOOLS' },
+  { path: '/category', label: 'Per Komoditas', icon: '🏭', section: 'TOOLS' },
   { path: '/notes', label: 'Catatan', icon: '📔', section: 'TOOLS' },
   { path: '/settings', label: 'Pengaturan', icon: '⚙️', section: 'LAINNYA' },
 ];
