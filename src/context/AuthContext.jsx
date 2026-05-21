@@ -44,12 +44,15 @@ export function AuthProvider({ children }) {
     setItem('session', session);
     setUser(session);
 
-    // Initialize settings
-    setItem('settings', {
+    // Initialize settings with user-scoped key
+    setItem(`settings_${newUser.id}`, {
       initialCapital: 10000000,
       monthlyTarget: 5,
       defaultBuyFee: 0.15,
       defaultSellFee: 0.25,
+      initialCapitalUS: 1000, // $1000 default for Gotrade
+      defaultBuyFeeUS: 0,     // 0% for Gotrade
+      defaultSellFeeUS: 0,    // 0% for Gotrade
     });
 
     return { success: true };

@@ -1,14 +1,14 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { calculateTradePnL } from '../utils/calculations';
-import { formatRupiah, formatPercent, formatDate } from '../utils/formatters';
+import { calculateTradePnL, calculateUnrealizedPnL } from '../utils/calculations';
+import { formatRupiah, formatUSD, formatPercent, formatDate } from '../utils/formatters';
 import { STRATEGIES, EMOTIONS } from '../utils/constants';
 import { useState } from 'react';
 
 export default function TradeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getTradeById, updateTrade, deleteTrade } = useData();
+  const { getTradeById, updateTrade, deleteTrade, marketPrices } = useData();
   const trade = getTradeById(id);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(trade || {});
@@ -26,6 +26,24 @@ export default function TradeDetailPage() {
   const calc = calculateTradePnL(trade);
   const isOpen = !trade.sellPrice || !trade.dateSell;
   const emotion = EMOTIONS.find(e => e.value === trade.emotion);
+  const isUS = trade.market === 'US';
+  const formatMoney = isUS ? formatUSD : formatRupiah;
+
+  let displayPnL = calc.pnl;
+  let displayPnLPercent = calc.pnlPercent;
+  let isEstimasi = false;
+
+  if (isOpen && !trade.sellPrice && marketPrices && marketPrices[trade.stockCode]) {
+    const currentPrice = marketPrices[trade.stockCode];
+    const { pnl, pnlPercent } = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID');
+    displayPnL = pnl;
+    displayPnLPercent = pnlPercent;
+    isEstimasi = true;
+  } else if (isOpen && trade.sellPrice) {
+    isEstimasi = true;
+  }
+
+  const hasPnL = !isOpen || isEstimasi;
 
   const handleSave = () => {
     updateTrade(id, {
@@ -67,7 +85,7 @@ export default function TradeDetailPage() {
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Detail Transaksi</h3>
+            <h3 className="card-title">Detail Transaksi {isUS && <span style={{ fontSize: '0.8em', marginLeft: 8 }}>🇺🇸 US</span>}</h3>
             <span className={`badge ${isOpen ? 'badge-yellow' : 'badge-green'}`}>{isOpen ? 'Open' : 'Closed'}</span>
           </div>
           <div className="card-body">
@@ -79,8 +97,8 @@ export default function TradeDetailPage() {
                     <input className="form-input" value={form.stockCode} onChange={e => set('stockCode', e.target.value)} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Lot</label>
-                    <input type="number" className="form-input" value={form.lots} onChange={e => set('lots', e.target.value)} />
+                    <label className="form-label">{isUS ? 'Lembar' : 'Lot'}</label>
+                    <input type="number" step={isUS ? "any" : "1"} className="form-input" value={form.lots} onChange={e => set('lots', e.target.value)} />
                   </div>
                 </div>
                 <div className="form-row">
@@ -142,17 +160,17 @@ export default function TradeDetailPage() {
                 <div className="calc-result-row"><span className="calc-result-label">Kode Saham</span><span className="calc-result-value">{trade.stockCode}</span></div>
                 <div className="calc-result-row"><span className="calc-result-label">Tanggal Beli</span><span className="calc-result-value">{formatDate(trade.dateBuy)}</span></div>
                 <div className="calc-result-row"><span className="calc-result-label">Tanggal Jual</span><span className="calc-result-value">{trade.dateSell ? formatDate(trade.dateSell) : '-'}</span></div>
-                <div className="calc-result-row"><span className="calc-result-label">Harga Beli</span><span className="calc-result-value">{formatRupiah(trade.buyPrice)}</span></div>
-                <div className="calc-result-row"><span className="calc-result-label">Harga Jual</span><span className="calc-result-value">{trade.sellPrice ? formatRupiah(trade.sellPrice) : '-'}</span></div>
-                <div className="calc-result-row"><span className="calc-result-label">Lot</span><span className="calc-result-value">{trade.lots} ({trade.lots * 100} lembar)</span></div>
-                <div className="calc-result-row"><span className="calc-result-label">Total Beli</span><span className="calc-result-value">{formatRupiah(calc.totalBuy)}</span></div>
-                {!isOpen && <div className="calc-result-row"><span className="calc-result-label">Total Jual</span><span className="calc-result-value">{formatRupiah(calc.totalSell)}</span></div>}
-                {!isOpen && <div className="calc-result-row"><span className="calc-result-label">Total Fee</span><span className="calc-result-value">{formatRupiah(calc.totalFee)}</span></div>}
-                {!isOpen && (
+                <div className="calc-result-row"><span className="calc-result-label">Harga Beli</span><span className="calc-result-value">{formatMoney(trade.buyPrice)}</span></div>
+                <div className="calc-result-row"><span className="calc-result-label">Harga Jual</span><span className="calc-result-value">{trade.sellPrice ? formatMoney(trade.sellPrice) : (marketPrices && marketPrices[trade.stockCode] ? <span style={{color: 'var(--text-muted)'}}>{formatMoney(marketPrices[trade.stockCode])} (est)</span> : '-')}</span></div>
+                <div className="calc-result-row"><span className="calc-result-label">{isUS ? 'Shares' : 'Lot'}</span><span className="calc-result-value">{trade.lots} {isUS ? 'lembar' : `(${trade.lots * 100} lembar)`}</span></div>
+                <div className="calc-result-row"><span className="calc-result-label">Total Beli</span><span className="calc-result-value">{formatMoney(calc.totalBuy)}</span></div>
+                {!isOpen && <div className="calc-result-row"><span className="calc-result-label">Total Jual</span><span className="calc-result-value">{formatMoney(calc.totalSell)}</span></div>}
+                {!isOpen && <div className="calc-result-row"><span className="calc-result-label">Total Fee</span><span className="calc-result-value">{formatMoney(calc.totalFee)}</span></div>}
+                {hasPnL && (
                   <div className="calc-result-row" style={{ borderBottom: 'none' }}>
-                    <span className="calc-result-label" style={{ fontWeight: 600 }}>Profit/Loss</span>
-                    <span className={`calc-result-value big ${calc.pnl >= 0 ? 'text-profit' : 'text-loss'}`}>
-                      {formatRupiah(calc.pnl)} ({formatPercent(calc.pnlPercent)})
+                    <span className="calc-result-label" style={{ fontWeight: 600 }}>{isEstimasi ? 'Estimasi P/L' : 'Profit/Loss'}</span>
+                    <span className={`calc-result-value big ${displayPnL >= 0 ? 'text-profit' : 'text-loss'}`}>
+                      {formatMoney(displayPnL)} ({formatPercent(displayPnLPercent)})
                     </span>
                   </div>
                 )}

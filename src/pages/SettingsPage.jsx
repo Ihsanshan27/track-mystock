@@ -18,6 +18,9 @@ export default function SettingsPage() {
       monthlyTarget: parseFloat(form.monthlyTarget) || 5,
       defaultBuyFee: parseFloat(form.defaultBuyFee) || 0.15,
       defaultSellFee: parseFloat(form.defaultSellFee) || 0.25,
+      initialCapitalUS: parseFloat(form.initialCapitalUS) || 1000,
+      defaultBuyFeeUS: parseFloat(form.defaultBuyFeeUS) || 0,
+      defaultSellFeeUS: parseFloat(form.defaultSellFeeUS) || 0,
     });
   };
 
@@ -29,7 +32,7 @@ export default function SettingsPage() {
   };
 
   const handleExport = () => {
-    const data = exportAllData();
+    const data = exportAllData(user?.id);
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -48,7 +51,7 @@ export default function SettingsPage() {
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        importAllData(data);
+        importAllData(data, user?.id);
         showToast('Data berhasil diimport! Refresh halaman untuk melihat perubahan.');
         setTimeout(() => window.location.reload(), 1500);
       } catch {
@@ -60,7 +63,7 @@ export default function SettingsPage() {
 
   const handleClearData = () => {
     if (window.confirm('PERINGATAN: Semua data transaksi, watchlist, dan catatan akan dihapus permanen. Lanjutkan?')) {
-      clearAllData();
+      clearAllData(user?.id);
       showToast('Semua data telah dihapus');
       setTimeout(() => window.location.reload(), 1000);
     }
@@ -115,6 +118,27 @@ export default function SettingsPage() {
               <div className="form-group">
                 <label className="form-label">Default Fee Jual (%)</label>
                 <input type="number" className="form-input" step="0.01" value={form.defaultSellFee} onChange={e => set('defaultSellFee', e.target.value)} />
+              </div>
+            </div>
+
+            <h4 style={{ margin: '20px 0 10px', fontSize: '1.1rem' }}>🌎 Pasar US (Gotrade)</h4>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Modal Awal US ($)</label>
+                <input type="number" className="form-input" value={form.initialCapitalUS} onChange={e => set('initialCapitalUS', e.target.value)} />
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  Saat ini: ${settings.initialCapitalUS || 1000}
+                </div>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Default Fee Beli US (%)</label>
+                <input type="number" className="form-input" step="0.01" value={form.defaultBuyFeeUS} onChange={e => set('defaultBuyFeeUS', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Default Fee Jual US (%)</label>
+                <input type="number" className="form-input" step="0.01" value={form.defaultSellFeeUS} onChange={e => set('defaultSellFeeUS', e.target.value)} />
               </div>
             </div>
             <button className="btn btn-primary" onClick={handleSaveSettings}>💾 Simpan Pengaturan</button>

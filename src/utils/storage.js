@@ -1,5 +1,7 @@
 const PREFIX = 'jurnal_saham_';
 
+// --- Generic key helpers ---
+
 export function getItem(key) {
   try {
     const data = localStorage.getItem(PREFIX + key);
@@ -22,31 +24,103 @@ export function removeItem(key) {
   localStorage.removeItem(PREFIX + key);
 }
 
-export function exportAllData() {
+// --- User-scoped key helpers ---
+
+/** Returns the user-scoped key (e.g. 'trades_userId123') */
+export function getScopedKey(key, userId) {
+  return `${key}_${userId}`;
+}
+
+/** Read from user-scoped storage */
+export function getScopedItem(key, userId) {
+  return getItem(getScopedKey(key, userId));
+}
+
+/** Write to user-scoped storage */
+export function setScopedItem(key, userId, value) {
+  return setItem(getScopedKey(key, userId), value);
+}
+
+/** Remove from user-scoped storage */
+export function removeScopedItem(key, userId) {
+  return removeItem(getScopedKey(key, userId));
+}
+
+// --- One-time migration: global → user-scoped ---
+
+/**
+ * Migrates old global data (no userId in key) to the user-scoped keys.
+ * Runs once per user; no-op if migration marker already set.
+ */
+export function migrateGlobalToUser(userId) {
+  const migrationKey = getScopedKey('_migrated', userId);
+  if (getItem(migrationKey)) return; // Already migrated
+
+  const dataKeys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
+  for (const key of dataKeys) {
+    const globalData = getItem(key); // read from old global key
+    if (globalData != null) {
+      // Only write scoped if the user doesn't already have data there
+      const existing = getScopedItem(key, userId);
+      if (existing == null || (Array.isArray(existing) && existing.length === 0)) {
+        setScopedItem(key, userId, globalData);
+      }
+    }
+  }
+
+  // Clear global keys so they don't bleed into other users
+  for (const key of dataKeys) {
+    removeItem(key);
+  }
+
+  // Mark migration done
+  setItem(migrationKey, true);
+}
+
+// --- Export / Import / Clear (user-scoped) ---
+
+export function exportAllData(userId) {
   const data = {};
-  const keys = ['users', 'trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
-  for (const key of keys) {
-    data[key] = getItem(key);
+  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
+  if (userId) {
+    for (const key of keys) {
+      data[key] = getScopedItem(key, userId);
+    }
+  } else {
+    // Fallback: export from global keys (legacy)
+    for (const key of keys) {
+      data[key] = getItem(key);
+    }
   }
   data.exportDate = new Date().toISOString();
   data.version = '1.0';
   return data;
 }
 
-export function importAllData(data) {
+export function importAllData(data, userId) {
   if (!data || !data.version) throw new Error('Format data tidak valid');
   const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
   for (const key of keys) {
     if (data[key] != null) {
-      setItem(key, data[key]);
+      if (userId) {
+        setScopedItem(key, userId, data[key]);
+      } else {
+        setItem(key, data[key]);
+      }
     }
   }
 }
 
-export function clearAllData() {
+export function clearAllData(userId) {
   const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
-  for (const key of keys) {
-    removeItem(key);
+  if (userId) {
+    for (const key of keys) {
+      removeScopedItem(key, userId);
+    }
+  } else {
+    for (const key of keys) {
+      removeItem(key);
+    }
   }
 }
 

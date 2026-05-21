@@ -1,9 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getItem, setItem, generateId } from '../utils/storage';
+import { getScopedItem, setScopedItem, generateId, migrateGlobalToUser } from '../utils/storage';
+import { useAuth } from './AuthContext';
 
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const [trades, setTrades] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
   const [notes, setNotes] = useState([]);
@@ -14,25 +18,35 @@ export function DataProvider({ children }) {
     monthlyTarget: 5,
     defaultBuyFee: 0.15,
     defaultSellFee: 0.25,
+    initialCapitalUS: 1000,
+    defaultBuyFeeUS: 0,
+    defaultSellFeeUS: 0,
   });
+  const [marketPrices, setMarketPrices] = useState({});
   const [toasts, setToasts] = useState([]);
 
-  // Load data
+  // Load user-scoped data (with one-time migration from global keys)
   useEffect(() => {
-    setTrades(getItem('trades') || []);
-    setWatchlist(getItem('watchlist') || []);
-    setNotes(getItem('notes') || []);
-    setCashflows(getItem('cashflows') || []);
-    setDividends(getItem('dividends') || []);
-    const savedSettings = getItem('settings');
+    if (!userId) return;
+
+    // Migrate old global data to this user's scoped keys (runs once)
+    migrateGlobalToUser(userId);
+
+    setTrades(getScopedItem('trades', userId) || []);
+    setWatchlist(getScopedItem('watchlist', userId) || []);
+    setNotes(getScopedItem('notes', userId) || []);
+    setCashflows(getScopedItem('cashflows', userId) || []);
+    setDividends(getScopedItem('dividends', userId) || []);
+    const savedSettings = getScopedItem('settings', userId);
     if (savedSettings) setSettings(savedSettings);
-  }, []);
+    setMarketPrices(getScopedItem('marketPrices', userId) || {});
+  }, [userId]);
 
   // Persist trades
   const saveTrades = useCallback((newTrades) => {
     setTrades(newTrades);
-    setItem('trades', newTrades);
-  }, []);
+    setScopedItem('trades', userId, newTrades);
+  }, [userId]);
 
   // Toast helper
   const showToast = useCallback((message, type = 'success') => {
@@ -71,20 +85,20 @@ export function DataProvider({ children }) {
     const newItem = { ...item, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newItem, ...watchlist];
     setWatchlist(updated);
-    setItem('watchlist', updated);
+    setScopedItem('watchlist', userId, updated);
     showToast('Item watchlist ditambahkan');
   };
 
   const updateWatchlistItem = (id, updates) => {
     const updated = watchlist.map(w => w.id === id ? { ...w, ...updates } : w);
     setWatchlist(updated);
-    setItem('watchlist', updated);
+    setScopedItem('watchlist', userId, updated);
   };
 
   const deleteWatchlistItem = (id) => {
     const updated = watchlist.filter(w => w.id !== id);
     setWatchlist(updated);
-    setItem('watchlist', updated);
+    setScopedItem('watchlist', userId, updated);
     showToast('Item watchlist dihapus');
   };
 
@@ -93,20 +107,20 @@ export function DataProvider({ children }) {
     const newNote = { ...note, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newNote, ...notes];
     setNotes(updated);
-    setItem('notes', updated);
+    setScopedItem('notes', userId, updated);
     showToast('Catatan disimpan');
   };
 
   const updateNote = (id, updates) => {
     const updated = notes.map(n => n.id === id ? { ...n, ...updates, updatedAt: new Date().toISOString() } : n);
     setNotes(updated);
-    setItem('notes', updated);
+    setScopedItem('notes', userId, updated);
   };
 
   const deleteNote = (id) => {
     const updated = notes.filter(n => n.id !== id);
     setNotes(updated);
-    setItem('notes', updated);
+    setScopedItem('notes', userId, updated);
     showToast('Catatan dihapus');
   };
 
@@ -115,14 +129,14 @@ export function DataProvider({ children }) {
     const newCf = { ...cf, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newCf, ...cashflows];
     setCashflows(updated);
-    setItem('cashflows', updated);
+    setScopedItem('cashflows', userId, updated);
     showToast('Transaksi kas berhasil dicatat');
   };
 
   const deleteCashflow = (id) => {
     const updated = cashflows.filter(c => c.id !== id);
     setCashflows(updated);
-    setItem('cashflows', updated);
+    setScopedItem('cashflows', userId, updated);
     showToast('Transaksi kas dibatalkan');
   };
 
@@ -131,14 +145,14 @@ export function DataProvider({ children }) {
     const newDiv = { ...div, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newDiv, ...dividends];
     setDividends(updated);
-    setItem('dividends', updated);
+    setScopedItem('dividends', userId, updated);
     showToast('Catatan dividen ditambahkan');
   };
 
   const deleteDividend = (id) => {
     const updated = dividends.filter(d => d.id !== id);
     setDividends(updated);
-    setItem('dividends', updated);
+    setScopedItem('dividends', userId, updated);
     showToast('Catatan dividen dihapus');
   };
 
@@ -146,8 +160,14 @@ export function DataProvider({ children }) {
   const updateSettings = (updates) => {
     const newSettings = { ...settings, ...updates };
     setSettings(newSettings);
-    setItem('settings', newSettings);
+    setScopedItem('settings', userId, newSettings);
     showToast('Pengaturan disimpan');
+  };
+
+  const updateMarketPrice = (stockCode, price) => {
+    const updated = { ...marketPrices, [stockCode]: parseFloat(price) || 0 };
+    setMarketPrices(updated);
+    setScopedItem('marketPrices', userId, updated);
   };
 
   return (
@@ -158,6 +178,7 @@ export function DataProvider({ children }) {
       cashflows, addCashflow, deleteCashflow,
       dividends, addDividend, deleteDividend,
       settings, updateSettings,
+      marketPrices, updateMarketPrice,
       toasts,
       showToast,
     }}>

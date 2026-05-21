@@ -5,6 +5,17 @@ export function formatRupiah(amount) {
   return `${amount < 0 ? '-' : ''}Rp ${formatted}`;
 }
 
+export function formatUSD(amount) {
+  if (amount == null || isNaN(amount)) return '$ 0.00';
+  const abs = Math.abs(amount);
+  const formatted = new Intl.NumberFormat('en-US', {
+    style: 'decimal',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(abs);
+  return `${amount < 0 ? '-' : ''}$${formatted}`;
+}
+
 export function formatNumber(num) {
   if (num == null || isNaN(num)) return '0';
   return new Intl.NumberFormat('id-ID').format(num);

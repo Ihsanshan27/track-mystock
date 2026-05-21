@@ -1,8 +1,8 @@
 // === Trade Calculations ===
 
 export function calculateTradePnL(trade) {
-  const { buyPrice, sellPrice, lots, buyFee = 0.15, sellFee = 0.25 } = trade;
-  const shares = lots * 100;
+  const { buyPrice, sellPrice, lots, buyFee = 0.15, sellFee = 0.25, market = 'ID' } = trade;
+  const shares = market === 'US' ? lots : lots * 100;
 
   const totalBuy = buyPrice * shares;
   const totalSell = sellPrice ? sellPrice * shares : 0;
@@ -26,8 +26,8 @@ export function calculateTradePnL(trade) {
   };
 }
 
-export function calculateUnrealizedPnL(buyPrice, currentPrice, lots, buyFee = 0.15) {
-  const shares = lots * 100;
+export function calculateUnrealizedPnL(buyPrice, currentPrice, lots, buyFee = 0.15, market = 'ID') {
+  const shares = market === 'US' ? lots : lots * 100;
   const totalBuy = buyPrice * shares;
   const totalCurrent = currentPrice * shares;
   const fee = totalBuy * (buyFee / 100);
@@ -293,8 +293,8 @@ export function calculateTopStocks(trades) {
 
 // === Calculator Functions ===
 
-export function calcProfitLoss({ buyPrice, sellPrice, lots, buyFee = 0.15, sellFee = 0.25 }) {
-  return calculateTradePnL({ buyPrice, sellPrice, lots, buyFee, sellFee });
+export function calcProfitLoss({ buyPrice, sellPrice, lots, buyFee = 0.15, sellFee = 0.25, market = 'ID' }) {
+  return calculateTradePnL({ buyPrice, sellPrice, lots, buyFee, sellFee, market });
 }
 
 export function calcBrokerFee({ price, lots, buyFeePercent = 0.15, sellFeePercent = 0.25, ppnPercent = 11 }) {

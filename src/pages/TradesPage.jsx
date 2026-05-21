@@ -2,11 +2,11 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { calculateTradePnL } from '../utils/calculations';
-import { formatRupiah, formatPercent, formatDate } from '../utils/formatters';
+import { formatRupiah, formatUSD, formatPercent, formatDate } from '../utils/formatters';
 import { STRATEGIES, EMOTIONS } from '../utils/constants';
 
 export default function TradesPage() {
-  const { trades, deleteTrade } = useData();
+  const { trades, deleteTrade, marketPrices } = useData();
   const [search, setSearch] = useState('');
   const [filterStrategy, setFilterStrategy] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -58,13 +58,13 @@ export default function TradesPage() {
   };
 
   const exportCSV = () => {
-    const headers = ['Kode', 'Tgl Beli', 'Tgl Jual', 'Harga Beli', 'Harga Jual', 'Lot', 'P/L', '%', 'Strategi', 'Emosi'];
+    const headers = ['Kode', 'Pasar', 'Tgl Beli', 'Tgl Jual', 'Harga Beli', 'Harga Jual', 'Qty', 'P/L', '%', 'Strategi', 'Emosi'];
     const rows = trades.map(t => {
       const calc = calculateTradePnL(t);
       const em = EMOTIONS.find(e => e.value === t.emotion);
       return [
-        t.stockCode, t.dateBuy, t.dateSell || '', t.buyPrice, t.sellPrice || '', t.lots,
-        Math.round(calc.pnl), calc.pnlPercent.toFixed(2), t.strategy || '', em?.label || ''
+        t.stockCode, t.market || 'ID', t.dateBuy, t.dateSell || '', t.buyPrice, t.sellPrice || '', t.lots,
+        calc.pnl, calc.pnlPercent.toFixed(2), t.strategy || '', em?.label || ''
       ].join(',');
     });
     const csv = [headers.join(','), ...rows].join('\n');
@@ -134,7 +134,7 @@ export default function TradesPage() {
                   <th>Tgl Jual</th>
                   <th>Buy</th>
                   <th>Sell</th>
-                  <th>Lot</th>
+                  <th>Qty</th>
                   <th>P/L</th>
                   <th>%</th>
                   <th>Strategi</th>
@@ -144,21 +144,40 @@ export default function TradesPage() {
               </thead>
               <tbody>
                 {paged.map(trade => {
-                  const calc = calculateTradePnL(trade);
+                  let calc = calculateTradePnL(trade);
                   const isOpen = !trade.sellPrice || !trade.dateSell;
+                  const isUS = trade.market === 'US';
+                  const formatMoney = isUS ? formatUSD : formatRupiah;
+                  
+                  let displayPnL = calc.pnl;
+                  let displayPnLPercent = calc.pnlPercent;
+                  let isEstimasi = false;
+
+                  if (isOpen && !trade.sellPrice && marketPrices && marketPrices[trade.stockCode]) {
+                    const currentPrice = marketPrices[trade.stockCode];
+                    const { pnl, pnlPercent } = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID');
+                    displayPnL = pnl;
+                    displayPnLPercent = pnlPercent;
+                    isEstimasi = true;
+                  } else if (isOpen && trade.sellPrice) {
+                    isEstimasi = true; // estimasi berdasarkan target sellPrice
+                  }
+
+                  const hasPnL = !isOpen || isEstimasi;
+
                   return (
                     <tr key={trade.id}>
-                      <td><strong>{trade.stockCode}</strong></td>
+                      <td><strong>{trade.stockCode}</strong> {isUS && <span style={{fontSize: '0.8em'}}>🇺🇸</span>}</td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{formatDate(trade.dateBuy)}</td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{trade.dateSell ? formatDate(trade.dateSell) : '-'}</td>
-                      <td>{formatRupiah(trade.buyPrice)}</td>
-                      <td>{trade.sellPrice ? formatRupiah(trade.sellPrice) : '-'}</td>
+                      <td>{formatMoney(trade.buyPrice)}</td>
+                      <td>{trade.sellPrice ? formatMoney(trade.sellPrice) : (marketPrices && marketPrices[trade.stockCode] ? <span style={{color: 'var(--text-muted)'}}>{formatMoney(marketPrices[trade.stockCode])} (est)</span> : '-')}</td>
                       <td>{trade.lots}</td>
-                      <td className={isOpen ? '' : calc.pnl >= 0 ? 'text-profit' : 'text-loss'}>
-                        <strong>{isOpen ? '-' : formatRupiah(calc.pnl)}</strong>
+                      <td className={!hasPnL ? '' : displayPnL >= 0 ? 'text-profit' : 'text-loss'}>
+                        <strong>{!hasPnL ? '-' : formatMoney(displayPnL)}</strong>
                       </td>
-                      <td className={isOpen ? '' : calc.pnlPercent >= 0 ? 'text-profit' : 'text-loss'}>
-                        {isOpen ? '-' : formatPercent(calc.pnlPercent)}
+                      <td className={!hasPnL ? '' : displayPnLPercent >= 0 ? 'text-profit' : 'text-loss'}>
+                        {!hasPnL ? '-' : formatPercent(displayPnLPercent)}
                       </td>
                       <td>
                         {trade.strategy ? <span className="badge badge-blue">{trade.strategy}</span> : '-'}

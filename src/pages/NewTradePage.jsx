@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { STRATEGIES, EMOTIONS } from '../utils/constants';
+import { formatRupiah, formatUSD } from '../utils/formatters';
 
 export default function NewTradePage() {
   const { addTrade, settings } = useData();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
+    market: 'ID', // default
     stockCode: '',
     dateBuy: '',
     dateSell: '',
@@ -30,15 +32,16 @@ export default function NewTradePage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.stockCode || !form.dateBuy || !form.buyPrice || !form.lots) {
-      alert('Kode saham, tanggal beli, harga beli, dan jumlah lot wajib diisi');
+      alert('Kode saham, tanggal beli, harga beli, dan jumlah wajib diisi');
       return;
     }
     addTrade({
       ...form,
+      market: form.market,
       stockCode: form.stockCode.toUpperCase(),
       buyPrice: parseFloat(form.buyPrice),
       sellPrice: form.sellPrice ? parseFloat(form.sellPrice) : null,
-      lots: parseInt(form.lots),
+      lots: parseFloat(form.lots), // use float to support US fractional shares
       buyFee: parseFloat(form.buyFee),
       sellFee: parseFloat(form.sellFee),
       rating: form.rating,
@@ -48,16 +51,19 @@ export default function NewTradePage() {
   };
 
   // Auto-calc preview
-  const lots = parseInt(form.lots) || 0;
+  const isUS = form.market === 'US';
+  const lots = parseFloat(form.lots) || 0;
   const buyPrice = parseFloat(form.buyPrice) || 0;
   const sellPrice = parseFloat(form.sellPrice) || 0;
-  const shares = lots * 100;
+  const shares = isUS ? lots : lots * 100;
   const totalBuy = buyPrice * shares;
   const totalSell = sellPrice * shares;
   const buyComm = totalBuy * (parseFloat(form.buyFee) / 100);
   const sellComm = totalSell * (parseFloat(form.sellFee) / 100);
   const pnl = sellPrice ? totalSell - totalBuy - buyComm - sellComm : 0;
   const pnlPct = totalBuy > 0 ? (pnl / totalBuy) * 100 : 0;
+  
+  const formatMoney = isUS ? formatUSD : formatRupiah;
 
   return (
     <div>
@@ -76,26 +82,65 @@ export default function NewTradePage() {
             <div className="card" style={{ marginBottom: 20 }}>
               <div className="card-header"><h3 className="card-title">Detail Transaksi</h3></div>
               <div className="card-body">
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Pilih Pasar</label>
+                  <div style={{ display: 'flex', gap: 16 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input 
+                        type="radio" 
+                        name="market" 
+                        checked={form.market === 'ID'} 
+                        onChange={() => {
+                          setForm(prev => ({ 
+                            ...prev, 
+                            market: 'ID', 
+                            buyFee: settings.defaultBuyFee || 0.15, 
+                            sellFee: settings.defaultSellFee || 0.25 
+                          }));
+                        }} 
+                      />
+                      🇮🇩 Indonesia (IDR)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input 
+                        type="radio" 
+                        name="market" 
+                        checked={form.market === 'US'} 
+                        onChange={() => {
+                          setForm(prev => ({ 
+                            ...prev, 
+                            market: 'US', 
+                            buyFee: settings.defaultBuyFeeUS || 0, 
+                            sellFee: settings.defaultSellFeeUS || 0 
+                          }));
+                        }} 
+                      />
+                      🇺🇸 Amerika (USD)
+                    </label>
+                  </div>
+                </div>
+
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Kode Saham *</label>
                     <input
                       className="form-input"
-                      placeholder="Contoh: BBCA"
+                      placeholder={isUS ? 'Contoh: AAPL' : 'Contoh: BBCA'}
                       value={form.stockCode}
                       onChange={e => set('stockCode', e.target.value.toUpperCase())}
                       style={{ textTransform: 'uppercase' }}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Jumlah Lot *</label>
+                    <label className="form-label">{isUS ? 'Jumlah Lembar (Shares) *' : 'Jumlah Lot *'}</label>
                     <input
                       type="number"
+                      step={isUS ? 'any' : '1'}
                       className="form-input"
-                      placeholder="Contoh: 10"
+                      placeholder={isUS ? 'Contoh: 1.5' : 'Contoh: 10'}
                       value={form.lots}
                       onChange={e => set('lots', e.target.value)}
-                      min="1"
+                      min={isUS ? "0.0001" : "1"}
                     />
                   </div>
                 </div>
@@ -114,11 +159,11 @@ export default function NewTradePage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Harga Beli (per lembar) *</label>
-                    <input type="number" className="form-input" placeholder="Contoh: 8500" value={form.buyPrice} onChange={e => set('buyPrice', e.target.value)} />
+                    <input type="number" step="any" className="form-input" placeholder={isUS ? "Contoh: 150.5" : "Contoh: 8500"} value={form.buyPrice} onChange={e => set('buyPrice', e.target.value)} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Harga Jual (per lembar)</label>
-                    <input type="number" className="form-input" placeholder="Kosongkan jika masih hold" value={form.sellPrice} onChange={e => set('sellPrice', e.target.value)} />
+                    <input type="number" step="any" className="form-input" placeholder="Kosongkan jika masih hold" value={form.sellPrice} onChange={e => set('sellPrice', e.target.value)} />
                   </div>
                 </div>
 
@@ -203,27 +248,27 @@ export default function NewTradePage() {
                   </div>
                   <div className="calc-result-row">
                     <span className="calc-result-label">Jumlah Lembar</span>
-                    <span className="calc-result-value">{shares.toLocaleString('id-ID')}</span>
+                    <span className="calc-result-value">{shares.toLocaleString('en-US', { maximumFractionDigits: 4 })}</span>
                   </div>
                   <div className="calc-result-row">
                     <span className="calc-result-label">Total Beli</span>
-                    <span className="calc-result-value">Rp {totalBuy.toLocaleString('id-ID')}</span>
+                    <span className="calc-result-value">{formatMoney(totalBuy)}</span>
                   </div>
                   {sellPrice > 0 && (
                     <>
                       <div className="calc-result-row">
                         <span className="calc-result-label">Total Jual</span>
-                        <span className="calc-result-value">Rp {totalSell.toLocaleString('id-ID')}</span>
+                        <span className="calc-result-value">{formatMoney(totalSell)}</span>
                       </div>
                       <div className="calc-result-row">
                         <span className="calc-result-label">Total Fee</span>
-                        <span className="calc-result-value">Rp {Math.round(buyComm + sellComm).toLocaleString('id-ID')}</span>
+                        <span className="calc-result-value">{formatMoney(buyComm + sellComm)}</span>
                       </div>
                       <div className="calc-result-row" style={{ borderBottom: 'none', paddingTop: 16 }}>
                         <span className="calc-result-label" style={{ fontSize: '1rem', fontWeight: 600 }}>Profit/Loss</span>
                         <div style={{ textAlign: 'right' }}>
                           <div className={`calc-result-value big ${pnl >= 0 ? 'text-profit' : 'text-loss'}`}>
-                            {pnl >= 0 ? '+' : ''}Rp {Math.round(pnl).toLocaleString('id-ID')}
+                            {pnl >= 0 && '+'}{formatMoney(pnl)}
                           </div>
                           <div className={`${pnl >= 0 ? 'text-profit' : 'text-loss'}`} style={{ fontSize: '0.85rem', fontWeight: 600 }}>
                             ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
