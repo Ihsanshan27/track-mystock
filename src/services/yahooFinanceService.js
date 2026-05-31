@@ -182,8 +182,8 @@ export async function fetchQuotesBatch(tickers, delayMs = 300) {
                 results[originalTicker] = data;
                 setCache(`quote_${symbolStr}`, data, CACHE_TTL_QUOTE);
             }
-        } catch (e) {
-            console.warn('Bulk quote chunk failed:', e);
+        } catch {
+            // Ignore failed proxy chunks; callers already handle partial data.
         }
 
         if (i + BULK_CHUNK_SIZE < uncachedTickers.length) {
@@ -229,9 +229,8 @@ export async function fetchMultipleStocks(tickers) {
     }
 
     return results
-        .map((r, i) => {
+        .map((r) => {
             if (r.status === 'fulfilled') return r.value;
-            console.warn(`[YahooFinance] Gagal mengambil ${tickers[i]}:`, r.reason?.message);
             return null;
         })
         .filter(Boolean);

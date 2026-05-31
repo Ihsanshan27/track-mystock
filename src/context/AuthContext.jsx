@@ -1,8 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getItem, setItem, generateId } from '../utils/storage';
-import { isSupabaseConfigured, supabase, supabaseProjectRef } from '../services/supabaseClient';
+import { isSupabaseConfigured, supabase } from '../services/supabaseClient';
 import { updateProfileName } from '../services/profileService';
-import { devLog } from '../utils/devLogger';
 import { getAuthErrorMessage } from '../utils/errorMessages';
 
 const AuthContext = createContext(null);
@@ -22,25 +21,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    devLog('auth:init', {
-      storage: isSupabaseConfigured ? 'supabase' : 'localStorage',
-      projectRef: supabaseProjectRef,
-    });
-
     if (isSupabaseConfigured) {
       let mounted = true;
 
       supabase.auth.getSession().then(({ data }) => {
         if (!mounted) return;
         const sessionUser = mapSupabaseUser(data.session?.user);
-        devLog('auth:session-loaded', { signedIn: Boolean(sessionUser), userId: sessionUser?.id });
         setUser(sessionUser);
         setLoading(false);
       });
 
       const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
         const sessionUser = mapSupabaseUser(session?.user);
-        devLog('auth:state-change', { event: _event, signedIn: Boolean(sessionUser), userId: sessionUser?.id });
         setUser(sessionUser);
         setLoading(false);
       });
@@ -53,19 +45,12 @@ export function AuthProvider({ children }) {
 
     const session = getItem('session');
     if (session) {
-      devLog('auth:local-session-loaded', { userId: session.id });
       setUser(session);
     }
     setLoading(false);
   }, []);
 
   const register = async (username, password) => {
-    devLog('auth:register-start', {
-      email: maskEmail(username),
-      storage: isSupabaseConfigured ? 'supabase' : 'localStorage',
-      projectRef: supabaseProjectRef,
-    });
-
     if (isSupabaseConfigured) {
       const email = username.toLowerCase();
       const { data, error } = await supabase.auth.signUp({
@@ -79,24 +64,20 @@ export function AuthProvider({ children }) {
       });
 
       if (error) {
-        devLog('auth:register-error', { email: maskEmail(email), error: error.message, projectRef: supabaseProjectRef });
         return { success: false, error: getAuthErrorMessage(error.message) };
       }
       if (data.user && !data.session) {
-        devLog('auth:register-needs-confirmation', { email: maskEmail(email), userId: data.user.id });
         return {
           success: true,
           needsConfirmation: true,
           message: 'Akun dibuat. Cek email untuk konfirmasi, lalu login kembali.',
         };
       }
-      devLog('auth:register-success', { email: maskEmail(email), userId: data.user?.id });
       return { success: true };
     }
 
     const users = getItem('users') || [];
     if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
-      devLog('auth:register-error', { email: maskEmail(username), error: 'Username sudah digunakan' });
       return { success: false, error: 'Username sudah digunakan' };
     }
     const newUser = {
@@ -112,7 +93,6 @@ export function AuthProvider({ children }) {
     const session = { id: newUser.id, username: newUser.username };
     setItem('session', session);
     setUser(session);
-    devLog('auth:register-success', { email: maskEmail(username), userId: newUser.id });
 
     // Initialize settings with user-scoped key
     setItem(`settings_${newUser.id}`, {
@@ -129,8 +109,6 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (username, password) => {
-    devLog('auth:login-start', { email: maskEmail(username), storage: isSupabaseConfigured ? 'supabase' : 'localStorage' });
-
     if (isSupabaseConfigured) {
       const { error } = await supabase.auth.signInWithPassword({
         email: username.toLowerCase(),
@@ -138,10 +116,8 @@ export function AuthProvider({ children }) {
       });
 
       if (error) {
-        devLog('auth:login-error', { email: maskEmail(username), error: error.message });
         return { success: false, error: getAuthErrorMessage(error.message) };
       }
-      devLog('auth:login-success', { email: maskEmail(username) });
       return { success: true };
     }
 
@@ -150,29 +126,23 @@ export function AuthProvider({ children }) {
       u => u.username.toLowerCase() === username.toLowerCase() && u.password === hashPassword(password)
     );
     if (!found) {
-      devLog('auth:login-error', { email: maskEmail(username), error: 'Username atau password salah' });
       return { success: false, error: 'Username atau password salah' };
     }
     const session = { id: found.id, username: found.username };
     setItem('session', session);
     setUser(session);
-    devLog('auth:login-success', { email: maskEmail(username), userId: found.id });
     return { success: true };
   };
 
   const logout = async () => {
-    devLog('auth:logout-start', { userId: user?.id });
-
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
       setUser(null);
-      devLog('auth:logout-success', { storage: 'supabase' });
       return;
     }
 
     setItem('session', null);
     setUser(null);
-    devLog('auth:logout-success', { storage: 'localStorage' });
   };
 
   const updateUsername = async (newUsername) => {
@@ -204,13 +174,6 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-function maskEmail(email = '') {
-  const [name, domain] = email.toLowerCase().split('@');
-  if (!domain) return email;
-  const maskedName = name.length <= 2 ? `${name[0] || ''}*` : `${name.slice(0, 2)}***`;
-  return `${maskedName}@${domain}`;
 }
 
 function mapSupabaseUser(supabaseUser) {

@@ -3,7 +3,6 @@ import { getScopedItem, setScopedItem, generateId, migrateGlobalToUser } from '.
 import { useAuth } from './AuthContext';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { clearUserData, loadUserData, replaceAllUserData, saveUserData } from '../services/supabaseDataService';
-import { devLog } from '../utils/devLogger';
 import { isMissingDatabaseSetupError } from '../utils/errorMessages';
 
 const DataContext = createContext(null);
@@ -56,7 +55,6 @@ export function DataProvider({ children }) {
   // Load user-scoped data (with one-time migration from global keys)
   useEffect(() => {
     if (!userId) {
-      devLog('data:reset-anonymous');
       setTrades([]);
       setWatchlist([]);
       setNotes([]);
@@ -74,22 +72,18 @@ export function DataProvider({ children }) {
       setDataLoading(true);
       setDataError('');
       setDatabaseSetupError('');
-      devLog('data:load-start', { userId, storage: isSupabaseConfigured ? 'supabase' : 'localStorage' });
       try {
         if (isSupabaseConfigured) {
           const remoteData = await loadUserData(userId);
           const nextData = await migrateLocalDataToSupabase(userId, remoteData);
           if (cancelled) return;
           applyData(nextData);
-          devLog('data:load-success', { userId, storage: 'supabase', summary: getDataSummary(nextData) });
         } else {
           migrateGlobalToUser(userId);
           const localData = loadLocalData(userId);
           applyData(localData);
-          devLog('data:load-success', { userId, storage: 'localStorage', summary: getDataSummary(localData) });
         }
       } catch (error) {
-        devLog('data:load-error', { userId, error: error.message });
         if (isMissingDatabaseSetupError(error)) {
           setDatabaseSetupError(error.message);
         } else {
@@ -109,17 +103,13 @@ export function DataProvider({ children }) {
 
   const persistData = useCallback((key, value) => {
     if (!userId) return;
-    devLog('data:save-start', { key, userId, storage: isSupabaseConfigured ? 'supabase' : 'localStorage', size: getValueSize(value) });
     if (isSupabaseConfigured) {
       saveUserData(key, value, userId)
-        .then(() => devLog('data:save-success', { key, userId, storage: 'supabase' }))
         .catch((error) => {
-          devLog('data:save-error', { key, userId, error: error.message });
           showToast(`Gagal menyimpan ${key}: ${error.message}`, 'error');
         });
     } else {
       setScopedItem(key, userId, value);
-      devLog('data:save-success', { key, userId, storage: 'localStorage' });
     }
   }, [userId, showToast]);
 
@@ -257,7 +247,6 @@ export function DataProvider({ children }) {
 
   const importData = async (data) => {
     if (!data || !data.version) throw new Error('Format data tidak valid');
-    devLog('data:import-start', { userId, version: data.version });
     const nextData = {
       trades: data.trades || [],
       watchlist: data.watchlist || [],
@@ -275,11 +264,9 @@ export function DataProvider({ children }) {
     } else {
       Object.entries(nextData).forEach(([key, value]) => setScopedItem(key, userId, value));
     }
-    devLog('data:import-success', { userId, summary: getDataSummary(nextData) });
   };
 
   const clearData = async () => {
-    devLog('data:clear-start', { userId, storage: isSupabaseConfigured ? 'supabase' : 'localStorage' });
     setTrades([]);
     setWatchlist([]);
     setNotes([]);
@@ -299,7 +286,6 @@ export function DataProvider({ children }) {
       setScopedItem('settings', userId, DEFAULT_SETTINGS);
       setScopedItem('marketPrices', userId, {});
     }
-    devLog('data:clear-success', { userId });
   };
 
   return (
@@ -360,28 +346,8 @@ async function migrateLocalDataToSupabase(userId, remoteData) {
   const localData = loadLocalData(userId);
   if (!hasStoredData(localData)) return normalizedRemote;
 
-  devLog('data:migrate-local-to-supabase-start', { userId, summary: getDataSummary(localData) });
   await replaceAllUserData(localData, userId);
-  devLog('data:migrate-local-to-supabase-success', { userId });
   return localData;
-}
-
-function getValueSize(value) {
-  if (Array.isArray(value)) return value.length;
-  if (value && typeof value === 'object') return Object.keys(value).length;
-  return value == null ? 0 : 1;
-}
-
-function getDataSummary(data) {
-  return {
-    trades: data.trades?.length || 0,
-    watchlist: data.watchlist?.length || 0,
-    notes: data.notes?.length || 0,
-    cashflows: data.cashflows?.length || 0,
-    dividends: data.dividends?.length || 0,
-    marketPrices: getValueSize(data.marketPrices),
-    hasSettings: Boolean(data.settings),
-  };
 }
 
 export function useData() {

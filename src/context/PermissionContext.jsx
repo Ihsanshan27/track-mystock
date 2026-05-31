@@ -1,7 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { loadProfile } from '../services/profileService';
-import { devLog } from '../utils/devLogger';
 import { isMissingDatabaseSetupError } from '../utils/errorMessages';
 
 const PermissionContext = createContext(null);
@@ -39,13 +38,11 @@ export function PermissionProvider({ children }) {
       setRoleLoading(true);
       setRoleError('');
       setRoleSetupError('');
-      devLog('role:load-start', { userId: user.id });
 
       try {
         const nextProfile = await loadProfile(user);
         if (cancelled) return;
         setProfile(nextProfile);
-        devLog('role:load-success', { userId: user.id, role: nextProfile?.role });
       } catch (error) {
         if (cancelled) return;
         const fallbackProfile = {
@@ -62,7 +59,6 @@ export function PermissionProvider({ children }) {
         } else {
           setRoleError(error.message);
         }
-        devLog('role:load-error', { userId: user.id, error: error.message });
       } finally {
         if (!cancelled) setRoleLoading(false);
       }
