@@ -4,7 +4,7 @@ import {
   calculateStats, calculateStrategyStats, calculateDayOfWeekPnL,
   calculateEmotionStats, calculateTopStocks, calculateMonthlyPnL, calculateTagStats
 } from '../utils/calculations';
-import { formatRupiah, formatPercent, formatNumber } from '../utils/formatters';
+import { formatRupiah } from '../utils/formatters';
 import { EMOTIONS } from '../utils/constants';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
@@ -170,7 +170,7 @@ export default function AnalyticsPage() {
           <div className="card-body">
             {tagStats.length > 0 ? (
               <div>
-                {tagStats.slice(0, 10).map((ts, i) => (
+                {tagStats.slice(0, 10).map((ts) => (
                   <div key={ts.tagName} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="badge badge-purple">#{ts.tagName}</span>

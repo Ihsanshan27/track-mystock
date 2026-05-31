@@ -6,17 +6,20 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!username.trim() || !password.trim()) {
-      setError('Username dan password wajib diisi');
+      setError('Email dan password wajib diisi');
       return;
     }
-    const result = login(username.trim(), password);
+    setSubmitting(true);
+    const result = await login(username.trim(), password);
+    setSubmitting(false);
     if (result.success) {
       navigate('/');
     } else {
@@ -47,11 +50,11 @@ export default function LoginPage() {
             </div>
           )}
           <div className="form-group">
-            <label className="form-label">Username</label>
+            <label className="form-label">Email</label>
             <input
-              type="text"
+              type="email"
               className="form-input"
-              placeholder="Masukkan username"
+              placeholder="Masukkan email"
               value={username}
               onChange={e => setUsername(e.target.value)}
               autoFocus
@@ -67,8 +70,8 @@ export default function LoginPage() {
               onChange={e => setPassword(e.target.value)}
             />
           </div>
-          <button type="submit" className="btn btn-primary">
-            Masuk
+          <button type="submit" className="btn btn-primary" disabled={submitting}>
+            {submitting ? 'Memproses...' : 'Masuk'}
           </button>
         </form>
 

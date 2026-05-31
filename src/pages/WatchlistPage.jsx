@@ -97,7 +97,6 @@ export default function WatchlistPage() {
             <tbody>
               {watchlist.map(item => {
                 const priority = WATCHLIST_PRIORITY.find(p => p.value === item.priority);
-                const status = WATCHLIST_STATUS.find(s => s.value === item.status);
                 return (
                   <tr key={item.id}>
                     <td><strong>{item.stockCode}</strong></td>

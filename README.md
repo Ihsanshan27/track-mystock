@@ -1,16 +1,65 @@
-# React + Vite
+# Jurnal Saham
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplikasi jurnal trading saham berbasis React, Vite, dan Supabase.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Install dependency:
 
-## React Compiler
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. Buat file `.env` dari contoh:
 
-## Expanding the ESLint configuration
+```bash
+cp .env.example .env
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3. Isi kredensial Supabase:
+
+```env
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+```
+
+4. Buka Supabase SQL Editor, lalu jalankan isi file `supabase/schema.sql`.
+
+   Untuk menjalankan semua migration, termasuk fondasi multi-role, pakai Supabase CLI:
+
+```bash
+npm run db:link
+npm run db:push
+```
+
+5. Jalankan aplikasi:
+
+```bash
+npm run dev
+```
+
+Lalu buka `http://127.0.0.1:5174`.
+
+Jika `.env` Supabase belum diisi, aplikasi tetap berjalan memakai localStorage sebagai fallback.
+Untuk project Supabase lama yang masih memakai anon key, aplikasi juga masih membaca `VITE_SUPABASE_ANON_KEY`.
+
+## Supabase
+
+Integrasi menggunakan:
+
+- Supabase Auth untuk register, login, logout, dan profil.
+- Tabel `public.journal_data` untuk menyimpan data jurnal per user dalam format JSON.
+- Row Level Security dengan `auth.uid()` agar user hanya dapat mengakses datanya sendiri.
+
+Di Supabase Dashboard, pastikan email/password provider aktif di Authentication settings. Jika email confirmation aktif, user perlu konfirmasi email sebelum login.
+
+Operasional Supabase seperti membuat admin pertama dan troubleshooting rate limit ada di `docs/supabase-operations.md`.
+
+## Scripts
+
+```bash
+npm run dev
+npm run lint
+npm run build
+npm run preview
+```

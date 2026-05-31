@@ -56,7 +56,7 @@ export function migrateGlobalToUser(userId) {
   const migrationKey = getScopedKey('_migrated', userId);
   if (getItem(migrationKey)) return; // Already migrated
 
-  const dataKeys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
+  const dataKeys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
   for (const key of dataKeys) {
     const globalData = getItem(key); // read from old global key
     if (globalData != null) {
@@ -81,7 +81,7 @@ export function migrateGlobalToUser(userId) {
 
 export function exportAllData(userId) {
   const data = {};
-  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
+  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
   if (userId) {
     for (const key of keys) {
       data[key] = getScopedItem(key, userId);
@@ -99,7 +99,7 @@ export function exportAllData(userId) {
 
 export function importAllData(data, userId) {
   if (!data || !data.version) throw new Error('Format data tidak valid');
-  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
+  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
   for (const key of keys) {
     if (data[key] != null) {
       if (userId) {
@@ -112,7 +112,7 @@ export function importAllData(data, userId) {
 }
 
 export function clearAllData(userId) {
-  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends'];
+  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
   if (userId) {
     for (const key of keys) {
       removeScopedItem(key, userId);

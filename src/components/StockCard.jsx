@@ -40,9 +40,6 @@ const StockCard = ({ stock, indicators, patterns, signals = [] }) => {
     const hasEma = emaValues.ema50 && emaValues.ema200;
     const topSignal = signals[0] && SIGNAL_BADGES[signals[0]];
 
-    // Signal strength for top border color
-    const borderColor = topSignal ? topSignal.color : isUp ? 'var(--accent-green)' : 'var(--accent-red)';
-
     return (
         <div
             className="card"

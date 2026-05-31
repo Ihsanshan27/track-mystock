@@ -1,14 +1,18 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { NAV_ITEMS } from '../../utils/constants';
+import { usePermissions } from '../../context/PermissionContext';
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
+  const { role } = usePermissions();
 
   const sections = {};
-  NAV_ITEMS.forEach(item => {
-    if (!sections[item.section]) sections[item.section] = [];
-    sections[item.section].push(item);
-  });
+  NAV_ITEMS
+    .filter(item => !item.roles || item.roles.includes(role))
+    .forEach(item => {
+      if (!sections[item.section]) sections[item.section] = [];
+      sections[item.section].push(item);
+    });
 
   return (
     <>

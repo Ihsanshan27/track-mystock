@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { DataProvider } from './context/DataContext';
+import { DataProvider, useData } from './context/DataContext';
+import { PermissionProvider, usePermissions } from './context/PermissionContext';
 import Layout from './components/Layout/Layout';
 
 import LoginPage from './pages/LoginPage';
@@ -17,14 +18,64 @@ import NotesPage from './pages/NotesPage';
 import SettingsPage from './pages/SettingsPage';
 import CashflowPage from './pages/CashflowPage';
 import DividendPage from './pages/DividendPage';
-import ScreenerPage from './pages/ScreenerPage';
-import CategoryPage from './pages/CategoryPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminWorkspacesPage from './pages/AdminWorkspacesPage';
+import AdminAuditLogsPage from './pages/AdminAuditLogsPage';
+import DatabaseSetupNotice from './components/DatabaseSetupNotice';
+import AccessDenied from './components/AccessDenied';
+import StateMessage from './components/StateMessage';
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute() {
   const { user, loading } = useAuth();
   if (loading) return <div className="loading-spinner" style={{ marginTop: '40vh' }} />;
   if (!user) return <Navigate to="/login" replace />;
-  return <DataProvider><Layout>{children}</Layout></DataProvider>;
+  return (
+    <PermissionProvider>
+      <DataProvider>
+        <Layout>
+          <AppLoadingGate>
+            <Outlet />
+          </AppLoadingGate>
+        </Layout>
+      </DataProvider>
+    </PermissionProvider>
+  );
+}
+
+function AppLoadingGate({ children }) {
+  const { dataLoading, dataError, databaseSetupError } = useData();
+  const { roleLoading, roleError, roleSetupError, refreshProfile } = usePermissions();
+  if (dataLoading || roleLoading) return <div className="loading-spinner" />;
+  if (databaseSetupError || roleSetupError) {
+    return (
+      <DatabaseSetupNotice
+        error={databaseSetupError || roleSetupError}
+        onRetry={() => {
+          refreshProfile();
+          window.location.reload();
+        }}
+      />
+    );
+  }
+  if (dataError || roleError) {
+    return (
+      <StateMessage
+        tone="danger"
+        title="Gagal memuat aplikasi"
+        description={dataError || roleError}
+        actionLabel="Muat Ulang"
+        onAction={() => window.location.reload()}
+      />
+    );
+  }
+  return children;
+}
+
+function AdminRoute({ children }) {
+  const { isAdmin, roleLabel, roleLoading } = usePermissions();
+  if (roleLoading) return <div className="loading-spinner" />;
+  if (!isAdmin) return <AccessDenied roleLabel={roleLabel} />;
+  return children;
 }
 
 function PublicRoute({ children }) {
@@ -39,20 +90,23 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
-      <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-      <Route path="/trades" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
-      <Route path="/trades/new" element={<ProtectedRoute><NewTradePage /></ProtectedRoute>} />
-      <Route path="/trades/:id" element={<ProtectedRoute><TradeDetailPage /></ProtectedRoute>} />
-      <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
-      <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
-      <Route path="/cashflow" element={<ProtectedRoute><CashflowPage /></ProtectedRoute>} />
-      <Route path="/dividends" element={<ProtectedRoute><DividendPage /></ProtectedRoute>} />
-      <Route path="/calculator" element={<ProtectedRoute><CalculatorPage /></ProtectedRoute>} />
-      <Route path="/watchlist" element={<ProtectedRoute><WatchlistPage /></ProtectedRoute>} />
-      <Route path="/notes" element={<ProtectedRoute><NotesPage /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-      <Route path="/screener" element={<ProtectedRoute><ScreenerPage /></ProtectedRoute>} />
-      <Route path="/category" element={<ProtectedRoute><CategoryPage /></ProtectedRoute>} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/trades" element={<TradesPage />} />
+        <Route path="/trades/new" element={<NewTradePage />} />
+        <Route path="/trades/:id" element={<TradeDetailPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/cashflow" element={<CashflowPage />} />
+        <Route path="/dividends" element={<DividendPage />} />
+        <Route path="/calculator" element={<CalculatorPage />} />
+        <Route path="/watchlist" element={<WatchlistPage />} />
+        <Route path="/notes" element={<NotesPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+        <Route path="/admin/workspaces" element={<AdminRoute><AdminWorkspacesPage /></AdminRoute>} />
+        <Route path="/admin/audit-logs" element={<AdminRoute><AdminAuditLogsPage /></AdminRoute>} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

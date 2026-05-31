@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { exportAllData, importAllData, clearAllData } from '../utils/storage';
+import { usePermissions } from '../context/PermissionContext';
 import { formatRupiah } from '../utils/formatters';
 
 export default function SettingsPage() {
-  const { settings, updateSettings, showToast } = useData();
+  const { settings, updateSettings, showToast, exportData, importData, clearData } = useData();
   const { user, updateUsername, logout } = useAuth();
+  const { roleLabel, roleError, refreshProfile } = usePermissions();
   const [newUsername, setNewUsername] = useState(user?.username || '');
   const [form, setForm] = useState({ ...settings });
+
+  useEffect(() => {
+    setForm({ ...settings });
+  }, [settings]);
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -24,15 +29,20 @@ export default function SettingsPage() {
     });
   };
 
-  const handleSaveUsername = () => {
+  const handleSaveUsername = async () => {
     if (newUsername.trim().length >= 3) {
-      updateUsername(newUsername.trim());
-      showToast('Username diperbarui');
+      const result = await updateUsername(newUsername.trim());
+      if (result?.success === false) {
+        showToast(result.error, 'error');
+      } else {
+        await refreshProfile();
+        showToast('Profil diperbarui');
+      }
     }
   };
 
   const handleExport = () => {
-    const data = exportAllData(user?.id);
+    const data = exportData(user?.id);
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -48,10 +58,10 @@ export default function SettingsPage() {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        importAllData(data, user?.id);
+        await importData(data, user?.id);
         showToast('Data berhasil diimport! Refresh halaman untuk melihat perubahan.');
         setTimeout(() => window.location.reload(), 1500);
       } catch {
@@ -63,9 +73,12 @@ export default function SettingsPage() {
 
   const handleClearData = () => {
     if (window.confirm('PERINGATAN: Semua data transaksi, watchlist, dan catatan akan dihapus permanen. Lanjutkan?')) {
-      clearAllData(user?.id);
-      showToast('Semua data telah dihapus');
-      setTimeout(() => window.location.reload(), 1000);
+      clearData(user?.id)
+        .then(() => {
+          showToast('Semua data telah dihapus');
+          setTimeout(() => window.location.reload(), 1000);
+        })
+        .catch((error) => showToast(error.message, 'error'));
     }
   };
 
@@ -84,11 +97,20 @@ export default function SettingsPage() {
           <div className="card-header"><h3 className="card-title">👤 Profil</h3></div>
           <div className="card-body">
             <div className="form-group">
-              <label className="form-label">Username</label>
+              <label className="form-label">Nama Tampilan</label>
               <div style={{ display: 'flex', gap: 12 }}>
                 <input className="form-input" value={newUsername} onChange={e => setNewUsername(e.target.value)} />
                 <button className="btn btn-secondary" onClick={handleSaveUsername}>Simpan</button>
               </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Role</label>
+              <div className="badge badge-blue">{roleLabel}</div>
+              {roleError && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent-yellow)', marginTop: 8 }}>
+                  Role fallback aktif: {roleError}
+                </div>
+              )}
             </div>
           </div>
         </div>

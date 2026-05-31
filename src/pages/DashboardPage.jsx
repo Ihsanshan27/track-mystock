@@ -74,7 +74,7 @@ export default function DashboardPage() {
     .slice(0, 8);
 
   // Calendar heatmap for current month
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const calendarDays = useMemo(() => {
     const year = now.getFullYear();
     const month = now.getMonth();
@@ -89,7 +89,7 @@ export default function DashboardPage() {
       days.push({ day: d, date: dateStr, pnl });
     }
     return days;
-  }, [dailyPnL]);
+  }, [dailyPnL, now]);
 
   if (trades.length === 0) {
     return (

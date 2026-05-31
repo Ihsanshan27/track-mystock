@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { EMITEN_DATA, SECTORS, SECTOR_META, getTickersBySector } from '../data/commodityData';
-import { fetchQuote, fetchQuotesBatch } from '../services/yahooFinanceService';
+import { fetchQuotesBatch } from '../services/yahooFinanceService';
 import { TrendingUp, TrendingDown, Loader2, RefreshCw, Layers, ChevronDown, ChevronUp, Search } from 'lucide-react';
 
 

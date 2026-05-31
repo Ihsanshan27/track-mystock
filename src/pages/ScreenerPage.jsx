@@ -10,7 +10,7 @@ import {
 } from '../utils/patternRecognition';
 import { generateAnalysis } from '../utils/generateAnalysis';
 import { EMITEN_DATA, SECTORS, getTickersBySector } from '../data/commodityData';
-import { Search, RefreshCw, AlertTriangle, Zap, TrendingUp, Filter } from 'lucide-react';
+import { Search, RefreshCw, AlertTriangle, Zap } from 'lucide-react';
 
 const Skeleton = () => (
     <div className="card" style={{ overflow: 'hidden', opacity: 0.6 }}>
@@ -205,8 +205,6 @@ const ScreenerPage = () => {
     };
 
     const filteredStocks = filterStocks(stocks, filters);
-    const signalStocks = stocks.filter(s => s.signals?.length > 0).length;
-
     return (
         <div className="page-container">
             {/* Header */}

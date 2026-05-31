@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { calculateTradePnL } from '../utils/calculations';
+import { calculateTradePnL, calculateUnrealizedPnL } from '../utils/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '../utils/formatters';
 import { STRATEGIES, EMOTIONS } from '../utils/constants';
 

@@ -17,7 +17,11 @@ export function calculateIndicators(ohlcv) {
         SimpleMASignal: false
     };
     let macdResult = [];
-    try { macdResult = MACD.calculate(macdInput); } catch (e) { }
+    try {
+        macdResult = MACD.calculate(macdInput);
+    } catch {
+        macdResult = [];
+    }
 
     // EMA (e.g. 50 and 200 for Golden Cross)
     let ema50Result = [];
@@ -25,7 +29,10 @@ export function calculateIndicators(ohlcv) {
     try {
         ema50Result = EMA.calculate({ period: 50, values: closePrices });
         ema200Result = EMA.calculate({ period: 200, values: closePrices });
-    } catch (e) { }
+    } catch {
+        ema50Result = [];
+        ema200Result = [];
+    }
 
     // Stochastic (14, 3, 3)
     const stochInput = {
@@ -36,7 +43,11 @@ export function calculateIndicators(ohlcv) {
         signalPeriod: 3
     };
     let stochResult = [];
-    try { stochResult = Stochastic.calculate(stochInput); } catch (e) { }
+    try {
+        stochResult = Stochastic.calculate(stochInput);
+    } catch {
+        stochResult = [];
+    }
 
     return {
         macd: macdResult,
@@ -78,8 +89,6 @@ export function isEmaGoldenCross(ema50Data, ema200Data) {
     const ema50Curr = ema50Data[ema50Data.length - 1];
     const ema50Prev = ema50Data[ema50Data.length - 2];
 
-    // EMA200 may be shorter array — align it with EMA50 length difference
-    const offset = ema50Data.length - ema200Data.length;
     const ema200Curr = ema200Data[ema200Data.length - 1];
     const ema200Prev = ema200Data[ema200Data.length - 2];
 
