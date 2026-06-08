@@ -10,10 +10,17 @@ const PAGE_TITLES = {
   '/trades/new': 'Catat Transaksi',
   '/analytics': 'Analitik & Statistik',
   '/portfolio': 'Portfolio',
+  '/reports': 'Reports',
+  '/mentor/traders': 'Trader Share',
   '/watchlist': 'Watchlist',
   '/notes': 'Catatan Trading',
+  '/cashflow': 'Cash Balance',
+  '/dividends': 'Dividen',
   '/calculator': 'Kalkulator Saham',
   '/settings': 'Pengaturan',
+  '/admin/users': 'Admin Users',
+  '/admin/workspaces': 'Admin Workspaces',
+  '/admin/audit-logs': 'Audit Logs',
 };
 
 export default function Layout({ children }) {
@@ -21,7 +28,10 @@ export default function Layout({ children }) {
   const location = useLocation();
   const { toasts } = useData();
 
-  const pageTitle = PAGE_TITLES[location.pathname] || 'Jurnal Saham';
+  let pageTitle = PAGE_TITLES[location.pathname] || 'Jurnal Saham';
+  if (location.pathname.startsWith('/mentor/traders/')) {
+    pageTitle = 'Detail Trader Share';
+  }
 
   return (
     <div className="app-layout">

@@ -16,6 +16,14 @@ export async function createAuditLog({ actorId, action, targetType, targetId, me
   if (error) throw error;
 }
 
+export async function createAuditLogSafe(payload) {
+  try {
+    await createAuditLog(payload);
+  } catch (error) {
+    console.warn('Audit log gagal dibuat:', error.message);
+  }
+}
+
 export async function listAuditLogs(limit = 100) {
   if (!isSupabaseConfigured) return [];
 

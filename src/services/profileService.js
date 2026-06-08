@@ -77,6 +77,21 @@ export async function listProfiles() {
   return (data || []).map(profile => normalizeProfile(profile, {}));
 }
 
+export async function listProfilesByIds(profileIds) {
+  if (!isSupabaseConfigured || !profileIds?.length) return [];
+
+  const uniqueIds = Array.from(new Set(profileIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, display_name, default_role, created_at, updated_at')
+    .in('id', uniqueIds);
+
+  if (error) throw error;
+  return (data || []).map(profile => normalizeProfile(profile, {}));
+}
+
 export async function updateProfileRole(profileId, role) {
   if (!USER_ROLES.includes(role)) throw new Error('Role tidak valid');
   if (!isSupabaseConfigured) throw new Error('Supabase belum dikonfigurasi');

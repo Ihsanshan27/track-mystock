@@ -21,18 +21,29 @@ cp .env.example .env
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+SUPABASE_FIRST_ADMIN_EMAIL=admin@your-domain.com
 ```
 
-4. Buka Supabase SQL Editor, lalu jalankan isi file `supabase/schema.sql`.
-
-   Untuk menjalankan semua migration, termasuk fondasi multi-role, pakai Supabase CLI:
+4. Link project Supabase:
 
 ```bash
 npm run db:link
-npm run db:push
 ```
 
-5. Jalankan aplikasi:
+5. Jalankan setup Supabase:
+
+```bash
+npm run db:setup
+```
+
+Script ini akan:
+- push semua migration
+- deploy Edge Function `admin-create-user`
+- verifikasi tabel penting
+- bootstrap admin pertama jika `SUPABASE_FIRST_ADMIN_EMAIL` sudah diisi
+
+6. Jalankan aplikasi:
 
 ```bash
 npm run dev
@@ -53,12 +64,17 @@ Integrasi menggunakan:
 
 Di Supabase Dashboard, pastikan email/password provider aktif di Authentication settings. Jika email confirmation aktif, user perlu konfirmasi email sebelum login.
 
-Operasional Supabase seperti membuat admin pertama dan troubleshooting rate limit ada di `docs/supabase-operations.md`.
+Operasional Supabase seperti verifikasi setup, bootstrap admin, dan troubleshooting rate limit ada di `docs/supabase-operations.md`.
 
 ## Scripts
 
 ```bash
 npm run dev
+npm run db:setup
+npm run db:push
+npm run db:deploy:functions
+npm run db:verify
+npm run db:bootstrap-admin -- email@contoh.com
 npm run lint
 npm run build
 npm run preview

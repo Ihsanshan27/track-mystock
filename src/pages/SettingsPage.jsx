@@ -2,18 +2,70 @@ import { useEffect, useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionContext';
-import { formatRupiah } from '../utils/formatters';
+import { createAuditLogSafe } from '../services/auditLogService';
+import { listProfiles } from '../services/profileService';
+import { ACCESS_LEVELS, listOwnedSharedAccess, revokeSharedAccess, upsertSharedAccess } from '../services/sharedAccessService';
+import { isSupabaseConfigured } from '../services/supabaseClient';
+import { formatDateTime, formatRupiah } from '../utils/formatters';
+
+const ACCESS_LABELS = {
+  read: 'Read Only',
+  review: 'Review Mentor',
+  admin: 'Admin Share',
+};
 
 export default function SettingsPage() {
   const { settings, updateSettings, showToast, exportData, importData, clearData } = useData();
   const { user, updateUsername, logout } = useAuth();
-  const { roleLabel, roleError, refreshProfile } = usePermissions();
+  const { roleLabel, roleError, refreshProfile, can } = usePermissions();
   const [newUsername, setNewUsername] = useState(user?.username || '');
   const [form, setForm] = useState({ ...settings });
+  const [allProfiles, setAllProfiles] = useState([]);
+  const [sharedAccessRows, setSharedAccessRows] = useState([]);
+  const [shareLoading, setShareLoading] = useState(true);
+  const [shareSaving, setShareSaving] = useState(false);
+  const [shareForm, setShareForm] = useState({
+    granteeId: '',
+    accessLevel: 'review',
+    expiresAt: '',
+  });
 
   useEffect(() => {
     setForm({ ...settings });
   }, [settings]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSharingData() {
+      if (!can('share:journal') || !user?.id || !isSupabaseConfigured) {
+        setAllProfiles([]);
+        setSharedAccessRows([]);
+        setShareLoading(false);
+        return;
+      }
+
+      setShareLoading(true);
+      try {
+        const [profiles, accessRows] = await Promise.all([
+          listProfiles(),
+          listOwnedSharedAccess(user.id),
+        ]);
+        if (cancelled) return;
+        setAllProfiles(profiles.filter((item) => item.id !== user.id));
+        setSharedAccessRows(accessRows);
+      } catch (error) {
+        if (!cancelled) showToast(`Gagal memuat data sharing: ${error.message}`, 'error');
+      } finally {
+        if (!cancelled) setShareLoading(false);
+      }
+    }
+
+    loadSharingData();
+    return () => {
+      cancelled = true;
+    };
+  }, [can, showToast, user?.id]);
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -36,6 +88,13 @@ export default function SettingsPage() {
         showToast(result.error, 'error');
       } else {
         await refreshProfile();
+        await createAuditLogSafe({
+          actorId: user?.id,
+          action: 'profile.display_name_updated',
+          targetType: 'profile',
+          targetId: user?.id,
+          metadata: { displayName: newUsername.trim() },
+        });
         showToast('Profil diperbarui');
       }
     }
@@ -51,6 +110,13 @@ export default function SettingsPage() {
     a.download = `jurnal-saham-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    createAuditLogSafe({
+      actorId: user?.id,
+      action: 'data.exported',
+      targetType: 'journal_data',
+      targetId: user?.id,
+      metadata: { storage: data.storage, version: data.version },
+    });
     showToast('Data berhasil diexport');
   };
 
@@ -62,6 +128,13 @@ export default function SettingsPage() {
       try {
         const data = JSON.parse(ev.target.result);
         await importData(data, user?.id);
+        await createAuditLogSafe({
+          actorId: user?.id,
+          action: 'data.imported',
+          targetType: 'journal_data',
+          targetId: user?.id,
+          metadata: { version: data.version || 'unknown' },
+        });
         showToast('Data berhasil diimport! Refresh halaman untuk melihat perubahan.');
         setTimeout(() => window.location.reload(), 1500);
       } catch {
@@ -74,13 +147,80 @@ export default function SettingsPage() {
   const handleClearData = () => {
     if (window.confirm('PERINGATAN: Semua data transaksi, watchlist, dan catatan akan dihapus permanen. Lanjutkan?')) {
       clearData(user?.id)
-        .then(() => {
+        .then(async () => {
+          await createAuditLogSafe({
+            actorId: user?.id,
+            action: 'data.cleared',
+            targetType: 'journal_data',
+            targetId: user?.id,
+          });
           showToast('Semua data telah dihapus');
           setTimeout(() => window.location.reload(), 1000);
         })
         .catch((error) => showToast(error.message, 'error'));
     }
   };
+
+  const handleSaveShare = async () => {
+    if (!shareForm.granteeId) return;
+
+    setShareSaving(true);
+    try {
+      const row = await upsertSharedAccess({
+        ownerId: user.id,
+        granteeId: shareForm.granteeId,
+        accessLevel: shareForm.accessLevel,
+        expiresAt: shareForm.expiresAt ? new Date(shareForm.expiresAt).toISOString() : null,
+      });
+      await createAuditLogSafe({
+        actorId: user.id,
+        action: 'shared_access.upserted',
+        targetType: 'shared_access',
+        targetId: row.id,
+        metadata: {
+          granteeId: row.grantee_id,
+          accessLevel: row.access_level,
+        },
+      });
+      setSharedAccessRows((prev) => {
+        const existing = prev.find((item) => item.id === row.id || item.grantee_id === row.grantee_id);
+        if (!existing) return [row, ...prev];
+        return prev.map((item) => item.id === existing.id ? row : item);
+      });
+      setShareForm({ granteeId: '', accessLevel: 'review', expiresAt: '' });
+      showToast('Akses jurnal berhasil diperbarui.');
+    } catch (error) {
+      showToast(`Gagal menyimpan akses: ${error.message}`, 'error');
+    } finally {
+      setShareSaving(false);
+    }
+  };
+
+  const handleRevokeShare = async (row) => {
+    if (!window.confirm('Cabut akses user ini dari jurnal Anda?')) return;
+
+    try {
+      await revokeSharedAccess(row.id);
+      await createAuditLogSafe({
+        actorId: user.id,
+        action: 'shared_access.revoked',
+        targetType: 'shared_access',
+        targetId: row.id,
+        metadata: {
+          granteeId: row.grantee_id,
+        },
+      });
+      setSharedAccessRows((prev) => prev.filter((item) => item.id !== row.id));
+      showToast('Akses berhasil dicabut.');
+    } catch (error) {
+      showToast(`Gagal mencabut akses: ${error.message}`, 'error');
+    }
+  };
+
+  const profileById = allProfiles.reduce((acc, item) => {
+    acc[item.id] = item;
+    return acc;
+  }, {});
 
   return (
     <div>
@@ -166,6 +306,116 @@ export default function SettingsPage() {
             <button className="btn btn-primary" onClick={handleSaveSettings}>💾 Simpan Pengaturan</button>
           </div>
         </div>
+
+        {can('share:journal') ? (
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div className="card-header"><h3 className="card-title">🤝 Share Jurnal ke Mentor / Viewer</h3></div>
+            <div className="card-body">
+              {!isSupabaseConfigured ? (
+                <div style={{ color: 'var(--accent-yellow)' }}>
+                  Fitur sharing jurnal butuh Supabase aktif.
+                </div>
+              ) : (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">Pilih User</label>
+                      <select
+                        className="form-select"
+                        value={shareForm.granteeId}
+                        onChange={(event) => setShareForm((prev) => ({ ...prev, granteeId: event.target.value }))}
+                      >
+                        <option value="">Pilih mentor / viewer</option>
+                        {allProfiles
+                          .filter((item) => item.role === 'mentor' || item.role === 'viewer' || item.role === 'admin')
+                          .map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.displayName} ({item.role})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Level Akses</label>
+                      <select
+                        className="form-select"
+                        value={shareForm.accessLevel}
+                        onChange={(event) => setShareForm((prev) => ({ ...prev, accessLevel: event.target.value }))}
+                      >
+                        {ACCESS_LEVELS.map((level) => (
+                          <option key={level} value={level}>{ACCESS_LABELS[level] || level}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Tanggal Berakhir Akses (opsional)</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={shareForm.expiresAt}
+                      onChange={(event) => setShareForm((prev) => ({ ...prev, expiresAt: event.target.value }))}
+                    />
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSaveShare}
+                    disabled={shareSaving || !shareForm.granteeId}
+                  >
+                    {shareSaving ? 'Menyimpan...' : 'Simpan Akses'}
+                  </button>
+
+                  <div style={{ marginTop: 24 }}>
+                    <h4 style={{ marginBottom: 12 }}>Akses Aktif</h4>
+                    {shareLoading ? (
+                      <div style={{ color: 'var(--text-muted)' }}>Memuat akses sharing...</div>
+                    ) : sharedAccessRows.length === 0 ? (
+                      <div style={{ color: 'var(--text-muted)' }}>Belum ada user yang diberi akses.</div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 12 }}>
+                        {sharedAccessRows.map((row) => {
+                          const itemProfile = profileById[row.grantee_id];
+                          return (
+                            <div
+                              key={row.id}
+                              style={{
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-lg)',
+                                padding: 14,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: 12,
+                                flexWrap: 'wrap',
+                              }}
+                            >
+                              <div>
+                                <div style={{ fontWeight: 700 }}>
+                                  {itemProfile?.displayName || itemProfile?.email || row.grantee_id}
+                                </div>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: 4 }}>
+                                  {itemProfile?.role || 'user'} · {ACCESS_LABELS[row.access_level] || row.access_level}
+                                </div>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: 6 }}>
+                                  Dibuat {formatDateTime(row.created_at)}
+                                  {row.expires_at ? ` · berakhir ${formatDateTime(row.expires_at)}` : ''}
+                                </div>
+                              </div>
+                              <div>
+                                <button className="btn btn-danger btn-sm" onClick={() => handleRevokeShare(row)}>
+                                  Cabut Akses
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
 
         {/* Data Management */}
         <div className="card" style={{ marginBottom: 24 }}>

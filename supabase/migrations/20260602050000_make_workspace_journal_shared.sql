@@ -1,54 +1,24 @@
-create table if not exists public.journal_data (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  workspace_id uuid references public.workspaces(id) on delete set null,
-  data_key text not null,
-  data jsonb not null default 'null'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-drop index if exists public.journal_data_personal_scope_unique;
-create unique index if not exists journal_data_personal_scope_unique
-on public.journal_data (user_id, data_key)
-where workspace_id is null;
+with ranked_rows as (
+  select
+    id,
+    workspace_id,
+    data_key,
+    row_number() over (
+      partition by workspace_id, data_key
+      order by updated_at desc nulls last, created_at desc nulls last, id desc
+    ) as row_num
+  from public.journal_data
+  where workspace_id is not null
+)
+delete from public.journal_data jd
+using ranked_rows rr
+where jd.id = rr.id
+  and rr.row_num > 1;
 
 drop index if exists public.journal_data_workspace_scope_unique;
-create unique index if not exists journal_data_workspace_scope_unique
+create unique index journal_data_workspace_scope_unique
 on public.journal_data (workspace_id, data_key)
 where workspace_id is not null;
-
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-drop trigger if exists journal_data_set_updated_at on public.journal_data;
-create trigger journal_data_set_updated_at
-before update on public.journal_data
-for each row execute function public.set_updated_at();
-
-alter table public.journal_data enable row level security;
-
-create or replace function public.can_use_workspace(target_workspace_id uuid, target_user_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select (
-    target_workspace_id is null
-    or public.is_workspace_owner(target_workspace_id, target_user_id)
-    or public.is_workspace_admin(target_workspace_id, target_user_id)
-    or public.is_workspace_member(target_workspace_id, target_user_id)
-  );
-$$;
 
 drop policy if exists "Users can read their own journal data" on public.journal_data;
 create policy "Users can read their own journal data"

@@ -8,6 +8,10 @@
     "build": "vite build",
     "db:link": "supabase link",
     "db:push": "supabase db push",
+    "db:deploy:functions": "supabase functions deploy admin-create-user",
+    "db:verify": "node scripts/supabase/verify-setup.mjs",
+    "db:bootstrap-admin": "node scripts/supabase/bootstrap-admin.mjs",
+    "db:setup": "node scripts/supabase/setup.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

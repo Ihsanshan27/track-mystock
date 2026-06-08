@@ -28,6 +28,11 @@ Status implementasi Jurnal Saham berdasarkan kondisi saat ini.
 - [x] Script migration:
   - [x] `npm run db:link`
   - [x] `npm run db:push`
+- [x] Script setup Supabase otomatis:
+  - [x] `npm run db:setup`
+  - [x] `npm run db:deploy:functions`
+  - [x] `npm run db:verify`
+  - [x] `npm run db:bootstrap-admin`
 
 ### Data Jurnal
 
@@ -48,6 +53,7 @@ Status implementasi Jurnal Saham berdasarkan kondisi saat ini.
 - [x] Migration table `shared_access`.
 - [x] Migration table `trade_reviews`.
 - [x] Migration table `audit_logs`.
+- [x] Migration table `report_shares`.
 - [x] Column `workspace_id` di `journal_data`.
 - [x] Trigger auto-create profile saat user signup.
 - [x] Default role `trader`.
@@ -70,10 +76,9 @@ Status implementasi Jurnal Saham berdasarkan kondisi saat ini.
 
 ### Supabase Setup Manual
 
-- [ ] Jalankan migration ke project Supabase dengan `npm run db:push`.
-- [ ] Deploy Edge Function `admin-create-user`.
-- [ ] Pastikan table `journal_data`, `profiles`, `workspaces`, `workspace_members`, `shared_access`, `trade_reviews`, `audit_logs`, dan `app_settings` muncul di Supabase.
-- [ ] Buat atau update admin pertama di Supabase SQL Editor.
+- [ ] Jalankan `npm run db:setup` ke project Supabase.
+- [ ] Pastikan table `journal_data`, `profiles`, `workspaces`, `workspace_members`, `shared_access`, `trade_reviews`, `audit_logs`, `app_settings`, dan `report_shares` muncul di Supabase.
+- [ ] Buat atau update admin pertama dengan `npm run db:bootstrap-admin -- email@contoh.com`.
 - [ ] Verifikasi register/login dengan user yang sudah ada.
 - [ ] Verifikasi simpan data jurnal masuk ke `journal_data`.
 
@@ -93,45 +98,45 @@ Status implementasi Jurnal Saham berdasarkan kondisi saat ini.
 
 ### Workspace
 
-- [ ] Workspace switcher di header/sidebar.
-- [ ] Context untuk active workspace.
-- [ ] Penyimpanan jurnal berdasarkan workspace.
-- [ ] Filter data jurnal per workspace.
-- [ ] UI manage workspace member.
+- [x] Workspace switcher di header/sidebar.
+- [x] Context untuk active workspace.
+- [x] Penyimpanan jurnal berdasarkan workspace.
+- [x] Filter data jurnal per workspace.
+- [x] UI manage workspace member.
 
 ### Sharing dan Mentor
 
-- [ ] Trader bisa share jurnal ke mentor.
-- [ ] Trader bisa revoke akses mentor.
-- [ ] Mentor bisa melihat daftar trader yang memberi akses.
-- [ ] Route `/mentor/traders`.
-- [ ] Route `/mentor/traders/:userId`.
-- [ ] Mentor bisa melihat transaksi trader yang di-share.
-- [ ] Mentor bisa memberi trade review.
-- [ ] Panel review di Trade Detail.
-- [ ] Tag kesalahan trading.
-- [ ] Rating disiplin, psikologi, dan risk management.
+- [x] Trader bisa share jurnal ke mentor.
+- [x] Trader bisa revoke akses mentor.
+- [x] Mentor bisa melihat daftar trader yang memberi akses.
+- [x] Route `/mentor/traders`.
+- [x] Route `/mentor/traders/:userId`.
+- [x] Mentor bisa melihat transaksi trader yang di-share.
+- [x] Mentor bisa memberi trade review.
+- [x] Panel review di Trade Detail.
+- [x] Tag kesalahan trading.
+- [x] Rating disiplin, psikologi, dan risk management.
 
 ### Viewer dan Report
 
-- [ ] Role viewer read-only secara penuh.
-- [ ] Share report read-only.
-- [ ] Route `/reports`.
-- [ ] Route `/shared/:shareId`.
-- [ ] Portfolio summary report.
-- [ ] Monthly performance report.
-- [ ] Equity curve report.
-- [ ] Export PDF.
+- [x] Role viewer read-only secara penuh.
+- [x] Share report read-only.
+- [x] Route `/reports`.
+- [x] Route `/shared/:shareId`.
+- [x] Portfolio summary report.
+- [x] Monthly performance report.
+- [x] Equity curve report.
+- [x] Export PDF.
 
 ### Permission dan Security
 
-- [ ] Permission helper yang lebih granular per fitur.
+- [x] Permission helper yang lebih granular per fitur.
 - [x] Route guard admin.
-- [ ] Route guard per role untuk non-admin.
-- [ ] UI fallback ketika user tidak punya izin.
+- [x] Route guard per role untuk non-admin.
+- [x] UI fallback ketika user tidak punya izin.
 - [x] Audit log untuk update role dari admin panel.
-- [ ] Audit log untuk aksi penting lain dari frontend.
-- [ ] RLS lanjutan untuk akses mentor/viewer ke data jurnal.
+- [x] Audit log untuk aksi penting lain dari frontend.
+- [x] RLS lanjutan untuk akses mentor/viewer ke data jurnal.
 - [ ] Test manual RLS dengan beberapa akun.
 
 ### UX dan Stabilitas
@@ -157,10 +162,10 @@ Status implementasi Jurnal Saham berdasarkan kondisi saat ini.
 
 ## Prioritas Berikutnya
 
-1. Jalankan `npm run db:push` dan pastikan migration masuk ke Supabase.
-2. Buat admin pertama manual lewat SQL Editor.
+1. Jalankan `npm run db:setup` dan pastikan migration + function masuk ke Supabase.
+2. Buat admin pertama lewat `npm run db:bootstrap-admin -- email@contoh.com`.
 3. Test Admin Users page dengan akun admin.
-4. Tambah share access trader ke mentor.
-5. Tambah Mentor Review panel di Trade Detail.
-6. Tambah workspace switcher.
-7. Tambah filter data jurnal per workspace.
+4. Test share access trader ke mentor dan viewer.
+5. Test Mentor Review panel di Trade Detail.
+6. Test workspace switcher dengan beberapa workspace.
+7. Test RLS mentor/viewer dengan akun berbeda.

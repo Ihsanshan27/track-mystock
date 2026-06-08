@@ -11,16 +11,24 @@ npx supabase login
 npm run db:link
 ```
 
-Push migration:
+Setup otomatis:
+
+```bash
+npm run db:setup
+```
+
+Script ini akan menjalankan:
+- `supabase db push`
+- `supabase functions deploy admin-create-user`
+- verifikasi table penting jika `SUPABASE_SERVICE_ROLE_KEY` tersedia
+- bootstrap admin pertama jika `SUPABASE_FIRST_ADMIN_EMAIL` tersedia
+
+Kalau ingin manual per langkah:
 
 ```bash
 npm run db:push
-```
-
-Deploy function untuk Admin Panel:
-
-```bash
 npx supabase functions deploy admin-create-user
+npm run db:verify
 ```
 
 Table yang perlu muncul:
@@ -32,10 +40,21 @@ Table yang perlu muncul:
 - `trade_reviews`
 - `audit_logs`
 - `app_settings`
+- `report_shares`
 
 ## Buat Admin Pertama
 
-Pastikan user sudah ada di Supabase Authentication.
+Cara paling cepat:
+
+```bash
+npm run db:bootstrap-admin -- email-kamu@example.com
+```
+
+Atau isi `SUPABASE_FIRST_ADMIN_EMAIL` lalu jalankan `npm run db:setup`.
+
+Pastikan user sudah ada di Supabase Authentication. Script bootstrap akan gagal kalau user belum pernah dibuat.
+
+Fallback manual di SQL Editor:
 
 Jalankan di SQL Editor:
 

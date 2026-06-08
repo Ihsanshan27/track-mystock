@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionContext';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
 export default function Header({ pageTitle, onMenuToggle }) {
   const { user, logout } = useAuth();
   const { profile, role, roleLabel, roleError } = usePermissions();
+  const { availableWorkspaces, activeWorkspaceId, selectWorkspace, workspaceLoading } = useWorkspace();
   const [profileOpen, setProfileOpen] = useState(false);
   const menuRef = useRef(null);
   const displayName = profile?.displayName || user?.username || 'User';
@@ -40,6 +42,22 @@ export default function Header({ pageTitle, onMenuToggle }) {
         <h2 className="header-title">{pageTitle}</h2>
       </div>
       <div className="header-right">
+        <label className="workspace-switcher" title="Pilih workspace aktif">
+          <span className="workspace-switcher-label">Workspace</span>
+          <select
+            className="workspace-switcher-select"
+            value={activeWorkspaceId || ''}
+            onChange={(event) => selectWorkspace(event.target.value || null)}
+            disabled={workspaceLoading}
+          >
+            {availableWorkspaces.map((workspace) => (
+              <option key={workspace.id || 'personal'} value={workspace.id || ''}>
+                {workspace.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <span
           className={`role-badge role-badge-${role}`}
           title={roleError ? `Role fallback: ${roleError}` : `Role: ${roleLabel}`}
@@ -92,6 +110,27 @@ export default function Header({ pageTitle, onMenuToggle }) {
       <style>{`
         .profile-menu-wrap {
           position: relative;
+        }
+        .workspace-switcher {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .workspace-switcher-label {
+          font-size: 0.7rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+        .workspace-switcher-select {
+          min-width: 180px;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          background: var(--bg-input);
+          color: var(--text-primary);
+          padding: 9px 12px;
+          font-size: 0.85rem;
         }
         .profile-menu {
           position: absolute;
@@ -168,6 +207,14 @@ export default function Header({ pageTitle, onMenuToggle }) {
         @media (max-width: 768px) {
           .mobile-menu-btn {
             display: flex !important;
+          }
+          .workspace-switcher {
+            flex: 1;
+            min-width: 0;
+          }
+          .workspace-switcher-select {
+            min-width: 0;
+            width: 100%;
           }
           .header-right > .role-badge {
             display: none;

@@ -1,6 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getScopedItem, setScopedItem, generateId, migrateGlobalToUser } from '../utils/storage';
+import {
+  getWorkspaceScopedItem,
+  setWorkspaceScopedItem,
+  generateId,
+  migrateGlobalToUser,
+  migrateUserScopeToWorkspaceScope,
+} from '../utils/storage';
 import { useAuth } from './AuthContext';
+import { usePermissions } from './PermissionContext';
+import { useWorkspace } from './WorkspaceContext';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { clearUserData, loadUserData, replaceAllUserData, saveUserData } from '../services/supabaseDataService';
 import { isMissingDatabaseSetupError } from '../utils/errorMessages';
@@ -19,6 +27,8 @@ const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends
 
 export function DataProvider({ children }) {
   const { user } = useAuth();
+  const { can, roleLabel } = usePermissions();
+  const { activeWorkspace, activeWorkspaceId, workspaceLoading } = useWorkspace();
   const userId = user?.id;
 
   const [trades, setTrades] = useState([]);
@@ -52,6 +62,12 @@ export function DataProvider({ children }) {
     }, 3000);
   }, []);
 
+  const ensureWritable = useCallback(() => {
+    if (can('journal:write')) return true;
+    showToast(`Role ${roleLabel} hanya punya akses baca.`, 'error');
+    return false;
+  }, [can, roleLabel, showToast]);
+
   // Load user-scoped data (with one-time migration from global keys)
   useEffect(() => {
     if (!userId) {
@@ -66,6 +82,11 @@ export function DataProvider({ children }) {
       return;
     }
 
+    if (workspaceLoading) {
+      setDataLoading(true);
+      return;
+    }
+
     let cancelled = false;
 
     async function loadData() {
@@ -74,13 +95,14 @@ export function DataProvider({ children }) {
       setDatabaseSetupError('');
       try {
         if (isSupabaseConfigured) {
-          const remoteData = await loadUserData(userId);
-          const nextData = await migrateLocalDataToSupabase(userId, remoteData);
+          const remoteData = await loadUserData(userId, activeWorkspaceId);
+          const nextData = await migrateLocalDataToSupabase(userId, activeWorkspaceId, remoteData);
           if (cancelled) return;
           applyData(nextData);
         } else {
           migrateGlobalToUser(userId);
-          const localData = loadLocalData(userId);
+          migrateUserScopeToWorkspaceScope(userId);
+          const localData = loadLocalData(userId, activeWorkspaceId);
           applyData(localData);
         }
       } catch (error) {
@@ -99,28 +121,30 @@ export function DataProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [userId, showToast, applyData]);
+  }, [userId, showToast, applyData, activeWorkspaceId, workspaceLoading]);
 
   const persistData = useCallback((key, value) => {
     if (!userId) return;
     if (isSupabaseConfigured) {
-      saveUserData(key, value, userId)
+      saveUserData(key, value, userId, activeWorkspaceId)
         .catch((error) => {
           showToast(`Gagal menyimpan ${key}: ${error.message}`, 'error');
         });
     } else {
-      setScopedItem(key, userId, value);
+      setWorkspaceScopedItem(key, userId, activeWorkspaceId, value);
     }
-  }, [userId, showToast]);
+  }, [userId, showToast, activeWorkspaceId]);
 
   // Persist trades
   const saveTrades = useCallback((newTrades) => {
     setTrades(newTrades);
     persistData('trades', newTrades);
+    return newTrades;
   }, [persistData]);
 
   // === TRADE CRUD ===
   const addTrade = (trade) => {
+    if (!ensureWritable()) return null;
     const newTrade = { ...trade, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newTrade, ...trades];
     saveTrades(updated);
@@ -129,12 +153,14 @@ export function DataProvider({ children }) {
   };
 
   const updateTrade = (id, updates) => {
+    if (!ensureWritable()) return;
     const updated = trades.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
     saveTrades(updated);
     showToast('Transaksi berhasil diperbarui');
   };
 
   const deleteTrade = (id) => {
+    if (!ensureWritable()) return;
     const updated = trades.filter(t => t.id !== id);
     saveTrades(updated);
     showToast('Transaksi berhasil dihapus');
@@ -144,6 +170,7 @@ export function DataProvider({ children }) {
 
   // === WATCHLIST CRUD ===
   const addWatchlistItem = (item) => {
+    if (!ensureWritable()) return;
     const newItem = { ...item, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newItem, ...watchlist];
     setWatchlist(updated);
@@ -152,12 +179,14 @@ export function DataProvider({ children }) {
   };
 
   const updateWatchlistItem = (id, updates) => {
+    if (!ensureWritable()) return;
     const updated = watchlist.map(w => w.id === id ? { ...w, ...updates } : w);
     setWatchlist(updated);
     persistData('watchlist', updated);
   };
 
   const deleteWatchlistItem = (id) => {
+    if (!ensureWritable()) return;
     const updated = watchlist.filter(w => w.id !== id);
     setWatchlist(updated);
     persistData('watchlist', updated);
@@ -166,6 +195,7 @@ export function DataProvider({ children }) {
 
   // === NOTES CRUD ===
   const addNote = (note) => {
+    if (!ensureWritable()) return;
     const newNote = { ...note, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newNote, ...notes];
     setNotes(updated);
@@ -174,12 +204,14 @@ export function DataProvider({ children }) {
   };
 
   const updateNote = (id, updates) => {
+    if (!ensureWritable()) return;
     const updated = notes.map(n => n.id === id ? { ...n, ...updates, updatedAt: new Date().toISOString() } : n);
     setNotes(updated);
     persistData('notes', updated);
   };
 
   const deleteNote = (id) => {
+    if (!ensureWritable()) return;
     const updated = notes.filter(n => n.id !== id);
     setNotes(updated);
     persistData('notes', updated);
@@ -188,6 +220,7 @@ export function DataProvider({ children }) {
 
   // === CASHFLOW CRUD ===
   const addCashflow = (cf) => {
+    if (!ensureWritable()) return;
     const newCf = { ...cf, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newCf, ...cashflows];
     setCashflows(updated);
@@ -196,6 +229,7 @@ export function DataProvider({ children }) {
   };
 
   const deleteCashflow = (id) => {
+    if (!ensureWritable()) return;
     const updated = cashflows.filter(c => c.id !== id);
     setCashflows(updated);
     persistData('cashflows', updated);
@@ -204,6 +238,7 @@ export function DataProvider({ children }) {
 
   // === DIVIDENDS CRUD ===
   const addDividend = (div) => {
+    if (!ensureWritable()) return;
     const newDiv = { ...div, id: generateId(), createdAt: new Date().toISOString() };
     const updated = [newDiv, ...dividends];
     setDividends(updated);
@@ -212,6 +247,7 @@ export function DataProvider({ children }) {
   };
 
   const deleteDividend = (id) => {
+    if (!ensureWritable()) return;
     const updated = dividends.filter(d => d.id !== id);
     setDividends(updated);
     persistData('dividends', updated);
@@ -220,6 +256,7 @@ export function DataProvider({ children }) {
 
   // === SETTINGS ===
   const updateSettings = (updates) => {
+    if (!ensureWritable()) return;
     const newSettings = { ...settings, ...updates };
     setSettings(newSettings);
     persistData('settings', newSettings);
@@ -227,6 +264,7 @@ export function DataProvider({ children }) {
   };
 
   const updateMarketPrice = (stockCode, price) => {
+    if (!ensureWritable()) return;
     const updated = { ...marketPrices, [stockCode]: parseFloat(price) || 0 };
     setMarketPrices(updated);
     persistData('marketPrices', updated);
@@ -242,10 +280,13 @@ export function DataProvider({ children }) {
     marketPrices,
     exportDate: new Date().toISOString(),
     version: '2.0',
+    workspaceId: activeWorkspaceId,
+    workspaceName: activeWorkspace?.name || 'Personal',
     storage: isSupabaseConfigured ? 'supabase' : 'localStorage',
   });
 
   const importData = async (data) => {
+    if (!ensureWritable()) return;
     if (!data || !data.version) throw new Error('Format data tidak valid');
     const nextData = {
       trades: data.trades || [],
@@ -260,13 +301,14 @@ export function DataProvider({ children }) {
     applyData(nextData);
 
     if (isSupabaseConfigured) {
-      await replaceAllUserData(nextData, userId);
+      await replaceAllUserData(nextData, userId, activeWorkspaceId);
     } else {
-      Object.entries(nextData).forEach(([key, value]) => setScopedItem(key, userId, value));
+      Object.entries(nextData).forEach(([key, value]) => setWorkspaceScopedItem(key, userId, activeWorkspaceId, value));
     }
   };
 
   const clearData = async () => {
+    if (!ensureWritable()) return;
     setTrades([]);
     setWatchlist([]);
     setNotes([]);
@@ -276,15 +318,15 @@ export function DataProvider({ children }) {
     setMarketPrices({});
 
     if (isSupabaseConfigured) {
-      await clearUserData(userId);
+      await clearUserData(userId, activeWorkspaceId);
     } else {
-      setScopedItem('trades', userId, []);
-      setScopedItem('watchlist', userId, []);
-      setScopedItem('notes', userId, []);
-      setScopedItem('cashflows', userId, []);
-      setScopedItem('dividends', userId, []);
-      setScopedItem('settings', userId, DEFAULT_SETTINGS);
-      setScopedItem('marketPrices', userId, {});
+      setWorkspaceScopedItem('trades', userId, activeWorkspaceId, []);
+      setWorkspaceScopedItem('watchlist', userId, activeWorkspaceId, []);
+      setWorkspaceScopedItem('notes', userId, activeWorkspaceId, []);
+      setWorkspaceScopedItem('cashflows', userId, activeWorkspaceId, []);
+      setWorkspaceScopedItem('dividends', userId, activeWorkspaceId, []);
+      setWorkspaceScopedItem('settings', userId, activeWorkspaceId, DEFAULT_SETTINGS);
+      setWorkspaceScopedItem('marketPrices', userId, activeWorkspaceId, {});
     }
   };
 
@@ -303,6 +345,7 @@ export function DataProvider({ children }) {
       exportData, importData, clearData,
       toasts,
       showToast,
+      canWrite: can('journal:write'),
     }}>
       {children}
     </DataContext.Provider>
@@ -313,15 +356,15 @@ function normalizeSettings(settings) {
   return { ...DEFAULT_SETTINGS, ...(settings || {}) };
 }
 
-function loadLocalData(userId) {
+function loadLocalData(userId, workspaceId) {
   return {
-    trades: getScopedItem('trades', userId) || [],
-    watchlist: getScopedItem('watchlist', userId) || [],
-    notes: getScopedItem('notes', userId) || [],
-    cashflows: getScopedItem('cashflows', userId) || [],
-    dividends: getScopedItem('dividends', userId) || [],
-    settings: normalizeSettings(getScopedItem('settings', userId)),
-    marketPrices: getScopedItem('marketPrices', userId) || {},
+    trades: getWorkspaceScopedItem('trades', userId, workspaceId) || [],
+    watchlist: getWorkspaceScopedItem('watchlist', userId, workspaceId) || [],
+    notes: getWorkspaceScopedItem('notes', userId, workspaceId) || [],
+    cashflows: getWorkspaceScopedItem('cashflows', userId, workspaceId) || [],
+    dividends: getWorkspaceScopedItem('dividends', userId, workspaceId) || [],
+    settings: normalizeSettings(getWorkspaceScopedItem('settings', userId, workspaceId)),
+    marketPrices: getWorkspaceScopedItem('marketPrices', userId, workspaceId) || {},
   };
 }
 
@@ -334,7 +377,7 @@ function hasStoredData(data) {
   });
 }
 
-async function migrateLocalDataToSupabase(userId, remoteData) {
+async function migrateLocalDataToSupabase(userId, workspaceId, remoteData) {
   const normalizedRemote = {
     ...remoteData,
     settings: normalizeSettings(remoteData.settings),
@@ -343,10 +386,11 @@ async function migrateLocalDataToSupabase(userId, remoteData) {
   if (hasStoredData(remoteData)) return normalizedRemote;
 
   migrateGlobalToUser(userId);
-  const localData = loadLocalData(userId);
+  migrateUserScopeToWorkspaceScope(userId);
+  const localData = loadLocalData(userId, workspaceId);
   if (!hasStoredData(localData)) return normalizedRemote;
 
-  await replaceAllUserData(localData, userId);
+  await replaceAllUserData(localData, userId, workspaceId);
   return localData;
 }
 

@@ -31,6 +31,14 @@ export function getScopedKey(key, userId) {
   return `${key}_${userId}`;
 }
 
+export function getWorkspaceScopeKey(userId, workspaceId = null) {
+  return workspaceId ? `${userId}_${workspaceId}` : `${userId}_personal`;
+}
+
+export function getWorkspaceScopedKey(key, userId, workspaceId = null) {
+  return `${key}_${getWorkspaceScopeKey(userId, workspaceId)}`;
+}
+
 /** Read from user-scoped storage */
 export function getScopedItem(key, userId) {
   return getItem(getScopedKey(key, userId));
@@ -44,6 +52,18 @@ export function setScopedItem(key, userId, value) {
 /** Remove from user-scoped storage */
 export function removeScopedItem(key, userId) {
   return removeItem(getScopedKey(key, userId));
+}
+
+export function getWorkspaceScopedItem(key, userId, workspaceId = null) {
+  return getItem(getWorkspaceScopedKey(key, userId, workspaceId));
+}
+
+export function setWorkspaceScopedItem(key, userId, workspaceId = null, value) {
+  return setItem(getWorkspaceScopedKey(key, userId, workspaceId), value);
+}
+
+export function removeWorkspaceScopedItem(key, userId, workspaceId = null) {
+  return removeItem(getWorkspaceScopedKey(key, userId, workspaceId));
 }
 
 // --- One-time migration: global → user-scoped ---
@@ -74,6 +94,24 @@ export function migrateGlobalToUser(userId) {
   }
 
   // Mark migration done
+  setItem(migrationKey, true);
+}
+
+export function migrateUserScopeToWorkspaceScope(userId) {
+  const migrationKey = getScopedKey('_workspace_migrated', userId);
+  if (getItem(migrationKey)) return;
+
+  const dataKeys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
+  for (const key of dataKeys) {
+    const existingWorkspaceValue = getWorkspaceScopedItem(key, userId, null);
+    if (existingWorkspaceValue != null) continue;
+
+    const scopedValue = getScopedItem(key, userId);
+    if (scopedValue != null) {
+      setWorkspaceScopedItem(key, userId, null, scopedValue);
+    }
+  }
+
   setItem(migrationKey, true);
 }
 

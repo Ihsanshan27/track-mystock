@@ -4,11 +4,14 @@ import { calculateTradePnL, calculateUnrealizedPnL } from '../utils/calculations
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '../utils/formatters';
 import { STRATEGIES, EMOTIONS } from '../utils/constants';
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import TradeReviewPanel from '../components/TradeReviewPanel';
 
 export default function TradeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getTradeById, updateTrade, deleteTrade, marketPrices } = useData();
+  const { user } = useAuth();
+  const { getTradeById, updateTrade, deleteTrade, marketPrices, showToast } = useData();
   const trade = getTradeById(id);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(trade || {});
@@ -221,6 +224,14 @@ export default function TradeDetailPage() {
           )}
         </div>
       </div>
+
+      <TradeReviewPanel
+        trade={trade}
+        ownerId={user?.id}
+        currentUser={user}
+        canReview={false}
+        showToast={showToast}
+      />
     </div>
   );
 }

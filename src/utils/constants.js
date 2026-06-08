@@ -36,23 +36,25 @@ export const WATCHLIST_PRIORITY = [
 ];
 
 export const DEFAULT_BROKER_FEE = {
-  buyFee: 0.15,   // 0.15%
-  sellFee: 0.25,  // 0.25% (includes PPh)
-  ppn: 11,        // 11% PPN dari komisi
+  buyFee: 0.15,
+  sellFee: 0.25,
+  ppn: 11,
 };
 
 export const NAV_ITEMS = [
-  { path: '/', label: 'Dashboard', icon: '📊', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },
+  { path: '/', label: 'Dashboard', icon: '📊', section: 'MENU', roles: ['admin', 'mentor', 'trader', 'viewer'] },
   { path: '/trades', label: 'Transaksi', icon: '📝', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },
   { path: '/portfolio', label: 'Portfolio', icon: '💼', section: 'MENU', roles: ['admin', 'mentor', 'trader', 'viewer'] },
   { path: '/cashflow', label: 'Cash Balance', icon: '💵', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },
   { path: '/dividends', label: 'Dividen', icon: '💰', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },
   { path: '/analytics', label: 'Analitik', icon: '📈', section: 'MENU', roles: ['admin', 'mentor', 'trader', 'viewer'] },
+  { path: '/reports', label: 'Reports', icon: '📄', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },
+  { path: '/mentor/traders', label: 'Trader Share', icon: '🧭', section: 'MENU', roles: ['mentor', 'admin'] },
   { path: '/calculator', label: 'Kalkulator', icon: '🧮', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/watchlist', label: 'Watchlist', icon: '👀', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/notes', label: 'Catatan', icon: '📔', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/admin/users', label: 'Users', icon: '👥', section: 'ADMIN', roles: ['admin'] },
   { path: '/admin/workspaces', label: 'Workspaces', icon: '🏢', section: 'ADMIN', roles: ['admin'] },
   { path: '/admin/audit-logs', label: 'Audit Logs', icon: '🧾', section: 'ADMIN', roles: ['admin'] },
-  { path: '/settings', label: 'Pengaturan', icon: '⚙️', section: 'LAINNYA', roles: ['admin', 'mentor', 'trader', 'viewer'] },
+  { path: '/settings', label: 'Pengaturan', icon: '⚙️', section: 'LAINNYA', roles: ['admin', 'mentor', 'trader'] },
 ];
