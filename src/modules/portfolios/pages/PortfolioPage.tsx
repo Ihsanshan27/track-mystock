@@ -1,0 +1,222 @@
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import ReadOnlyNotice from '@/modules/shared/components/ReadOnlyNotice';
+import { useData } from '@/modules/shared/context/DataContext';
+import { usePermissions } from '@/modules/shared/context/PermissionContext';
+import { calculateUnrealizedPnL, calculatePortfolioBalance } from '@/modules/trades/calculations';
+import { formatRupiah, formatUSD, formatPercent } from '@/modules/shared/utils/formatters';
+import * as Icons from 'lucide-react';
+
+const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#F43F5E', '#06B6D4', '#EC4899', '#84CC16'];
+
+export default function PortfolioPage() {
+  const { trades, cashflows, dividends, settings, activePortfolioId, marketPrices, updateMarketPrice, canWrite } = useData();
+  const { isViewer } = usePermissions();
+  const [activeTab, setActiveTab] = useState('ID');
+
+  const isDefaultPort = activePortfolioId === 'default';
+  const balanceStats = calculatePortfolioBalance(
+    trades,
+    cashflows,
+    dividends,
+    isDefaultPort ? settings.initialCapital : 0
+  );
+
+  const openTrades = useMemo(() => {
+    return trades
+      .filter((trade) => (!trade.sellPrice || !trade.dateSell) && (trade.market === activeTab || (activeTab === 'ID' && !trade.market)))
+      .map((trade) => {
+        const isUS = activeTab === 'US';
+        const shares = isUS ? trade.lots : trade.lots * 100;
+        const totalBuy = trade.buyPrice * shares;
+        const currentPrice = (marketPrices && marketPrices[trade.stockCode]) || trade.sellPrice || 0;
+
+        let floatingPnL = 0;
+        let floatingPnLPercent = 0;
+        if (currentPrice > 0) {
+          const unrealized = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID');
+          floatingPnL = unrealized.pnl;
+          floatingPnLPercent = unrealized.pnlPercent;
+        }
+
+        return { ...trade, shares, totalBuy, currentPrice, floatingPnL, floatingPnLPercent };
+      });
+  }, [activeTab, marketPrices, trades]);
+
+  const totalInvested = openTrades.reduce((sum, trade) => sum + trade.totalBuy, 0);
+  const totalFloating = openTrades.reduce((sum, trade) => sum + trade.floatingPnL, 0);
+  const pieData = openTrades.map((trade) => ({ name: trade.stockCode, value: trade.totalBuy }));
+  const formatMoney = activeTab === 'US' ? formatUSD : formatRupiah;
+
+  return (
+    <div>
+      {!canWrite ? (
+        <ReadOnlyNotice description="Anda bisa melihat posisi dan alokasi portfolio, tetapi tidak bisa mengubah harga market atau membuka editor transaksi." />
+      ) : null}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Portfolio</h1>
+          <p className="page-subtitle">{openTrades.length} posisi terbuka</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border-color)' }}>
+        <button
+          className={`tab-btn ${activeTab === 'ID' ? 'active' : ''}`}
+          style={{ padding: '8px 16px', background: 'none', border: 'none', borderBottom: activeTab === 'ID' ? '2px solid var(--accent-blue)' : '2px solid transparent', color: activeTab === 'ID' ? 'var(--accent-blue)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+          onClick={() => setActiveTab('ID')}
+        >
+          Pasar Indonesia
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'US' ? 'active' : ''}`}
+          style={{ padding: '8px 16px', background: 'none', border: 'none', borderBottom: activeTab === 'US' ? '2px solid var(--accent-blue)' : '2px solid transparent', color: activeTab === 'US' ? 'var(--accent-blue)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+          onClick={() => setActiveTab('US')}
+        >
+          Pasar Amerika
+        </button>
+      </div>
+
+      {openTrades.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">💼</div>
+          <div className="empty-state-title">Tidak ada posisi terbuka di {activeTab === 'US' ? 'Pasar US' : 'Pasar Indonesia'}</div>
+          <div className="empty-state-desc">
+            {isViewer ? 'Tidak ada posisi terbuka pada data yang bisa Anda lihat.' : 'Semua transaksi sudah ditutup, atau belum ada transaksi'}
+          </div>
+          {canWrite ? <Link to="/trades/new" className="btn btn-primary">Catat Transaksi</Link> : null}
+        </div>
+      ) : (
+        <>
+          <div className="grid-stats" style={{ marginBottom: 24 }}>
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: 'var(--accent-green-dim)' }}>
+                <Icons.Wallet size={20} style={{ color: 'var(--accent-green)' }} />
+              </div>
+              <div className="stat-card-label">Buying Power</div>
+              <div className="stat-card-value" style={{ color: 'var(--accent-green)' }}>{formatRupiah(balanceStats.buyingPower)}</div>
+              <div className="stat-card-change" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Kas tersedia</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: 'var(--accent-blue-dim)' }}>
+                <Icons.TrendingUp size={20} style={{ color: 'var(--accent-blue-light)' }} />
+              </div>
+              <div className="stat-card-label">Total Investasi</div>
+              <div className="stat-card-value">{formatMoney(totalInvested)}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: totalFloating >= 0 ? 'var(--accent-green-dim)' : 'var(--accent-red-dim)' }}>
+                {totalFloating >= 0
+                  ? <Icons.TrendingUp size={20} style={{ color: 'var(--accent-green)' }} />
+                  : <Icons.TrendingDown size={20} style={{ color: 'var(--accent-red)' }} />}
+              </div>
+              <div className="stat-card-label">Total Floating P/L</div>
+              <div className={`stat-card-value ${totalFloating >= 0 ? 'text-profit' : 'text-loss'}`}>
+                {totalFloating > 0 ? '+' : ''}{formatMoney(totalFloating)}
+              </div>
+              <div className={`stat-card-change ${totalFloating >= 0 ? 'positive' : 'negative'}`}>
+                {totalInvested > 0 ? formatPercent((totalFloating / totalInvested) * 100) : '0%'}
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: 'var(--accent-purple-dim)' }}>
+                <Icons.Layers size={20} style={{ color: 'var(--accent-purple)' }} />
+              </div>
+              <div className="stat-card-label">Jumlah Saham</div>
+              <div className="stat-card-value">{openTrades.length}</div>
+            </div>
+          </div>
+
+          <div className="grid-2" style={{ alignItems: 'start' }}>
+            <div className="card">
+              <div className="card-header"><h3 className="card-title">Posisi Terbuka</h3></div>
+              <div className="table-container" style={{ border: 'none' }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Kode</th>
+                      <th>Harga Beli</th>
+                      <th>Qty</th>
+                      <th>Total Investasi</th>
+                      <th style={{ width: 140 }}>Harga Saat Ini</th>
+                      <th>Floating P/L</th>
+                      <th>Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {openTrades.map((trade) => (
+                      <tr key={trade.id}>
+                        <td><strong>{trade.stockCode}</strong></td>
+                        <td>{formatMoney(trade.buyPrice)}</td>
+                        <td>{trade.lots}</td>
+                        <td>
+                          {formatMoney(trade.totalBuy)}
+                          <br />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {totalInvested > 0 ? ((trade.totalBuy / totalInvested) * 100).toFixed(1) : '0.0'}% alokasi
+                          </span>
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            step="any"
+                            className="form-input"
+                            style={{ padding: '4px 8px', height: 32, fontSize: '0.9rem' }}
+                            placeholder="Harga..."
+                            value={trade.currentPrice || ''}
+                            disabled={!canWrite}
+                            onChange={(event) => updateMarketPrice(trade.stockCode, event.target.value)}
+                          />
+                        </td>
+                        <td>
+                          {trade.currentPrice > 0 ? (
+                            <div style={{ textAlign: 'right' }}>
+                              <div className={trade.floatingPnL >= 0 ? 'text-profit' : 'text-loss'} style={{ fontWeight: 600 }}>
+                                {trade.floatingPnL > 0 ? '+' : ''}{formatMoney(trade.floatingPnL)}
+                              </div>
+                              <div className={trade.floatingPnL >= 0 ? 'text-profit' : 'text-loss'} style={{ fontSize: '0.8rem' }}>
+                                {formatPercent(trade.floatingPnLPercent)}
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>-</span>
+                          )}
+                        </td>
+                        <td>
+                          {canWrite ? <Link to={`/trades/${trade.id}`} className="btn btn-ghost btn-sm">Lihat</Link> : <span style={{ color: 'var(--text-muted)' }}>Read-only</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header"><h3 className="card-title">Alokasi Portfolio</h3></div>
+              <div className="card-body" style={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} innerRadius={50} paddingAngle={2}>
+                      {pieData.map((entry, index) => <Cell key={`${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatMoney(value)} contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: '0.8rem' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 16px', marginTop: 8 }}>
+                  {pieData.map((item, index) => (
+                    <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem' }}>
+                      <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[index % COLORS.length] }} />
+                      <span>{item.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
