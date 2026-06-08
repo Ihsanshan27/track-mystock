@@ -14,6 +14,7 @@ const PAGE_TITLES = {
   '/mentor/traders': 'Trader Share',
   '/watchlist': 'Watchlist',
   '/notes': 'Catatan Trading',
+  '/portfolios': 'Dompet & Portofolio',
   '/cashflow': 'Cash Balance',
   '/dividends': 'Dividen',
   '/calculator': 'Kalkulator Saham',

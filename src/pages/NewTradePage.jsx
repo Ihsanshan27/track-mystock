@@ -5,7 +5,7 @@ import { STRATEGIES, EMOTIONS } from '../utils/constants';
 import { formatRupiah, formatUSD } from '../utils/formatters';
 
 export default function NewTradePage() {
-  const { addTrade, settings } = useData();
+  const { addTrade, settings, portfolios, activePortfolioId } = useData();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -25,6 +25,7 @@ export default function NewTradePage() {
     rating: 0,
     tags: '',
     notes: '',
+    portfolioId: activePortfolioId || 'default',
   });
 
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
@@ -82,6 +83,19 @@ export default function NewTradePage() {
             <div className="card" style={{ marginBottom: 20 }}>
               <div className="card-header"><h3 className="card-title">Detail Transaksi</h3></div>
               <div className="card-body">
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Pilih Portofolio</label>
+                  <select 
+                    className="form-select" 
+                    value={form.portfolioId} 
+                    onChange={e => set('portfolioId', e.target.value)}
+                  >
+                    {portfolios.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label className="form-label">Pilih Pasar</label>
                   <div style={{ display: 'flex', gap: 16 }}>

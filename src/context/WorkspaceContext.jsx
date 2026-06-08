@@ -53,14 +53,9 @@ export function WorkspaceProvider({ children }) {
         return;
       }
 
-      const rows = await listWorkspaces();
-      const storedWorkspaceId = getScopedItem('active_workspace', userId);
-      const hasStoredWorkspace = storedWorkspaceId && rows.some(workspace => workspace.id === storedWorkspaceId);
-      const nextWorkspaceId = hasStoredWorkspace ? storedWorkspaceId : null;
-
-      setWorkspaces(rows);
-      setActiveWorkspaceId(nextWorkspaceId);
-      setScopedItem('active_workspace', userId, nextWorkspaceId);
+      // Workspace feature deactivated: always use Personal workspace (workspace_id = null)
+      setWorkspaces([]);
+      setActiveWorkspaceId(null);
     } catch (error) {
       if (isMissingDatabaseSetupError(error)) {
         setWorkspaceSetupError(error.message);

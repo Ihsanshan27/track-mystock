@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usePermissions } from '../../context/PermissionContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useData } from '../../context/DataContext';
 
 export default function Header({ pageTitle, onMenuToggle }) {
   const { user, logout } = useAuth();
   const { profile, role, roleLabel, roleError } = usePermissions();
   const { availableWorkspaces, activeWorkspaceId, selectWorkspace, workspaceLoading } = useWorkspace();
+  const { portfolios, activePortfolioId: activePortId, selectPortfolio } = useData();
   const [profileOpen, setProfileOpen] = useState(false);
   const menuRef = useRef(null);
   const displayName = profile?.displayName || user?.username || 'User';
@@ -42,17 +44,16 @@ export default function Header({ pageTitle, onMenuToggle }) {
         <h2 className="header-title">{pageTitle}</h2>
       </div>
       <div className="header-right">
-        <label className="workspace-switcher" title="Pilih workspace aktif">
-          <span className="workspace-switcher-label">Workspace</span>
+        <label className="workspace-switcher" title="Pilih portofolio aktif">
+          <span className="workspace-switcher-label">Portofolio</span>
           <select
             className="workspace-switcher-select"
-            value={activeWorkspaceId || ''}
-            onChange={(event) => selectWorkspace(event.target.value || null)}
-            disabled={workspaceLoading}
+            value={activePortId}
+            onChange={(event) => selectPortfolio(event.target.value)}
           >
-            {availableWorkspaces.map((workspace) => (
-              <option key={workspace.id || 'personal'} value={workspace.id || ''}>
-                {workspace.name}
+            {portfolios.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
               </option>
             ))}
           </select>

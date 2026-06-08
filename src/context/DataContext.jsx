@@ -1,14 +1,13 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  getWorkspaceScopedItem,
-  setWorkspaceScopedItem,
   generateId,
   migrateGlobalToUser,
-  migrateUserScopeToWorkspaceScope,
+  migrateWorkspaceScopeToUserScope,
+  getScopedItem,
+  setScopedItem,
 } from '../utils/storage';
 import { useAuth } from './AuthContext';
 import { usePermissions } from './PermissionContext';
-import { useWorkspace } from './WorkspaceContext';
 import { isSupabaseConfigured } from '../services/supabaseClient';
 import { clearUserData, loadUserData, replaceAllUserData, saveUserData } from '../services/supabaseDataService';
 import { isMissingDatabaseSetupError } from '../utils/errorMessages';
@@ -23,34 +22,43 @@ const DEFAULT_SETTINGS = {
   defaultBuyFeeUS: 0,
   defaultSellFeeUS: 0,
 };
-const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices'];
+const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios'];
+
+const DEFAULT_PORTFOLIO = {
+  id: 'default',
+  name: 'Portofolio Utama',
+  isDefault: true,
+  createdAt: new Date().toISOString(),
+};
 
 export function DataProvider({ children }) {
   const { user } = useAuth();
   const { can, roleLabel } = usePermissions();
-  const { activeWorkspace, activeWorkspaceId, workspaceLoading } = useWorkspace();
   const userId = user?.id;
 
-  const [trades, setTrades] = useState([]);
+  const [allTrades, setAllTrades] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
   const [notes, setNotes] = useState([]);
-  const [cashflows, setCashflows] = useState([]);
-  const [dividends, setDividends] = useState([]);
+  const [allCashflows, setAllCashflows] = useState([]);
+  const [allDividends, setAllDividends] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [marketPrices, setMarketPrices] = useState({});
+  const [portfolios, setPortfolios] = useState([DEFAULT_PORTFOLIO]);
+  const [activePortfolioId, setActivePortfolioId] = useState('default');
   const [toasts, setToasts] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
   const [databaseSetupError, setDatabaseSetupError] = useState('');
 
   const applyData = useCallback((data) => {
-    setTrades(data.trades || []);
+    setAllTrades(data.trades || []);
     setWatchlist(data.watchlist || []);
     setNotes(data.notes || []);
-    setCashflows(data.cashflows || []);
-    setDividends(data.dividends || []);
+    setAllCashflows(data.cashflows || []);
+    setAllDividends(data.dividends || []);
     setSettings(normalizeSettings(data.settings));
     setMarketPrices(data.marketPrices || {});
+    setPortfolios(data.portfolios && data.portfolios.length > 0 ? data.portfolios : [DEFAULT_PORTFOLIO]);
   }, []);
 
   // Toast helper
@@ -68,22 +76,39 @@ export function DataProvider({ children }) {
     return false;
   }, [can, roleLabel, showToast]);
 
+  // Active Portfolio state initialization
+  useEffect(() => {
+    if (userId) {
+      setActivePortfolioId(getScopedItem('active_portfolio', userId) || 'default');
+    } else {
+      setActivePortfolioId('default');
+    }
+  }, [userId]);
+
+  const filteredTrades = useMemo(() => {
+    return allTrades.filter(t => (t.portfolioId || 'default') === activePortfolioId);
+  }, [allTrades, activePortfolioId]);
+
+  const filteredCashflows = useMemo(() => {
+    return allCashflows.filter(c => (c.portfolioId || 'default') === activePortfolioId);
+  }, [allCashflows, activePortfolioId]);
+
+  const filteredDividends = useMemo(() => {
+    return allDividends.filter(d => (d.portfolioId || 'default') === activePortfolioId);
+  }, [allDividends, activePortfolioId]);
+
   // Load user-scoped data (with one-time migration from global keys)
   useEffect(() => {
     if (!userId) {
-      setTrades([]);
+      setAllTrades([]);
       setWatchlist([]);
       setNotes([]);
-      setCashflows([]);
-      setDividends([]);
+      setAllCashflows([]);
+      setAllDividends([]);
       setSettings(DEFAULT_SETTINGS);
       setMarketPrices({});
+      setPortfolios([DEFAULT_PORTFOLIO]);
       setDataLoading(false);
-      return;
-    }
-
-    if (workspaceLoading) {
-      setDataLoading(true);
       return;
     }
 
@@ -95,14 +120,14 @@ export function DataProvider({ children }) {
       setDatabaseSetupError('');
       try {
         if (isSupabaseConfigured) {
-          const remoteData = await loadUserData(userId, activeWorkspaceId);
-          const nextData = await migrateLocalDataToSupabase(userId, activeWorkspaceId, remoteData);
+          const remoteData = await loadUserData(userId);
+          const nextData = await migrateLocalDataToSupabase(userId, remoteData);
           if (cancelled) return;
           applyData(nextData);
         } else {
           migrateGlobalToUser(userId);
-          migrateUserScopeToWorkspaceScope(userId);
-          const localData = loadLocalData(userId, activeWorkspaceId);
+          migrateWorkspaceScopeToUserScope(userId);
+          const localData = loadLocalData(userId);
           applyData(localData);
         }
       } catch (error) {
@@ -121,23 +146,23 @@ export function DataProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [userId, showToast, applyData, activeWorkspaceId, workspaceLoading]);
+  }, [userId, showToast, applyData]);
 
   const persistData = useCallback((key, value) => {
     if (!userId) return;
     if (isSupabaseConfigured) {
-      saveUserData(key, value, userId, activeWorkspaceId)
+      saveUserData(key, value, userId)
         .catch((error) => {
           showToast(`Gagal menyimpan ${key}: ${error.message}`, 'error');
         });
     } else {
-      setWorkspaceScopedItem(key, userId, activeWorkspaceId, value);
+      setScopedItem(key, userId, value);
     }
-  }, [userId, showToast, activeWorkspaceId]);
+  }, [userId, showToast]);
 
   // Persist trades
   const saveTrades = useCallback((newTrades) => {
-    setTrades(newTrades);
+    setAllTrades(newTrades);
     persistData('trades', newTrades);
     return newTrades;
   }, [persistData]);
@@ -145,8 +170,13 @@ export function DataProvider({ children }) {
   // === TRADE CRUD ===
   const addTrade = (trade) => {
     if (!ensureWritable()) return null;
-    const newTrade = { ...trade, id: generateId(), createdAt: new Date().toISOString() };
-    const updated = [newTrade, ...trades];
+    const newTrade = { 
+      ...trade, 
+      id: generateId(), 
+      createdAt: new Date().toISOString(),
+      portfolioId: activePortfolioId
+    };
+    const updated = [newTrade, ...allTrades];
     saveTrades(updated);
     showToast('Transaksi berhasil ditambahkan');
     return newTrade;
@@ -154,19 +184,19 @@ export function DataProvider({ children }) {
 
   const updateTrade = (id, updates) => {
     if (!ensureWritable()) return;
-    const updated = trades.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
+    const updated = allTrades.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
     saveTrades(updated);
     showToast('Transaksi berhasil diperbarui');
   };
 
   const deleteTrade = (id) => {
     if (!ensureWritable()) return;
-    const updated = trades.filter(t => t.id !== id);
+    const updated = allTrades.filter(t => t.id !== id);
     saveTrades(updated);
     showToast('Transaksi berhasil dihapus');
   };
 
-  const getTradeById = (id) => trades.find(t => t.id === id);
+  const getTradeById = (id) => allTrades.find(t => t.id === id);
 
   // === WATCHLIST CRUD ===
   const addWatchlistItem = (item) => {
@@ -221,17 +251,22 @@ export function DataProvider({ children }) {
   // === CASHFLOW CRUD ===
   const addCashflow = (cf) => {
     if (!ensureWritable()) return;
-    const newCf = { ...cf, id: generateId(), createdAt: new Date().toISOString() };
-    const updated = [newCf, ...cashflows];
-    setCashflows(updated);
+    const newCf = { 
+      ...cf, 
+      id: generateId(), 
+      createdAt: new Date().toISOString(),
+      portfolioId: activePortfolioId
+    };
+    const updated = [newCf, ...allCashflows];
+    setAllCashflows(updated);
     persistData('cashflows', updated);
     showToast('Transaksi kas berhasil dicatat');
   };
 
   const deleteCashflow = (id) => {
     if (!ensureWritable()) return;
-    const updated = cashflows.filter(c => c.id !== id);
-    setCashflows(updated);
+    const updated = allCashflows.filter(c => c.id !== id);
+    setAllCashflows(updated);
     persistData('cashflows', updated);
     showToast('Transaksi kas dibatalkan');
   };
@@ -239,19 +274,86 @@ export function DataProvider({ children }) {
   // === DIVIDENDS CRUD ===
   const addDividend = (div) => {
     if (!ensureWritable()) return;
-    const newDiv = { ...div, id: generateId(), createdAt: new Date().toISOString() };
-    const updated = [newDiv, ...dividends];
-    setDividends(updated);
+    const newDiv = { 
+      ...div, 
+      id: generateId(), 
+      createdAt: new Date().toISOString(),
+      portfolioId: activePortfolioId
+    };
+    const updated = [newDiv, ...allDividends];
+    setAllDividends(updated);
     persistData('dividends', updated);
     showToast('Catatan dividen ditambahkan');
   };
 
   const deleteDividend = (id) => {
     if (!ensureWritable()) return;
-    const updated = dividends.filter(d => d.id !== id);
-    setDividends(updated);
+    const updated = allDividends.filter(d => d.id !== id);
+    setAllDividends(updated);
     persistData('dividends', updated);
     showToast('Catatan dividen dihapus');
+  };
+
+  // === PORTFOLIO CRUD ===
+  const addPortfolio = (name, description = '') => {
+    if (!ensureWritable()) return null;
+    const newPort = {
+      id: generateId(),
+      name,
+      description,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [...portfolios, newPort];
+    setPortfolios(updated);
+    persistData('portfolios', updated);
+    showToast('Portofolio berhasil dibuat');
+    return newPort;
+  };
+
+  const updatePortfolio = (id, updates) => {
+    if (!ensureWritable()) return;
+    const updated = portfolios.map(p => p.id === id ? { ...p, ...updates } : p);
+    setPortfolios(updated);
+    persistData('portfolios', updated);
+    showToast('Portofolio berhasil diperbarui');
+  };
+
+  const deletePortfolio = (id) => {
+    if (!ensureWritable()) return;
+    if (id === 'default') {
+      showToast('Portofolio utama tidak bisa dihapus', 'error');
+      return;
+    }
+    const updatedPortfolios = portfolios.filter(p => p.id !== id);
+    setPortfolios(updatedPortfolios);
+    persistData('portfolios', updatedPortfolios);
+
+    if (activePortfolioId === id) {
+      selectPortfolio('default');
+    }
+
+    // Delete associated data
+    const updatedTrades = allTrades.filter(t => (t.portfolioId || 'default') !== id);
+    setAllTrades(updatedTrades);
+    persistData('trades', updatedTrades);
+
+    const updatedCashflows = allCashflows.filter(c => (c.portfolioId || 'default') !== id);
+    setAllCashflows(updatedCashflows);
+    persistData('cashflows', updatedCashflows);
+
+    const updatedDividends = allDividends.filter(d => (d.portfolioId || 'default') !== id);
+    setAllDividends(updatedDividends);
+    persistData('dividends', updatedDividends);
+
+    showToast('Portofolio beserta datanya berhasil dihapus');
+  };
+
+  const selectPortfolio = (id) => {
+    const nextId = id || 'default';
+    setActivePortfolioId(nextId);
+    if (userId) {
+      setScopedItem('active_portfolio', userId, nextId);
+    }
   };
 
   // === SETTINGS ===
@@ -271,17 +373,16 @@ export function DataProvider({ children }) {
   };
 
   const exportData = () => ({
-    trades,
+    trades: allTrades,
     watchlist,
     notes,
-    cashflows,
-    dividends,
+    cashflows: allCashflows,
+    dividends: allDividends,
     settings,
     marketPrices,
+    portfolios,
     exportDate: new Date().toISOString(),
     version: '2.0',
-    workspaceId: activeWorkspaceId,
-    workspaceName: activeWorkspace?.name || 'Personal',
     storage: isSupabaseConfigured ? 'supabase' : 'localStorage',
   });
 
@@ -296,53 +397,82 @@ export function DataProvider({ children }) {
       dividends: data.dividends || [],
       settings: normalizeSettings(data.settings || settings),
       marketPrices: data.marketPrices || {},
+      portfolios: data.portfolios || [DEFAULT_PORTFOLIO],
     };
 
     applyData(nextData);
 
     if (isSupabaseConfigured) {
-      await replaceAllUserData(nextData, userId, activeWorkspaceId);
+      await replaceAllUserData(nextData, userId);
     } else {
-      Object.entries(nextData).forEach(([key, value]) => setWorkspaceScopedItem(key, userId, activeWorkspaceId, value));
+      Object.entries(nextData).forEach(([key, value]) => setScopedItem(key, userId, value));
     }
   };
 
   const clearData = async () => {
     if (!ensureWritable()) return;
-    setTrades([]);
+    setAllTrades([]);
     setWatchlist([]);
     setNotes([]);
-    setCashflows([]);
-    setDividends([]);
+    setAllCashflows([]);
+    setAllDividends([]);
     setSettings(DEFAULT_SETTINGS);
     setMarketPrices({});
+    setPortfolios([DEFAULT_PORTFOLIO]);
+    setActivePortfolioId('default');
 
     if (isSupabaseConfigured) {
-      await clearUserData(userId, activeWorkspaceId);
+      await clearUserData(userId);
     } else {
-      setWorkspaceScopedItem('trades', userId, activeWorkspaceId, []);
-      setWorkspaceScopedItem('watchlist', userId, activeWorkspaceId, []);
-      setWorkspaceScopedItem('notes', userId, activeWorkspaceId, []);
-      setWorkspaceScopedItem('cashflows', userId, activeWorkspaceId, []);
-      setWorkspaceScopedItem('dividends', userId, activeWorkspaceId, []);
-      setWorkspaceScopedItem('settings', userId, activeWorkspaceId, DEFAULT_SETTINGS);
-      setWorkspaceScopedItem('marketPrices', userId, activeWorkspaceId, {});
+      setScopedItem('trades', userId, []);
+      setScopedItem('watchlist', userId, []);
+      setScopedItem('notes', userId, []);
+      setScopedItem('cashflows', userId, []);
+      setScopedItem('dividends', userId, []);
+      setScopedItem('settings', userId, DEFAULT_SETTINGS);
+      setScopedItem('marketPrices', userId, {});
+      setScopedItem('portfolios', userId, [DEFAULT_PORTFOLIO]);
+      setScopedItem('active_portfolio', userId, 'default');
     }
   };
 
   return (
     <DataContext.Provider value={{
-      trades, addTrade, updateTrade, deleteTrade, getTradeById,
-      watchlist, addWatchlistItem, updateWatchlistItem, deleteWatchlistItem,
-      notes, addNote, updateNote, deleteNote,
-      cashflows, addCashflow, deleteCashflow,
-      dividends, addDividend, deleteDividend,
-      settings, updateSettings,
-      marketPrices, updateMarketPrice,
+      trades: filteredTrades,
+      addTrade,
+      updateTrade,
+      deleteTrade,
+      getTradeById,
+      watchlist,
+      addWatchlistItem,
+      updateWatchlistItem,
+      deleteWatchlistItem,
+      notes,
+      addNote,
+      updateNote,
+      deleteNote,
+      cashflows: filteredCashflows,
+      addCashflow,
+      deleteCashflow,
+      dividends: filteredDividends,
+      addDividend,
+      deleteDividend,
+      settings,
+      updateSettings,
+      marketPrices,
+      updateMarketPrice,
+      portfolios,
+      activePortfolioId,
+      addPortfolio,
+      updatePortfolio,
+      deletePortfolio,
+      selectPortfolio,
       dataLoading,
       dataError,
       databaseSetupError,
-      exportData, importData, clearData,
+      exportData,
+      importData,
+      clearData,
       toasts,
       showToast,
       canWrite: can('journal:write'),
@@ -356,15 +486,15 @@ function normalizeSettings(settings) {
   return { ...DEFAULT_SETTINGS, ...(settings || {}) };
 }
 
-function loadLocalData(userId, workspaceId) {
+function loadLocalData(userId) {
   return {
-    trades: getWorkspaceScopedItem('trades', userId, workspaceId) || [],
-    watchlist: getWorkspaceScopedItem('watchlist', userId, workspaceId) || [],
-    notes: getWorkspaceScopedItem('notes', userId, workspaceId) || [],
-    cashflows: getWorkspaceScopedItem('cashflows', userId, workspaceId) || [],
-    dividends: getWorkspaceScopedItem('dividends', userId, workspaceId) || [],
-    settings: normalizeSettings(getWorkspaceScopedItem('settings', userId, workspaceId)),
-    marketPrices: getWorkspaceScopedItem('marketPrices', userId, workspaceId) || {},
+    trades: getScopedItem('trades', userId) || [],
+    watchlist: getScopedItem('watchlist', userId) || [],
+    notes: getScopedItem('notes', userId) || [],
+    cashflows: getScopedItem('cashflows', userId) || [],
+    dividends: getScopedItem('dividends', userId) || [],
+    settings: normalizeSettings(getScopedItem('settings', userId)),
+    marketPrices: getScopedItem('marketPrices', userId) || {},
   };
 }
 
@@ -377,7 +507,7 @@ function hasStoredData(data) {
   });
 }
 
-async function migrateLocalDataToSupabase(userId, workspaceId, remoteData) {
+async function migrateLocalDataToSupabase(userId, remoteData) {
   const normalizedRemote = {
     ...remoteData,
     settings: normalizeSettings(remoteData.settings),
@@ -386,11 +516,11 @@ async function migrateLocalDataToSupabase(userId, workspaceId, remoteData) {
   if (hasStoredData(remoteData)) return normalizedRemote;
 
   migrateGlobalToUser(userId);
-  migrateUserScopeToWorkspaceScope(userId);
-  const localData = loadLocalData(userId, workspaceId);
+  migrateWorkspaceScopeToUserScope(userId);
+  const localData = loadLocalData(userId);
   if (!hasStoredData(localData)) return normalizedRemote;
 
-  await replaceAllUserData(localData, userId, workspaceId);
+  await replaceAllUserData(localData, userId);
   return localData;
 }
 

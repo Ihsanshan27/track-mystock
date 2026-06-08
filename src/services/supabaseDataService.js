@@ -1,17 +1,15 @@
 import { supabase } from './supabaseClient';
 
 const TABLE_NAME = 'journal_data';
-const DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices'];
+const DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios'];
 
-export async function loadUserData(userId, workspaceId = null) {
+export async function loadUserData(userId) {
   const ownerId = getRequiredUserId(userId);
-  let query = supabase
+  const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('data_key, data')
+    .eq('user_id', ownerId)
     .in('data_key', DATA_KEYS);
-
-  query = applyDataScopeFilter(query, ownerId, workspaceId);
-  const { data, error } = await query;
 
   if (error) throw error;
 
@@ -21,9 +19,9 @@ export async function loadUserData(userId, workspaceId = null) {
   }, {});
 }
 
-export async function saveUserData(dataKey, data, userId, workspaceId = null) {
+export async function saveUserData(dataKey, data, userId) {
   const ownerId = getRequiredUserId(userId);
-  const existingRow = await findUserDataRow(dataKey, ownerId, workspaceId);
+  const existingRow = await findUserDataRow(dataKey, ownerId);
 
   if (existingRow?.id) {
     const { error } = await supabase
@@ -42,7 +40,6 @@ export async function saveUserData(dataKey, data, userId, workspaceId = null) {
     .from(TABLE_NAME)
     .insert({
       user_id: ownerId,
-      workspace_id: workspaceId,
       data_key: dataKey,
       data,
     });
@@ -50,23 +47,22 @@ export async function saveUserData(dataKey, data, userId, workspaceId = null) {
   if (error) throw error;
 }
 
-export async function replaceAllUserData(data, userId, workspaceId = null) {
+export async function replaceAllUserData(data, userId) {
   await Promise.all(
     DATA_KEYS
       .filter((key) => data[key] != null)
-      .map((key) => saveUserData(key, data[key], userId, workspaceId))
+      .map((key) => saveUserData(key, data[key], userId))
   );
 }
 
-export async function clearUserData(userId, workspaceId = null) {
+export async function clearUserData(userId) {
   const ownerId = getRequiredUserId(userId);
-  let query = supabase
+  const { error } = await supabase
     .from(TABLE_NAME)
     .delete()
+    .eq('user_id', ownerId)
     .in('data_key', DATA_KEYS);
 
-  query = applyDataScopeFilter(query, ownerId, workspaceId);
-  const { error } = await query;
   if (error) throw error;
 }
 
@@ -77,25 +73,14 @@ function getRequiredUserId(userId) {
   return userId;
 }
 
-async function findUserDataRow(dataKey, userId, workspaceId) {
-  let query = supabase
+async function findUserDataRow(dataKey, userId) {
+  const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('id')
-    .eq('data_key', dataKey);
-
-  query = applyDataScopeFilter(query, userId, workspaceId);
-  query = query.limit(1).maybeSingle();
-  const { data, error } = await query;
+    .eq('user_id', userId)
+    .eq('data_key', dataKey)
+    .limit(1)
+    .maybeSingle();
   if (error) throw error;
   return data;
-}
-
-function applyDataScopeFilter(query, userId, workspaceId) {
-  if (workspaceId) {
-    return query.eq('workspace_id', workspaceId);
-  }
-
-  return query
-    .eq('user_id', userId)
-    .is('workspace_id', null);
 }

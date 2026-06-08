@@ -11,7 +11,7 @@ export default function TradeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { getTradeById, updateTrade, deleteTrade, marketPrices, showToast } = useData();
+  const { getTradeById, updateTrade, deleteTrade, marketPrices, showToast, portfolios } = useData();
   const trade = getTradeById(id);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(trade || {});
@@ -54,7 +54,8 @@ export default function TradeDetailPage() {
       stockCode: form.stockCode?.toUpperCase(),
       buyPrice: parseFloat(form.buyPrice),
       sellPrice: form.sellPrice ? parseFloat(form.sellPrice) : null,
-      lots: parseInt(form.lots),
+      lots: parseFloat(form.lots),
+      portfolioId: form.portfolioId || 'default',
       tags: typeof form.tags === 'string' ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : form.tags,
     });
     setEditing(false);
@@ -94,6 +95,13 @@ export default function TradeDetailPage() {
           <div className="card-body">
             {editing ? (
               <>
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Portofolio</label>
+                  <select className="form-select" value={form.portfolioId || 'default'} onChange={e => set('portfolioId', e.target.value)}>
+                    {portfolios.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Kode Saham</label>

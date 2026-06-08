@@ -1,37 +1,38 @@
-create table if not exists public.journal_data (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  workspace_id uuid references public.workspaces(id) on delete set null,
-  data_key text not null,
-  data jsonb not null default 'null'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
 drop index if exists public.journal_data_personal_scope_unique;
 drop index if exists public.journal_data_workspace_scope_unique;
-alter table public.journal_data
-drop constraint if exists journal_data_user_id_data_key_key;
-alter table public.journal_data
-add constraint journal_data_user_id_data_key_key
-unique (user_id, data_key);
 
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
+update public.journal_data
+set workspace_id = null
+where workspace_id is not null;
+
+with ranked_rows as (
+  select
+    id,
+    row_number() over (
+      partition by user_id, data_key
+      order by updated_at desc nulls last, created_at desc nulls last, id desc
+    ) as row_num
+  from public.journal_data
+)
+delete from public.journal_data jd
+using ranked_rows rr
+where jd.id = rr.id
+  and rr.row_num > 1;
+
+do $$
 begin
-  new.updated_at = now();
-  return new;
-end;
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'journal_data_user_id_data_key_key'
+      and conrelid = 'public.journal_data'::regclass
+  ) then
+    alter table public.journal_data
+      add constraint journal_data_user_id_data_key_key
+      unique (user_id, data_key);
+  end if;
+end
 $$;
-
-drop trigger if exists journal_data_set_updated_at on public.journal_data;
-create trigger journal_data_set_updated_at
-before update on public.journal_data
-for each row execute function public.set_updated_at();
-
-alter table public.journal_data enable row level security;
 
 drop policy if exists "Users can read their own journal data" on public.journal_data;
 create policy "Users can read their own journal data"

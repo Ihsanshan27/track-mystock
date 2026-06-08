@@ -115,6 +115,24 @@ export function migrateUserScopeToWorkspaceScope(userId) {
   setItem(migrationKey, true);
 }
 
+export function migrateWorkspaceScopeToUserScope(userId) {
+  const migrationKey = getScopedKey('_workspace_to_user_migrated', userId);
+  if (getItem(migrationKey)) return;
+
+  const dataKeys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
+  for (const key of dataKeys) {
+    const existingUserValue = getScopedItem(key, userId);
+    if (existingUserValue != null) continue;
+
+    const workspaceScopedValue = getWorkspaceScopedItem(key, userId, null);
+    if (workspaceScopedValue != null) {
+      setScopedItem(key, userId, workspaceScopedValue);
+    }
+  }
+
+  setItem(migrationKey, true);
+}
+
 // --- Export / Import / Clear (user-scoped) ---
 
 export function exportAllData(userId) {

@@ -16,6 +16,7 @@ import PortfolioPage from './pages/PortfolioPage';
 import CalculatorPage from './pages/CalculatorPage';
 import WatchlistPage from './pages/WatchlistPage';
 import NotesPage from './pages/NotesPage';
+import PortfoliosPage from './pages/PortfoliosPage';
 import SettingsPage from './pages/SettingsPage';
 import CashflowPage from './pages/CashflowPage';
 import DividendPage from './pages/DividendPage';
@@ -128,6 +129,7 @@ function AppRoutes() {
         <Route path="/calculator" element={<PermissionRoute permission="journal:write"><CalculatorPage /></PermissionRoute>} />
         <Route path="/watchlist" element={<PermissionRoute permission="journal:write"><WatchlistPage /></PermissionRoute>} />
         <Route path="/notes" element={<PermissionRoute permission="journal:write"><NotesPage /></PermissionRoute>} />
+        <Route path="/portfolios" element={<PermissionRoute permission="journal:write"><PortfoliosPage /></PermissionRoute>} />
         <Route path="/reports" element={<PermissionRoute permission="report:manage"><ReportsPage /></PermissionRoute>} />
         <Route path="/mentor/traders" element={<MentorRoute><MentorTradersPage /></MentorRoute>} />
         <Route path="/mentor/traders/:userId" element={<MentorRoute><MentorTraderDetailPage /></MentorRoute>} />

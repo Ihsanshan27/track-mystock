@@ -53,8 +53,9 @@ export const NAV_ITEMS = [
   { path: '/calculator', label: 'Kalkulator', icon: '🧮', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/watchlist', label: 'Watchlist', icon: '👀', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/notes', label: 'Catatan', icon: '📔', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
+  { path: '/portfolios', label: 'Dompet', icon: '👛', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/admin/users', label: 'Users', icon: '👥', section: 'ADMIN', roles: ['admin'] },
-  { path: '/admin/workspaces', label: 'Workspaces', icon: '🏢', section: 'ADMIN', roles: ['admin'] },
+  // { path: '/admin/workspaces', label: 'Workspaces', icon: '🏢', section: 'ADMIN', roles: ['admin'] },
   { path: '/admin/audit-logs', label: 'Audit Logs', icon: '🧾', section: 'ADMIN', roles: ['admin'] },
   { path: '/settings', label: 'Pengaturan', icon: '⚙️', section: 'LAINNYA', roles: ['admin', 'mentor', 'trader'] },
 ];
