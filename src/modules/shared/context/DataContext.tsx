@@ -21,8 +21,36 @@ const DEFAULT_SETTINGS = {
   initialCapitalUS: 1000,
   defaultBuyFeeUS: 0,
   defaultSellFeeUS: 0,
+  selectedBrokerID: 'Custom',
+  selectedBrokerUS: 'Custom',
+  customStrategies: [
+    'Breakout',
+    'Swing Trading',
+    'Scalping',
+    'Value Investing',
+    'Momentum',
+    'Mean Reversion',
+    'Follow Trend',
+    'Lainnya'
+  ],
+  customEmotions: [
+    { value: 'calm', label: 'Tenang' },
+    { value: 'confident', label: 'Percaya Diri' },
+    { value: 'fearful', label: 'Takut' },
+    { value: 'greedy', label: 'Serakah' },
+    { value: 'revenge', label: 'Revenge Trading' },
+    { value: 'doubtful', label: 'Ragu-ragu' },
+    { value: 'fomo', label: 'FOMO' },
+    { value: 'neutral', label: 'Netral' }
+  ],
+  usdToIdrRate: 16200,
+  defaultRiskPercent: 2,
+  defaultTargetRR: 2,
+  themePreference: 'system',
+  logRetentionDays: 90,
+  privacyMode: false,
 };
-const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios'];
+const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries'];
 
 const DEFAULT_PORTFOLIO = {
   id: 'default',
@@ -45,6 +73,9 @@ export function DataProvider({ children }) {
   const [marketPrices, setMarketPrices] = useState({});
   const [portfolios, setPortfolios] = useState<any[]>([DEFAULT_PORTFOLIO]);
   const [activePortfolioId, setActivePortfolioId] = useState('default');
+  const [tradingPlans, setTradingPlans] = useState([]);
+  const [ipoEvents, setIpoEvents] = useState<any[]>([]);
+  const [ipoEntries, setIpoEntries] = useState<any[]>([]);
   const [toasts, setToasts] = useState([]);
   const [tradeFormDraft, setTradeFormDraft] = useState<any>(null);
   const [tradeEditDraft, setTradeEditDraft] = useState<any>(null);
@@ -77,6 +108,9 @@ export function DataProvider({ children }) {
     setSettings(normalizeSettings(data.settings));
     setMarketPrices(data.marketPrices || {});
     setPortfolios(data.portfolios && data.portfolios.length > 0 ? data.portfolios : [DEFAULT_PORTFOLIO]);
+    setTradingPlans(data.tradingPlans || []);
+    setIpoEvents(data.ipoEvents || []);
+    setIpoEntries(data.ipoEntries || []);
   }, []);
 
   // Toast helper
@@ -126,6 +160,7 @@ export function DataProvider({ children }) {
       setSettings(DEFAULT_SETTINGS);
       setMarketPrices({});
       setPortfolios([DEFAULT_PORTFOLIO]);
+      setTradingPlans([]);
       setDataLoading(false);
       return;
     }
@@ -369,9 +404,99 @@ export function DataProvider({ children }) {
   const selectPortfolio = (id) => {
     const nextId = id || 'default';
     setActivePortfolioId(nextId);
-    if (userId) {
-      setScopedItem('active_portfolio', userId, nextId);
-    }
+      if (userId) {
+        setScopedItem('active_portfolio', userId, nextId);
+      }
+    };
+
+    // === TRADING PLANS CRUD ===
+    const addTradingPlan = (plan) => {
+      if (!ensureWritable()) return;
+      const newPlan = { ...plan, id: generateId(), createdAt: new Date().toISOString() };
+      const updated = [newPlan, ...tradingPlans];
+      setTradingPlans(updated);
+      persistData('tradingPlans', updated);
+      showToast('Rencana trading disimpan');
+    };
+
+    const deleteTradingPlan = (id) => {
+      if (!ensureWritable()) return;
+      const updated = tradingPlans.filter(p => p.id !== id);
+      setTradingPlans(updated);
+      persistData('tradingPlans', updated);
+      showToast('Rencana trading dihapus');
+    };
+
+  // === IPO EVENTS CRUD ===
+  const addIpoEvent = (event: any) => {
+    if (!ensureWritable()) return;
+    const newEvent = { ...event, id: generateId(), createdAt: new Date().toISOString() };
+    const updated = [newEvent, ...ipoEvents];
+    setIpoEvents(updated);
+    persistData('ipoEvents', updated);
+    showToast('IPO event berhasil dibuat');
+    return newEvent;
+  };
+
+  const updateIpoEvent = (id: string, updates: any) => {
+    if (!ensureWritable()) return;
+    const updated = ipoEvents.map(e => e.id === id ? { ...e, ...updates } : e);
+    setIpoEvents(updated);
+    persistData('ipoEvents', updated);
+    showToast('IPO event diperbarui');
+  };
+
+  const deleteIpoEvent = (id: string) => {
+    if (!ensureWritable()) return;
+    const updatedEvents = ipoEvents.filter(e => e.id !== id);
+    setIpoEvents(updatedEvents);
+    persistData('ipoEvents', updatedEvents);
+    // Also delete all entries for this event
+    const updatedEntries = ipoEntries.filter((e: any) => e.ipoEventId !== id);
+    setIpoEntries(updatedEntries);
+    persistData('ipoEntries', updatedEntries);
+    showToast('IPO event dihapus');
+  };
+
+  // === IPO ENTRIES CRUD ===
+  const addIpoEntry = (entry: any) => {
+    if (!ensureWritable()) return;
+    const newEntry = { ...entry, id: generateId(), createdAt: new Date().toISOString() };
+    const updated = [...ipoEntries, newEntry];
+    setIpoEntries(updated);
+    persistData('ipoEntries', updated);
+    showToast('Entry akun ditambahkan');
+    return newEntry;
+  };
+
+  const updateIpoEntry = (id: string, updates: any) => {
+    if (!ensureWritable()) return;
+    const updated = ipoEntries.map((e: any) => e.id === id ? { ...e, ...updates } : e);
+    setIpoEntries(updated);
+    persistData('ipoEntries', updated);
+    showToast('Entry diperbarui');
+  };
+
+  const deleteIpoEntry = (id: string) => {
+    if (!ensureWritable()) return;
+    const updated = ipoEntries.filter((e: any) => e.id !== id);
+    setIpoEntries(updated);
+    persistData('ipoEntries', updated);
+    showToast('Entry dihapus');
+  };
+
+  // Batch add — used for duplicating; avoids stale-state bug of calling addIpoEntry in a loop
+  const batchAddIpoEntries = (entries: any[]) => {
+    if (!ensureWritable()) return;
+    const newEntries = entries.map(entry => ({
+      ...entry,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+    }));
+    const updated = [...ipoEntries, ...newEntries];
+    setIpoEntries(updated);
+    persistData('ipoEntries', updated);
+    showToast(`${newEntries.length} entry berhasil disalin`);
   };
 
   // === SETTINGS ===
@@ -488,6 +613,18 @@ export function DataProvider({ children }) {
       updatePortfolio,
       deletePortfolio,
       selectPortfolio,
+      tradingPlans,
+      addTradingPlan,
+      deleteTradingPlan,
+      ipoEvents,
+      ipoEntries,
+      addIpoEvent,
+      updateIpoEvent,
+      deleteIpoEvent,
+      addIpoEntry,
+      updateIpoEntry,
+      deleteIpoEntry,
+      batchAddIpoEntries,
       dataLoading,
       dataError,
       databaseSetupError,
@@ -532,6 +669,9 @@ function loadLocalData(userId) {
     dividends: getScopedItem('dividends', userId) || [],
     settings: normalizeSettings(getScopedItem('settings', userId)),
     marketPrices: getScopedItem('marketPrices', userId) || {},
+    tradingPlans: getScopedItem('tradingPlans', userId) || [],
+    ipoEvents: getScopedItem('ipoEvents', userId) || [],
+    ipoEntries: getScopedItem('ipoEntries', userId) || [],
   };
 }
 

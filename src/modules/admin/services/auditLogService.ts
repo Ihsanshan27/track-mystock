@@ -36,3 +36,17 @@ export async function listAuditLogs(limit = 100) {
   if (error) throw error;
   return data || [];
 }
+
+export async function cleanOldAuditLogs(retentionDays: number) {
+  if (!isSupabaseConfigured || !retentionDays || retentionDays <= 0) return;
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+  const { error } = await supabase
+    .from('audit_logs')
+    .delete()
+    .lt('created_at', cutoffDate.toISOString());
+
+  if (error) throw error;
+}

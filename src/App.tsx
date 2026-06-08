@@ -19,8 +19,12 @@ import WatchlistPage from '@/modules/watchlist/pages/WatchlistPage';
 import NotesPage from '@/modules/notes/pages/NotesPage';
 import PortfoliosPage from '@/modules/portfolios/pages/PortfoliosPage';
 import SettingsPage from '@/modules/settings/pages/SettingsPage';
+import ProfilePage from '@/modules/profile/pages/ProfilePage';
+import TradingPlansPage from '@/modules/plans/pages/TradingPlansPage';
 import CashflowPage from '@/modules/cashflow/pages/CashflowPage';
 import DividendPage from '@/modules/dividends/pages/DividendPage';
+import IpoListPage from '@/modules/ipo/pages/IpoListPage';
+import IpoDetailPage from '@/modules/ipo/pages/IpoDetailPage';
 import AdminUsersPage from '@/modules/admin/pages/AdminUsersPage';
 import AdminWorkspacesPage from '@/modules/admin/pages/AdminWorkspacesPage';
 import AdminAuditLogsPage from '@/modules/admin/pages/AdminAuditLogsPage';
@@ -137,6 +141,10 @@ function AppRoutes() {
         <Route path="/mentor/traders/:userId" element={<MentorRoute><MentorTraderDetailPage /></MentorRoute>} />
         */}
         <Route path="/settings" element={<PermissionRoute permission="settings:manage"><SettingsPage /></PermissionRoute>} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/plans" element={<TradingPlansPage />} />
+        <Route path="/ipo" element={<IpoListPage />} />
+        <Route path="/ipo/:id" element={<IpoDetailPage />} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
         <Route path="/admin/workspaces" element={<AdminRoute><AdminWorkspacesPage /></AdminRoute>} />
         <Route path="/admin/audit-logs" element={<AdminRoute><AdminAuditLogsPage /></AdminRoute>} />

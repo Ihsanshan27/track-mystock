@@ -1,7 +1,7 @@
 import { supabase } from '@/modules/shared/services/supabaseClient';
 
 const TABLE_NAME = 'journal_data';
-const DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios'];
+const DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries'];
 
 export async function loadUserData(userId) {
   const ownerId = getRequiredUserId(userId);

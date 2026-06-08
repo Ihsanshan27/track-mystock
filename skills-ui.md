@@ -1,226 +1,627 @@
+# UI Design Skill: Premium Rounded Apple-Like Light Mode
+
+## Tujuan Utama
+
+Setiap hasil UI harus memiliki tampilan yang:
+
+- clean
+- modern
+- premium
+- rounded
+- soft
+- smooth
+- minimalis
+- nyaman dilihat
+- tidak terlalu ramai
+- terasa seperti produk teknologi premium
+
+Prioritaskan kualitas visual, konsistensi, spacing, hierarchy, dan detail kecil seperti hover state, focus state, shadow, border, radius, transition, loading, empty state, dan responsive behavior.
+
+Jangan hanya membuat UI “berfungsi”. Buat UI terasa polished dan siap digunakan di production.
+
 ---
-name: design-taste-frontend-v1
-description: The original v1 taste-skill, preserved for projects depending on its exact behavior. The current default is `design-taste-frontend` (v2 experimental), which is a substantial rewrite. Use this v1 install name only if you need exact backward compatibility.
+
+## Prinsip Desain Utama
+
+Gunakan pendekatan desain seperti aplikasi modern premium dengan karakter:
+
+- Apple-like
+- soft UI
+- rounded rectangle
+- breathable layout
+- subtle shadow
+- smooth interaction
+- calm visual tone
+- refined detail
+- high-end product feel
+
+UI tidak boleh terlihat seperti template dashboard generik yang kaku, terlalu kotak, terlalu putih kosong, atau terlalu ramai warna.
+
 ---
 
-# High-Agency Frontend Skill
+## Light Mode Style
 
-## 1. ACTIVE BASELINE CONFIGURATION
-* DESIGN_VARIANCE: 8 (1=Perfect Symmetry, 10=Artsy Chaos)
-* MOTION_INTENSITY: 6 (1=Static/No movement, 10=Cinematic/Magic Physics)
-* VISUAL_DENSITY: 4 (1=Art Gallery/Airy, 10=Pilot Cockpit/Packed Data)
+Gunakan light mode yang lembut, bukan putih polos.
 
-**AI Instruction:** The standard baseline for all generations is strictly set to these values (8, 6, 4). Do not ask the user to edit this file. Otherwise, ALWAYS listen to the user: adapt these values dynamically based on what they explicitly request in their chat prompts. Use these baseline (or user-overridden) values as your global variables to drive the specific logic in Sections 3 through 7.
+Rekomendasi warna:
 
-## 2. DEFAULT ARCHITECTURE & CONVENTIONS
-Unless the user explicitly specifies a different stack, adhere to these structural constraints to maintain consistency:
+```css
+--background: #f5f5f7;
+--surface: #ffffff;
+--surface-soft: #fbfbfd;
+--border: #e5e5ea;
+--text-primary: #1d1d1f;
+--text-secondary: #6e6e73;
+--text-muted: #8e8e93;
+--primary: #007aff;
+--primary-hover: #0066d6;
+--danger: #ff3b30;
+--success: #34c759;
+--warning: #ff9500;
+```
 
-* **DEPENDENCY VERIFICATION [MANDATORY]:** Before importing ANY 3rd party library (e.g. `framer-motion`, `lucide-react`, `zustand`), you MUST check `package.json`. If the package is missing, you MUST output the installation command (e.g. `npm install package-name`) before providing the code. **Never** assume a library exists.
-* **Framework & Interactivity:** React or Next.js. Default to Server Components (`RSC`). 
-    * **RSC SAFETY:** Global state works ONLY in Client Components. In Next.js, wrap providers in a `"use client"` component.
-    * **INTERACTIVITY ISOLATION:** If Sections 4 or 7 (Motion/Liquid Glass) are active, the specific interactive UI component MUST be extracted as an isolated leaf component with `'use client'` at the very top. Server Components must exclusively render static layouts.
-* **State Management:** Use local `useState`/`useReducer` for isolated UI. Use global state strictly for deep prop-drilling avoidance.
-* **Styling Policy:** Use Tailwind CSS (v3/v4) for 90% of styling. 
-    * **TAILWIND VERSION LOCK:** Check `package.json` first. Do not use v4 syntax in v3 projects. 
-    * **T4 CONFIG GUARD:** For v4, do NOT use `tailwindcss` plugin in `postcss.config.js`. Use `@tailwindcss/postcss` or the Vite plugin.
-* **ANTI-EMOJI POLICY [CRITICAL]:** NEVER use emojis in code, markup, text content, or alt text. Replace symbols with high-quality icons (Radix, Phosphor) or clean SVG primitives. Emojis are BANNED.
-* **Responsiveness & Spacing:**
-  * Standardize breakpoints (`sm`, `md`, `lg`, `xl`).
-  * Contain page layouts using `max-w-[1400px] mx-auto` or `max-w-7xl`.
-  * **Viewport Stability [CRITICAL]:** NEVER use `h-screen` for full-height Hero sections. ALWAYS use `min-h-[100dvh]` to prevent catastrophic layout jumping on mobile browsers (iOS Safari).
-  * **Grid over Flex-Math:** NEVER use complex flexbox percentage math (`w-[calc(33%-1rem)]`). ALWAYS use CSS Grid (`grid grid-cols-1 md:grid-cols-3 gap-6`) for reliable structures.
-* **Icons:** You MUST use exactly `@phosphor-icons/react` or `@radix-ui/react-icons` as the import paths (check installed version). Standardize `strokeWidth` globally (e.g., exclusively use `1.5` or `2.0`).
+Aturan warna:
 
+- Background utama gunakan soft gray/off-white.
+- Card gunakan putih atau off-white dengan border halus.
+- Jangan gunakan terlalu banyak warna mencolok.
+- Primary color hanya untuk action penting, active state, link, dan highlight.
+- Gunakan warna status dalam versi soft, bukan terlalu tajam.
+- Hindari background putih polos full screen tanpa struktur visual.
 
-## 3. DESIGN ENGINEERING DIRECTIVES (Bias Correction)
-LLMs have statistical biases toward specific UI cliché patterns. Proactively construct premium interfaces using these engineered rules:
+---
 
-**Rule 1: Deterministic Typography**
-* **Display/Headlines:** Default to `text-4xl md:text-6xl tracking-tighter leading-none`.
-    * **ANTI-SLOP:** Discourage `Inter` for "Premium" or "Creative" vibes. Force unique character using `Geist`, `Outfit`, `Cabinet Grotesk`, or `Satoshi`.
-    * **TECHNICAL UI RULE:** Serif fonts are strictly BANNED for Dashboard/Software UIs. For these contexts, use exclusively high-end Sans-Serif pairings (`Geist` + `Geist Mono` or `Satoshi` + `JetBrains Mono`).
-* **Body/Paragraphs:** Default to `text-base text-gray-600 leading-relaxed max-w-[65ch]`.
+## Border Radius
 
-**Rule 2: Color Calibration**
-* **Constraint:** Max 1 Accent Color. Saturation < 80%.
-* **THE LILA BAN:** The "AI Purple/Blue" aesthetic is strictly BANNED. No purple button glows, no neon gradients. Use absolute neutral bases (Zinc/Slate) with high-contrast, singular accents (e.g. Emerald, Electric Blue, or Deep Rose).
-* **COLOR CONSISTENCY:** Stick to one palette for the entire output. Do not fluctuate between warm and cool grays within the same project.
+Gunakan radius besar dan konsisten.
 
-**Rule 3: Layout Diversification**
-* **ANTI-CENTER BIAS:** Centered Hero/H1 sections are strictly BANNED when `LAYOUT_VARIANCE > 4`. Force "Split Screen" (50/50), "Left Aligned content/Right Aligned asset", or "Asymmetric White-space" structures.
+Rekomendasi:
 
-**Rule 4: Materiality, Shadows, and "Anti-Card Overuse"**
-* **DASHBOARD HARDENING:** For `VISUAL_DENSITY > 7`, generic card containers are strictly BANNED. Use logic-grouping via `border-t`, `divide-y`, or purely negative space. Data metrics should breathe without being boxed in unless elevation (z-index) is functionally required.
-* **Execution:** Use cards ONLY when elevation communicates hierarchy. When a shadow is used, tint it to the background hue.
+```css
+--radius-sm: 10px;
+--radius-md: 14px;
+--radius-lg: 18px;
+--radius-xl: 24px;
+--radius-2xl: 32px;
+--radius-pill: 999px;
+```
 
-**Rule 5: Interactive UI States**
-* **Mandatory Generation:** LLMs naturally generate "static" successful states. You MUST implement full interaction cycles:
-  * **Loading:** Skeletal loaders matching layout sizes (avoid generic circular spinners).
-  * **Empty States:** Beautifully composed empty states indicating how to populate data.
-  * **Error States:** Clear, inline error reporting (e.g., forms).
-  * **Tactile Feedback:** On `:active`, use `-translate-y-[1px]` or `scale-[0.98]` to simulate a physical push indicating success/action.
+Aturan radius:
 
-**Rule 6: Data & Form Patterns**
-* **Forms:** Label MUST sit above input. Helper text is optional but should exist in markup. Error text below input. Use a standard `gap-2` for input blocks.
+- Button: 12px–16px atau pill.
+- Input: 14px–18px.
+- Card: 20px–24px.
+- Modal/dialog/sheet: 24px–32px.
+- Badge/chip: pill.
+- Hindari sudut tajam kecuali benar-benar diperlukan.
 
-## 4. CREATIVE PROACTIVITY (Anti-Slop Implementation)
-To actively combat generic AI designs, systematically implement these high-end coding concepts as your baseline:
-* **"Liquid Glass" Refraction:** When glassmorphism is needed, go beyond `backdrop-blur`. Add a 1px inner border (`border-white/10`) and a subtle inner shadow (`shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]`) to simulate physical edge refraction.
-* **Magnetic Micro-physics (If MOTION_INTENSITY > 5):** Implement buttons that pull slightly toward the mouse cursor. **CRITICAL:** NEVER use React `useState` for magnetic hover or continuous animations. Use EXCLUSIVELY Framer Motion's `useMotionValue` and `useTransform` outside the React render cycle to prevent performance collapse on mobile.
-* **Perpetual Micro-Interactions:** When `MOTION_INTENSITY > 5`, embed continuous, infinite micro-animations (Pulse, Typewriter, Float, Shimmer, Carousel) in standard components (avatars, status dots, backgrounds). Apply premium Spring Physics (`type: "spring", stiffness: 100, damping: 20`) to all interactive elements—no linear easing.
-* **Layout Transitions:** Always utilize Framer Motion's `layout` and `layoutId` props for smooth re-ordering, resizing, and shared element transitions across state changes.
-* **Staggered Orchestration:** Do not mount lists or grids instantly. Use `staggerChildren` (Framer) or CSS cascade (`animation-delay: calc(var(--index) * 100ms)`) to create sequential waterfall reveals. **CRITICAL:** For `staggerChildren`, the Parent (`variants`) and Children MUST reside in the identical Client Component tree. If data is fetched asynchronously, pass the data as props into a centralized Parent Motion wrapper.
+Jika menggunakan Tailwind:
 
-## 5. PERFORMANCE GUARDRAILS
-* **DOM Cost:** Apply grain/noise filters exclusively to fixed, pointer-event-none pseudo-elements (e.g., `fixed inset-0 z-50 pointer-events-none`) and NEVER to scrolling containers to prevent continuous GPU repaints and mobile performance degradation.
-* **Hardware Acceleration:** Never animate `top`, `left`, `width`, or `height`. Animate exclusively via `transform` and `opacity`.
-* **Z-Index Restraint:** NEVER spam arbitrary `z-50` or `z-10` unprompted. Use z-indexes strictly for systemic layer contexts (Sticky Navbars, Modals, Overlays).
+```txt
+button: rounded-xl / rounded-2xl
+input: rounded-2xl
+card: rounded-3xl
+modal: rounded-3xl
+badge: rounded-full
+```
 
-## 6. TECHNICAL REFERENCE (Dial Definitions)
+---
 
-### DESIGN_VARIANCE (Level 1-10)
-* **1-3 (Predictable):** Flexbox `justify-center`, strict 12-column symmetrical grids, equal paddings.
-* **4-7 (Offset):** Use `margin-top: -2rem` overlapping, varied image aspect ratios (e.g., 4:3 next to 16:9), left-aligned headers over center-aligned data.
-* **8-10 (Asymmetric):** Masonry layouts, CSS Grid with fractional units (e.g., `grid-template-columns: 2fr 1fr 1fr`), massive empty zones (`padding-left: 20vw`). 
-* **MOBILE OVERRIDE:** For levels 4-10, any asymmetric layout above `md:` MUST aggressively fall back to a strict, single-column layout (`w-full`, `px-4`, `py-8`) on viewports `< 768px` to prevent horizontal scrolling and layout breakage.
+## Spacing dan Layout
 
-### MOTION_INTENSITY (Level 1-10)
-* **1-3 (Static):** No automatic animations. CSS `:hover` and `:active` states only.
-* **4-7 (Fluid CSS):** Use `transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1)`. Use `animation-delay` cascades for load-ins. Focus strictly on `transform` and `opacity`. Use `will-change: transform` sparingly.
-* **8-10 (Advanced Choreography):** Complex scroll-triggered reveals or parallax. Use Framer Motion hooks. NEVER use `window.addEventListener('scroll')`.
+Gunakan spacing yang lega dan konsisten.
 
-### VISUAL_DENSITY (Level 1-10)
-* **1-3 (Art Gallery Mode):** Lots of white space. Huge section gaps. Everything feels very expensive and clean.
-* **4-7 (Daily App Mode):** Normal spacing for standard web apps.
-* **8-10 (Cockpit Mode):** Tiny paddings. No card boxes; just 1px lines to separate data. Everything is packed. **Mandatory:** Use Monospace (`font-mono`) for all numbers.
+Aturan:
 
-## 7. AI TELLS (Forbidden Patterns)
-To guarantee a premium, non-generic output, you MUST strictly avoid these common AI design signatures unless explicitly requested:
+- Gunakan sistem spacing 8px.
+- Jangan membuat elemen terlalu dempet.
+- Card harus memiliki padding lega.
+- Section harus memiliki jarak visual yang jelas.
+- Layout harus terasa breathable.
+- Gunakan max-width pada konten agar tidak terlalu melebar.
+- Gunakan whitespace sebagai bagian dari desain.
 
-### Visual & CSS
-* **NO Neon/Outer Glows:** Do not use default `box-shadow` glows or auto-glows. Use inner borders or subtle tinted shadows.
-* **NO Pure Black:** Never use `#000000`. Use Off-Black, Zinc-950, or Charcoal.
-* **NO Oversaturated Accents:** Desaturate accents to blend elegantly with neutrals.
-* **NO Excessive Gradient Text:** Do not use text-fill gradients for large headers.
-* **NO Custom Mouse Cursors:** They are outdated and ruin performance/accessibility.
+Rekomendasi:
 
-### Typography
-* **NO Inter Font:** Banned. Use `Geist`, `Outfit`, `Cabinet Grotesk`, or `Satoshi`.
-* **NO Oversized H1s:** The first heading should not scream. Control hierarchy with weight and color, not just massive scale.
-* **Serif Constraints:** Use Serif fonts ONLY for creative/editorial designs. **NEVER** use Serif on clean Dashboards.
+```txt
+Small gap: 8px
+Medium gap: 16px
+Large gap: 24px
+Section gap: 32px–48px
+Card padding: 20px–32px
+Page padding desktop: 32px–48px
+Page padding mobile: 16px–20px
+```
 
-### Layout & Spacing
-* **Align & Space Perfectly:** Ensure padding and margins are mathematically perfect. Avoid floating elements with awkward gaps.
-* **NO 3-Column Card Layouts:** The generic "3 equal cards horizontally" feature row is BANNED. Use a 2-column Zig-Zag, asymmetric grid, or horizontal scrolling approach instead.
+---
 
-### Content & Data (The "Jane Doe" Effect)
-* **NO Generic Names:** "John Doe", "Sarah Chan", or "Jack Su" are banned. Use highly creative, realistic-sounding names.
-* **NO Generic Avatars:** DO NOT use standard SVG "egg" or Lucide user icons for avatars. Use creative, believable photo placeholders or specific styling.
-* **NO Fake Numbers:** Avoid predictable outputs like `99.99%`, `50%`, or basic phone numbers (`1234567`). Use organic, messy data (`47.2%`, `+1 (312) 847-1928`).
-* **NO Startup Slop Names:** "Acme", "Nexus", "SmartFlow". Invent premium, contextual brand names.
-* **NO Filler Words:** Avoid AI copywriting clichés like "Elevate", "Seamless", "Unleash", or "Next-Gen". Use concrete verbs.
+## Typography
 
-### External Resources & Components
-* **NO Broken Unsplash Links:** Do not use Unsplash. Use absolute, reliable placeholders like `https://picsum.photos/seed/{random_string}/800/600` or SVG UI Avatars.
-* **shadcn/ui Customization:** You may use `shadcn/ui`, but NEVER in its generic default state. You MUST customize the radii, colors, and shadows to match the high-end project aesthetic.
-* **Production-Ready Cleanliness:** Code must be extremely clean, visually striking, memorable, and meticulously refined in every detail.
+Gunakan typography yang clean, modern, dan mudah dibaca.
 
-## 8. THE CREATIVE ARSENAL (High-End Inspiration)
-Do not default to generic UI. Pull from this library of advanced concepts to ensure the output is visually striking and memorable. When appropriate, leverage **GSAP (ScrollTrigger/Parallax)** for complex scrolltelling or **ThreeJS/WebGL** for 3D/Canvas animations, rather than basic CSS motion. **CRITICAL:** Never mix GSAP/ThreeJS with Framer Motion in the same component tree. Default to Framer Motion for UI/Bento interactions. Use GSAP/ThreeJS EXCLUSIVELY for isolated full-page scrolltelling or canvas backgrounds, wrapped in strict useEffect cleanup blocks.
+Aturan:
 
-### The Standard Hero Paradigm
-* Stop doing centered text over a dark image. Try asymmetric Hero sections: Text cleanly aligned to the left or right. The background should feature a high-quality, relevant image with a subtle stylistic fade (darkening or lightening gracefully into the background color depending on if it is Light or Dark mode).
+- Heading harus jelas dan kuat.
+- Body text jangan terlalu kecil.
+- Secondary text harus lebih soft.
+- Jangan terlalu banyak variasi ukuran dan font weight.
+- Gunakan line-height yang nyaman.
+- Hindari teks abu-abu yang terlalu tipis sampai sulit dibaca.
 
-### Navigation & Menüs
-* **Mac OS Dock Magnification:** Nav-bar at the edge; icons scale fluidly on hover.
-* **Magnetic Button:** Buttons that physically pull toward the cursor.
-* **Gooey Menu:** Sub-items detach from the main button like a viscous liquid.
-* **Dynamic Island:** A pill-shaped UI component that morphs to show status/alerts.
-* **Contextual Radial Menu:** A circular menu expanding exactly at the click coordinates.
-* **Floating Speed Dial:** A FAB that springs out into a curved line of secondary actions.
-* **Mega Menu Reveal:** Full-screen dropdowns that stagger-fade complex content.
+Rekomendasi:
 
-### Layout & Grids
-* **Bento Grid:** Asymmetric, tile-based grouping (e.g., Apple Control Center).
-* **Masonry Layout:** Staggered grid without fixed row heights (e.g., Pinterest).
-* **Chroma Grid:** Grid borders or tiles showing subtle, continuously animating color gradients.
-* **Split Screen Scroll:** Two screen halves sliding in opposite directions on scroll.
-* **Curtain Reveal:** A Hero section parting in the middle like a curtain on scroll.
+```css
+--font-sans: Inter, SF Pro Display, SF Pro Text, system-ui, sans-serif;
+```
 
-### Cards & Containers
-* **Parallax Tilt Card:** A 3D-tilting card tracking the mouse coordinates.
-* **Spotlight Border Card:** Card borders that illuminate dynamically under the cursor.
-* **Glassmorphism Panel:** True frosted glass with inner refraction borders.
-* **Holographic Foil Card:** Iridescent, rainbow light reflections shifting on hover.
-* **Tinder Swipe Stack:** A physical stack of cards the user can swipe away.
-* **Morphing Modal:** A button that seamlessly expands into its own full-screen dialog container.
+Hierarchy:
 
-### Scroll-Animations
-* **Sticky Scroll Stack:** Cards that stick to the top and physically stack over each other.
-* **Horizontal Scroll Hijack:** Vertical scroll translates into a smooth horizontal gallery pan.
-* **Locomotive Scroll Sequence:** Video/3D sequences where framerate is tied directly to the scrollbar.
-* **Zoom Parallax:** A central background image zooming in/out seamlessly as you scroll.
-* **Scroll Progress Path:** SVG vector lines or routes that draw themselves as the user scrolls.
-* **Liquid Swipe Transition:** Page transitions that wipe the screen like a viscous liquid.
+```txt
+Page title: 28px–36px, weight 700
+Section title: 20px–24px, weight 600–700
+Card title: 16px–20px, weight 600
+Body: 14px–16px, weight 400–500
+Small/helper: 12px–14px
+```
 
-### Galleries & Media
-* **Dome Gallery:** A 3D gallery feeling like a panoramic dome.
-* **Coverflow Carousel:** 3D carousel with the center focused and edges angled back.
-* **Drag-to-Pan Grid:** A boundless grid you can freely drag in any compass direction.
-* **Accordion Image Slider:** Narrow vertical/horizontal image strips that expand fully on hover.
-* **Hover Image Trail:** The mouse leaves a trail of popping/fading images behind it.
-* **Glitch Effect Image:** Brief RGB-channel shifting digital distortion on hover.
+---
 
-### Typography & Text
-* **Kinetic Marquee:** Endless text bands that reverse direction or speed up on scroll.
-* **Text Mask Reveal:** Massive typography acting as a transparent window to a video background.
-* **Text Scramble Effect:** Matrix-style character decoding on load or hover.
-* **Circular Text Path:** Text curved along a spinning circular path.
-* **Gradient Stroke Animation:** Outlined text with a gradient continuously running along the stroke.
-* **Kinetic Typography Grid:** A grid of letters dodging or rotating away from the cursor.
+## Shadow dan Border
 
-### Micro-Interactions & Effects
-* **Particle Explosion Button:** CTAs that shatter into particles upon success.
-* **Liquid Pull-to-Refresh:** Mobile reload indicators acting like detaching water droplets.
-* **Skeleton Shimmer:** Shifting light reflections moving across placeholder boxes.
-* **Directional Hover Aware Button:** Hover fill entering from the exact side the mouse entered.
-* **Ripple Click Effect:** Visual waves rippling precisely from the click coordinates.
-* **Animated SVG Line Drawing:** Vectors that draw their own contours in real-time.
-* **Mesh Gradient Background:** Organic, lava-lamp-like animated color blobs.
-* **Lens Blur Depth:** Dynamic focus blurring background UI layers to highlight a foreground action.
+Gunakan shadow yang lembut, tipis, dan premium.
 
-## 9. THE "MOTION-ENGINE" BENTO PARADIGM
-When generating modern SaaS dashboards or feature sections, you MUST utilize the following "Bento 2.0" architecture and motion philosophy. This goes beyond static cards and enforces a "Vercel-core meets Dribbble-clean" aesthetic heavily reliant on perpetual physics.
+Jangan gunakan shadow keras, gelap, atau terlalu tebal.
 
-### A. Core Design Philosophy
-* **Aesthetic:** High-end, minimal, and functional.
-* **Palette:** Background in `#f9fafb`. Cards are pure white (`#ffffff`) with a 1px border of `border-slate-200/50`.
-* **Surfaces:** Use `rounded-[2.5rem]` for all major containers. Apply a "diffusion shadow" (a very light, wide-spreading shadow, e.g., `shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]`) to create depth without clutter.
-* **Typography:** Strict `Geist`, `Satoshi`, or `Cabinet Grotesk` font stack. Use subtle tracking (`tracking-tight`) for headers.
-* **Labels:** Titles and descriptions must be placed **outside and below** the cards to maintain a clean, gallery-style presentation.
-* **Pixel-Perfection:** Use generous `p-8` or `p-10` padding inside cards.
+Rekomendasi:
 
-### B. The Animation Engine Specs (Perpetual Motion)
-All cards must contain **"Perpetual Micro-Interactions."** Use the following Framer Motion principles:
-* **Spring Physics:** No linear easing. Use `type: "spring", stiffness: 100, damping: 20` for a premium, weighty feel.
-* **Layout Transitions:** Heavily utilize the `layout` and `layoutId` props to ensure smooth re-ordering, resizing, and shared element state transitions.
-* **Infinite Loops:** Every card must have an "Active State" that loops infinitely (Pulse, Typewriter, Float, or Carousel) to ensure the dashboard feels "alive".
-* **Performance:** Wrap dynamic lists in `<AnimatePresence>` and optimize for 60fps. **PERFORMANCE CRITICAL:** Any perpetual motion or infinite loop MUST be memoized (React.memo) and completely isolated in its own microscopic Client Component. Never trigger re-renders in the parent layout.
+```css
+--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+--shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
+--shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08);
+```
 
-### C. The 5-Card Archetypes (Micro-Animation Specs)
-Implement these specific micro-animations when constructing Bento grids (e.g., Row 1: 3 cols | Row 2: 2 cols split 70/30):
-1. **The Intelligent List:** A vertical stack of items with an infinite auto-sorting loop. Items swap positions using `layoutId`, simulating an AI prioritizing tasks in real-time.
-2. **The Command Input:** A search/AI bar with a multi-step Typewriter Effect. It cycles through complex prompts, including a blinking cursor and a "processing" state with a shimmering loading gradient.
-3. **The Live Status:** A scheduling interface with "breathing" status indicators. Include a pop-up notification badge that emerges with an "Overshoot" spring effect, stays for 3 seconds, and vanishes.
-4. **The Wide Data Stream:** A horizontal "Infinite Carousel" of data cards or metrics. Ensure the loop is seamless (using `x: ["0%", "-100%"]`) with a speed that feels effortless.
-5. **The Contextual UI (Focus Mode):** A document view that animates a staggered highlight of a text block, followed by a "Float-in" of a floating action toolbar with micro-icons.
+Aturan:
 
-## 10. FINAL PRE-FLIGHT CHECK
-Evaluate your code against this matrix before outputting. This is the **last** filter you apply to your logic.
-- [ ] Is global state used appropriately to avoid deep prop-drilling rather than arbitrarily?
-- [ ] Is mobile layout collapse (`w-full`, `px-4`, `max-w-7xl mx-auto`) guaranteed for high-variance designs?
-- [ ] Do full-height sections safely use `min-h-[100dvh]` instead of the bugged `h-screen`?
-- [ ] Do `useEffect` animations contain strict cleanup functions?
-- [ ] Are empty, loading, and error states provided?
-- [ ] Are cards omitted in favor of spacing where possible?
-- [ ] Did you strictly isolate CPU-heavy perpetual animations in their own Client Components?
+- Card utama boleh menggunakan border + shadow halus.
+- Elemen kecil cukup border.
+- Modal/dropdown boleh menggunakan shadow lebih jelas tapi tetap lembut.
+- Hindari shadow hitam pekat.
+- Gunakan border `#E5E5EA` atau warna netral lembut.
+
+---
+
+## Smooth Transition
+
+Semua interaksi harus terasa halus dan natural.
+
+Default transition:
+
+```css
+transition: all 240ms cubic-bezier(0.22, 1, 0.36, 1);
+```
+
+Jika menggunakan Tailwind:
+
+```txt
+transition-all duration-300 ease-out
+```
+
+Aturan animasi:
+
+- Hover state harus smooth.
+- Focus state harus smooth.
+- Modal open/close harus smooth.
+- Dropdown open/close harus smooth.
+- Sidebar expand/collapse harus smooth.
+- Jangan gunakan animasi berlebihan.
+- Hindari gerakan terlalu cepat atau mendadak.
+- Animasi harus subtle, calm, dan refined.
+
+Contoh interaksi:
+
+```txt
+Button hover:
+- background sedikit berubah
+- shadow sedikit naik
+- transform scale 1.01 atau translateY(-1px)
+
+Card hover:
+- shadow lebih lembut tapi sedikit lebih terlihat
+- border sedikit lebih aktif
+- optional translateY(-2px)
+
+Input focus:
+- border primary soft
+- ring tipis
+- shadow ringan
+```
+
+---
+
+## Komponen Wajib
+
+Setiap komponen harus dibuat reusable dan konsisten.
+
+Komponen utama:
+
+- Button
+- Card
+- Input
+- Textarea
+- Select
+- Badge
+- Chip
+- Modal/Dialog
+- Dropdown
+- Navbar
+- Sidebar
+- Page Header
+- Table
+- Empty State
+- Loading State
+- Error State
+- Toast/Alert
+
+---
+
+## Button
+
+Button harus terasa rounded, solid, dan premium.
+
+Aturan:
+
+- Gunakan padding nyaman.
+- Gunakan radius besar.
+- Tambahkan transition.
+- Hover tidak boleh terlalu agresif.
+- Disabled state harus jelas.
+- Loading state harus tersedia jika aksi async.
+
+Variant:
+
+```txt
+Primary
+Secondary
+Ghost
+Danger
+Outline
+```
+
+Style:
+
+```txt
+Primary:
+- background primary
+- text white
+- hover primary lebih gelap
+- shadow halus
+
+Secondary:
+- background putih/soft gray
+- border halus
+- text gelap
+
+Ghost:
+- transparent
+- hover soft gray
+```
+
+---
+
+## Card
+
+Card adalah elemen utama untuk membuat UI terasa premium.
+
+Aturan:
+
+- Gunakan background putih/off-white.
+- Gunakan radius 20px–24px.
+- Gunakan padding 20px–32px.
+- Gunakan border halus.
+- Shadow sangat lembut.
+- Jangan terlalu banyak card kecil yang berantakan.
+- Gunakan heading, subtitle, dan action yang jelas.
+
+Contoh feel:
+
+```txt
+soft white card
+large rounded corner
+light border
+subtle floating shadow
+comfortable inner padding
+```
+
+---
+
+## Form dan Input
+
+Form harus terlihat clean dan mudah digunakan.
+
+Aturan:
+
+- Input rounded.
+- Label jelas.
+- Helper text tersedia jika diperlukan.
+- Error message rapi.
+- Focus state halus.
+- Jangan membuat input terlalu pendek.
+- Gunakan spacing antar field yang nyaman.
+
+State wajib:
+
+```txt
+default
+hover
+focus
+error
+disabled
+readonly
+```
+
+---
+
+## Table dan List
+
+Table/list harus mudah dibaca.
+
+Aturan:
+
+- Header table jelas.
+- Row spacing nyaman.
+- Hover row soft.
+- Action button tidak terlalu ramai.
+- Gunakan badge untuk status.
+- Gunakan empty state jika data kosong.
+- Gunakan pagination/filter/search dengan layout rapi.
+
+Hindari table yang terlalu padat dan kaku.
+
+---
+
+## Sidebar dan Navbar
+
+Navigasi harus clean dan tidak berat secara visual.
+
+Aturan:
+
+- Active menu harus jelas tapi soft.
+- Gunakan rounded item.
+- Icon simple.
+- Hover state halus.
+- Sidebar tidak boleh terlalu ramai.
+- Gunakan grouping jika menu banyak.
+- Navbar/header harus memberi ruang pada title dan action utama.
+
+---
+
+## Modal, Dialog, dan Sheet
+
+Modal harus terasa floating, smooth, dan premium.
+
+Aturan:
+
+- Radius besar 24px–32px.
+- Shadow lembut.
+- Overlay tidak terlalu gelap.
+- Animasi open/close halus.
+- Padding lega.
+- Tombol action jelas.
+- Jangan memenuhi layar jika kontennya sedikit.
+
+---
+
+## Empty, Loading, dan Error State
+
+Jangan biarkan halaman kosong tanpa desain.
+
+Empty state harus memiliki:
+
+- icon/illustration sederhana
+- title
+- deskripsi singkat
+- CTA jika perlu
+
+Loading state:
+
+- skeleton lebih baik daripada spinner biasa
+- gunakan animasi halus
+- jangan membuat layout lompat-lompat
+
+Error state:
+
+- tampilkan pesan jelas
+- jangan terlalu teknis
+- sediakan aksi retry jika memungkinkan
+
+---
+
+## Responsive Design
+
+UI wajib responsif.
+
+Aturan:
+
+- Mobile-first.
+- Desktop harus lega dan rapi.
+- Tablet tetap proporsional.
+- Jangan biarkan konten terlalu melebar.
+- Sidebar di mobile berubah menjadi drawer/bottom nav jika perlu.
+- Table di mobile bisa menjadi card list.
+- Button/action penting tetap mudah dijangkau.
+
+Breakpoint umum:
+
+```txt
+mobile: < 640px
+tablet: 640px–1024px
+desktop: > 1024px
+```
+
+---
+
+## Tailwind CSS Rules
+
+Jika project menggunakan Tailwind CSS:
+
+- Gunakan utility class yang rapi.
+- Jangan membuat class terlalu panjang dan tidak terbaca jika bisa dijadikan komponen.
+- Buat komponen reusable.
+- Konsisten menggunakan rounded, shadow, border, transition.
+- Hindari warna random.
+- Hindari spacing random.
+- Hindari duplicate styling.
+
+Contoh style direction:
+
+```txt
+Page:
+bg-[#F5F5F7] text-[#1D1D1F]
+
+Card:
+bg-white/90 border border-[#E5E5EA] rounded-3xl shadow-sm
+
+Button:
+rounded-2xl px-5 py-3 transition-all duration-300 ease-out
+
+Input:
+rounded-2xl border border-[#E5E5EA] focus:ring-4 focus:ring-blue-500/10
+```
+
+---
+
+## React Component Rules
+
+Jika project menggunakan React:
+
+- Buat komponen UI reusable.
+- Jangan styling langsung berulang di banyak tempat.
+- Pisahkan komponen layout, form, table, card, modal, dan button.
+- Jangan mengubah business logic jika hanya diminta redesign UI.
+- Pastikan state loading, error, empty, disabled tetap tertangani.
+- Pastikan accessibility dasar tetap baik.
+
+Komponen yang disarankan:
+
+```txt
+components/ui/Button.tsx
+components/ui/Card.tsx
+components/ui/Input.tsx
+components/ui/Badge.tsx
+components/ui/Modal.tsx
+components/ui/Table.tsx
+components/layout/Sidebar.tsx
+components/layout/Navbar.tsx
+components/layout/PageHeader.tsx
+```
+
+---
+
+## Accessibility
+
+UI tetap harus usable.
+
+Aturan:
+
+- Kontras teks harus cukup.
+- Button harus punya state focus.
+- Input harus punya label.
+- Icon-only button harus punya aria-label.
+- Jangan mengandalkan warna saja untuk status.
+- Ukuran click target harus nyaman.
+- Keyboard navigation tidak boleh rusak.
+
+---
+
+## Hal yang Harus Dihindari
+
+Jangan membuat UI dengan ciri berikut:
+
+- terlalu kotak
+- terlalu putih polos
+- terlalu ramai warna
+- terlalu banyak shadow
+- terlalu banyak border tebal
+- spacing sempit
+- typography tidak konsisten
+- button terlalu kecil
+- input terlalu kaku
+- card terlalu padat
+- hover terlalu heboh
+- animasi terlalu cepat
+- desain seperti template admin gratisan
+- gradient berlebihan
+- glassmorphism berlebihan
+- warna neon mencolok
+- layout tidak responsif
+
+---
+
+## Instruksi Saat Redesign
+
+Saat diminta memperbaiki UI:
+
+1. Analisis struktur halaman.
+2. Pertahankan business logic.
+3. Rapikan layout.
+4. Buat design system konsisten.
+5. Perbaiki spacing dan hierarchy.
+6. Terapkan rounded style.
+7. Terapkan smooth transition.
+8. Perbaiki responsive behavior.
+9. Tambahkan empty/loading/error state jika belum ada.
+10. Pastikan hasil terlihat premium dan production-ready.
+
+---
+
+## Output yang Diharapkan
+
+Setiap hasil coding UI harus:
+
+- konsisten antar halaman
+- memiliki komponen reusable
+- menggunakan light mode soft
+- rounded secara konsisten
+- memiliki transisi smooth
+- punya spacing lega
+- punya typography rapi
+- responsive
+- tidak mengubah logic utama
+- terlihat polished
+
+---
+
+## Prompt Internal untuk AI Coding Agent
+
+Ketika mengerjakan UI, ikuti arahan berikut:
+
+```txt
+Redesign the UI into a premium Apple-like light mode interface with soft rounded shapes, breathable spacing, subtle shadows, refined typography, and smooth micro-interactions. Use an off-white background, white cards, light borders, large border-radius, calm colors, and consistent reusable components. Keep the business logic unchanged. Improve layout consistency, responsive behavior, accessibility, hover/focus/active states, loading states, empty states, and error states. Avoid generic admin-dashboard looks, harsh shadows, sharp corners, excessive colors, and clutter.
+```
+
+---
+
+## Final Quality Checklist
+
+Sebelum menyelesaikan perubahan UI, pastikan:
+
+- [ ] Background tidak putih polos.
+- [ ] Card menggunakan rounded besar.
+- [ ] Button rounded dan punya hover smooth.
+- [ ] Input rounded dan focus state rapi.
+- [ ] Typography konsisten.
+- [ ] Spacing lega.
+- [ ] Border halus.
+- [ ] Shadow lembut.
+- [ ] Warna tidak terlalu banyak.
+- [ ] Active state jelas.
+- [ ] Empty state tersedia.
+- [ ] Loading state rapi.
+- [ ] Error state jelas.
+- [ ] Mobile responsive.
+- [ ] Tidak ada logic utama yang rusak.
+- [ ] Tampilan terasa premium, clean, soft, dan polished.
+
+```
+
+```

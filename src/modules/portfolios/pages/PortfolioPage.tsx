@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import ReadOnlyNotice from '@/modules/shared/components/ReadOnlyNotice';
+import MarketTabBar from '@/modules/shared/components/MarketTabBar';
 import { useData } from '@/modules/shared/context/DataContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
+import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { calculateUnrealizedPnL, calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
@@ -11,16 +13,18 @@ import * as Icons from 'lucide-react';
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#F43F5E', '#06B6D4', '#EC4899', '#84CC16'];
 
 export default function PortfolioPage() {
-  const { trades, cashflows, dividends, settings, activePortfolioId, marketPrices, updateMarketPrice, canWrite } = useData();
+  const { trades, cashflows, dividends, settings, updateSettings, activePortfolioId, marketPrices, updateMarketPrice, canWrite } = useData();
   const { isViewer } = usePermissions();
   const [activeTab, setActiveTab] = useState('ID');
 
   const isDefaultPort = activePortfolioId === 'default';
+  const initialCap = isDefaultPort ? (activeTab === 'US' ? (settings.initialCapitalUS || 1000) : settings.initialCapital) : 0;
   const balanceStats = calculatePortfolioBalance(
     trades,
     cashflows,
     dividends,
-    isDefaultPort ? settings.initialCapital : 0
+    initialCap,
+    activeTab as 'ID' | 'US'
   );
 
   const openTrades = useMemo(() => {
@@ -46,8 +50,11 @@ export default function PortfolioPage() {
 
   const totalInvested = openTrades.reduce((sum, trade) => sum + trade.totalBuy, 0);
   const totalFloating = openTrades.reduce((sum, trade) => sum + trade.floatingPnL, 0);
+  const tradingBalance = totalInvested + totalFloating;
   const pieData = openTrades.map((trade) => ({ name: trade.stockCode, value: trade.totalBuy }));
   const formatMoney = activeTab === 'US' ? formatUSD : formatRupiah;
+
+  const blurStyle = usePrivacyStyle();
 
   return (
     <div>
@@ -56,27 +63,35 @@ export default function PortfolioPage() {
       ) : null}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Portfolio</h1>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            Portfolio
+            <button
+              onClick={() => updateSettings({ privacyMode: !settings.privacyMode })}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                padding: 4,
+                borderRadius: '50%',
+                transition: 'background var(--transition-fast)'
+              }}
+              title={settings.privacyMode ? "Tampilkan Nominal" : "Sembunyikan Nominal"}
+            >
+              {settings.privacyMode ? <Icons.EyeOff size={18} /> : <Icons.Eye size={18} />}
+            </button>
+          </h1>
           <p className="page-subtitle">{openTrades.length} posisi terbuka</p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border-color)' }}>
-        <button
-          className={`tab-btn ${activeTab === 'ID' ? 'active' : ''}`}
-          style={{ padding: '8px 16px', background: 'none', border: 'none', borderBottom: activeTab === 'ID' ? '2px solid var(--accent-blue)' : '2px solid transparent', color: activeTab === 'ID' ? 'var(--accent-blue)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
-          onClick={() => setActiveTab('ID')}
-        >
-          Pasar Indonesia
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'US' ? 'active' : ''}`}
-          style={{ padding: '8px 16px', background: 'none', border: 'none', borderBottom: activeTab === 'US' ? '2px solid var(--accent-blue)' : '2px solid transparent', color: activeTab === 'US' ? 'var(--accent-blue)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
-          onClick={() => setActiveTab('US')}
-        >
-          Pasar Amerika
-        </button>
-      </div>
+      <MarketTabBar
+        activeTab={activeTab as 'ID' | 'US'}
+        onChange={(tab) => setActiveTab(tab)}
+        accentColor="var(--accent-blue)"
+      />
 
       {openTrades.length === 0 ? (
         <div className="empty-state">
@@ -95,7 +110,7 @@ export default function PortfolioPage() {
                 <Icons.Wallet size={20} style={{ color: 'var(--accent-green)' }} />
               </div>
               <div className="stat-card-label">Buying Power</div>
-              <div className="stat-card-value" style={{ color: 'var(--accent-green)' }}>{formatRupiah(balanceStats.buyingPower)}</div>
+              <div className="stat-card-value" style={{ color: 'var(--accent-green)', ...blurStyle }}>{formatMoney(balanceStats.buyingPower)}</div>
               <div className="stat-card-change" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Kas tersedia</div>
             </div>
             <div className="stat-card">
@@ -103,7 +118,7 @@ export default function PortfolioPage() {
                 <Icons.TrendingUp size={20} style={{ color: 'var(--accent-blue-light)' }} />
               </div>
               <div className="stat-card-label">Total Investasi</div>
-              <div className="stat-card-value">{formatMoney(totalInvested)}</div>
+              <div className="stat-card-value" style={blurStyle}>{formatMoney(totalInvested)}</div>
             </div>
             <div className="stat-card">
               <div className="stat-card-icon" style={{ background: totalFloating >= 0 ? 'var(--accent-green-dim)' : 'var(--accent-red-dim)' }}>
@@ -112,12 +127,20 @@ export default function PortfolioPage() {
                   : <Icons.TrendingDown size={20} style={{ color: 'var(--accent-red)' }} />}
               </div>
               <div className="stat-card-label">Total Floating P/L</div>
-              <div className={`stat-card-value ${totalFloating >= 0 ? 'text-profit' : 'text-loss'}`}>
+              <div className={`stat-card-value ${totalFloating >= 0 ? 'text-profit' : 'text-loss'}`} style={blurStyle}>
                 {totalFloating > 0 ? '+' : ''}{formatMoney(totalFloating)}
               </div>
               <div className={`stat-card-change ${totalFloating >= 0 ? 'positive' : 'negative'}`}>
                 {totalInvested > 0 ? formatPercent((totalFloating / totalInvested) * 100) : '0%'}
               </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-icon" style={{ background: 'var(--accent-yellow-dim)' }}>
+                <Icons.Activity size={20} style={{ color: 'var(--accent-yellow)' }} />
+              </div>
+              <div className="stat-card-label">Trading Balance</div>
+              <div className="stat-card-value" style={blurStyle}>{formatMoney(tradingBalance)}</div>
+              <div className="stat-card-change" style={{ color: 'var(--text-muted)', fontWeight: 400 }}>Investasi + Floating P/L</div>
             </div>
             <div className="stat-card">
               <div className="stat-card-icon" style={{ background: 'var(--accent-purple-dim)' }}>
@@ -148,10 +171,12 @@ export default function PortfolioPage() {
                     {openTrades.map((trade) => (
                       <tr key={trade.id}>
                         <td><strong>{trade.stockCode}</strong></td>
-                        <td>{formatMoney(trade.buyPrice)}</td>
+                        <td>
+                          <span style={blurStyle}>{formatMoney(trade.buyPrice)}</span>
+                        </td>
                         <td>{trade.lots}</td>
                         <td>
-                          {formatMoney(trade.totalBuy)}
+                          <span style={blurStyle}>{formatMoney(trade.totalBuy)}</span>
                           <br />
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {totalInvested > 0 ? ((trade.totalBuy / totalInvested) * 100).toFixed(1) : '0.0'}% alokasi
@@ -162,7 +187,7 @@ export default function PortfolioPage() {
                             type="number"
                             step="any"
                             className="form-input"
-                            style={{ padding: '4px 8px', height: 32, fontSize: '0.9rem' }}
+                            style={{ padding: '4px 8px', height: 32, fontSize: '0.9rem', ...blurStyle }}
                             placeholder="Harga..."
                             value={trade.currentPrice || ''}
                             disabled={!canWrite}
@@ -171,7 +196,7 @@ export default function PortfolioPage() {
                         </td>
                         <td>
                           {trade.currentPrice > 0 ? (
-                            <div style={{ textAlign: 'right' }}>
+                            <div style={{ textAlign: 'right', ...blurStyle }}>
                               <div className={trade.floatingPnL >= 0 ? 'text-profit' : 'text-loss'} style={{ fontWeight: 600 }}>
                                 {trade.floatingPnL > 0 ? '+' : ''}{formatMoney(trade.floatingPnL)}
                               </div>

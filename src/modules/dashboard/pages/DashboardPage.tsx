@@ -1,110 +1,67 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
-import { calculateStats, calculateTradePnL, calculateUnrealizedPnL, calculateEquityCurve, calculateMonthlyPnL, calculateDailyPnL, calculatePortfolioBalance, calculateAchievements } from '@/modules/trades/calculations';
-import { formatRupiah, formatUSD, formatPercent, formatDate, formatNumber } from '@/modules/shared/utils/formatters';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
+import { calculateStats, calculateTradePnL, calculateEquityCurve, calculateMonthlyPnL, calculateDailyPnL, calculatePortfolioBalance, calculateAchievements } from '@/modules/trades/calculations';
+import { formatRupiah, formatUSD, formatDate, formatNumber } from '@/modules/shared/utils/formatters';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, AreaChart, Area } from 'recharts';
 import * as Icons from 'lucide-react';
+import StatCard from '@/modules/shared/components/StatCard';
+import ChartTooltip from '@/modules/shared/components/ChartTooltip';
+import MarketTabBar from '@/modules/shared/components/MarketTabBar';
+import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
+import { useMarketFormatter } from '@/modules/shared/hooks/useMarketFormatter';
+import { useOpenPositionMetrics } from '@/modules/shared/hooks/useOpenPositionMetrics';
 
-interface StatCardProps {
-  icon: React.ComponentType<any> | null;
-  label: string;
-  value: string;
-  subValue?: string;
-  colorClass?: string;
-  bgColor?: string;
-}
 
-function StatCard({ icon: Icon, label, value, subValue, colorClass, bgColor }: StatCardProps) {
-  return (
-    <div className="bento-card" style={{ justifyContent: 'center', height: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {label}
-        </span>
-        {Icon && (
-          <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: 'var(--radius-md)',
-            background: bgColor || 'var(--accent-blue-dim)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: colorClass === 'text-profit' ? 'var(--accent-green)' : colorClass === 'text-loss' ? 'var(--accent-red)' : 'var(--text-secondary)'
-          }}>
-            <Icon size={16} />
-          </div>
-        )}
-      </div>
-      <div className={`font-mono ${colorClass || ''}`} style={{ fontSize: '1.75rem', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.1 }}>
-        {value}
-      </div>
-      {subValue && (
-        <div style={{ marginTop: 8, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          {subValue}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: any[];
-  label?: string;
-  formatValue?: (val: number) => string;
-}
-
-function CustomTooltip({ active, payload, label, formatValue }: CustomTooltipProps) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{
-      background: 'var(--bg-secondary)',
-      border: '1px solid var(--border-color)',
-      borderRadius: 'var(--radius-md)',
-      padding: '10px 14px',
-      fontSize: '0.8rem',
-    }}>
-      <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontWeight: 700, color: Number(payload[0].value) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-        {formatValue ? formatValue(Number(payload[0].value)) : payload[0].value}
-      </div>
-    </div>
-  );
-}
 
 export default function DashboardPage() {
   const { trades, cashflows, dividends, settings, marketPrices } = useData();
   const [activeTab, setActiveTab] = useState<'ID' | 'US'>('ID');
+  const blurStyle = usePrivacyStyle();
+  const { formatMoney, isUS, formatPercent } = useMarketFormatter(activeTab);
+  const [chartTab, setChartTab] = useState<'equity' | 'drawdown'>('equity');
 
   const filteredTrades = useMemo(() => trades.filter(t => t.market === activeTab || (!t.market && activeTab === 'ID')), [trades, activeTab]);
   const filteredCashflows = useMemo(() => cashflows.filter(c => c.market === activeTab || (!c.market && activeTab === 'ID')), [cashflows, activeTab]);
   const filteredDividends = useMemo(() => dividends.filter(d => d.market === activeTab || (!d.market && activeTab === 'ID')), [dividends, activeTab]);
 
   const initialCap = activeTab === 'US' ? (settings.initialCapitalUS || 1000) : settings.initialCapital;
-  const isUS = activeTab === 'US';
-  const formatMoney = isUS ? formatUSD : formatRupiah;
 
   const stats = useMemo(() => calculateStats(filteredTrades), [filteredTrades]);
   const equityCurve = useMemo(() => calculateEquityCurve(filteredTrades, initialCap), [filteredTrades, initialCap]);
+  const maxDrawdownPercent = useMemo(() => {
+    return Math.max(...equityCurve.map((c: any) => c.drawdownPercent || 0), 0);
+  }, [equityCurve]);
+  const maxDrawdownAmount = useMemo(() => {
+    return Math.max(...equityCurve.map((c: any) => c.drawdown || 0), 0);
+  }, [equityCurve]);
   const monthlyPnL = useMemo(() => calculateMonthlyPnL(filteredTrades), [filteredTrades]);
   const dailyPnL = useMemo(() => calculateDailyPnL(filteredTrades), [filteredTrades]);
   const balance = useMemo(() => calculatePortfolioBalance(filteredTrades, filteredCashflows, filteredDividends, initialCap), [filteredTrades, filteredCashflows, filteredDividends, initialCap]);
   const achievements = useMemo(() => calculateAchievements(filteredTrades, filteredDividends), [filteredTrades, filteredDividends]);
 
-  const openTrades = filteredTrades.filter(t => !t.sellPrice || !t.dateSell);
-  
-  const totalFloating = useMemo(() => {
-    return openTrades.reduce((sum, t) => {
-      const currentPrice = (marketPrices && marketPrices[t.stockCode]) || t.sellPrice;
-      if (currentPrice > 0) {
-        const unrealized = calculateUnrealizedPnL(t.buyPrice, currentPrice, t.lots, t.buyFee, t.market || 'ID');
-        return sum + unrealized.pnl;
-      }
-      return sum;
-    }, 0);
-  }, [openTrades, marketPrices]);
+  // Combined calculations
+  const allTradesID = useMemo(() => trades.filter(t => t.market !== 'US'), [trades]);
+  const allTradesUS = useMemo(() => trades.filter(t => t.market === 'US'), [trades]);
+  const allCashflowsID = useMemo(() => cashflows.filter(c => c.market !== 'US'), [cashflows]);
+  const allCashflowsUS = useMemo(() => cashflows.filter(c => c.market === 'US'), [cashflows]);
+  const allDividendsID = useMemo(() => dividends.filter(d => d.market !== 'US'), [dividends]);
+  const allDividendsUS = useMemo(() => dividends.filter(d => d.market === 'US'), [dividends]);
+
+  const balanceID = useMemo(() => calculatePortfolioBalance(allTradesID, allCashflowsID, allDividendsID, settings.initialCapital), [allTradesID, allCashflowsID, allDividendsID, settings.initialCapital]);
+  const balanceUS = useMemo(() => calculatePortfolioBalance(allTradesUS, allCashflowsUS, allDividendsUS, settings.initialCapitalUS || 1000), [allTradesUS, allCashflowsUS, allDividendsUS, settings.initialCapitalUS]);
+
+  const usdToIdrRate = settings.usdToIdrRate || 16200;
+  const totalCombinedEquityIDR = balanceID.realizedEquity + (balanceUS.realizedEquity * usdToIdrRate);
+
+  const hasUSAssets = useMemo(() => {
+    return trades.some(t => t.market === 'US') || cashflows.some(c => c.market === 'US') || dividends.some(d => d.market === 'US');
+  }, [trades, cashflows, dividends]);
+
+  const { openTrades, totalFloating, totalInvested, tradingBalance } = useOpenPositionMetrics(
+    filteredTrades,
+    { market: activeTab, marketPrices: marketPrices as Record<string, number> }
+  );
 
   const recentTrades = filteredTrades
     .filter(t => t.sellPrice && t.dateSell)
@@ -148,22 +105,26 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border-color)' }}>
-        <button 
-          className={`tab-btn ${activeTab === 'ID' ? 'active' : ''}`}
-          style={{ padding: '12px 20px', background: 'none', border: 'none', borderBottom: activeTab === 'ID' ? '2px solid var(--accent-green)' : '2px solid transparent', color: activeTab === 'ID' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600, fontFamily: 'var(--font-display)', fontSize: '0.9rem' }}
-          onClick={() => setActiveTab('ID')}
-        >
-          Pasar Indonesia
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'US' ? 'active' : ''}`}
-          style={{ padding: '12px 20px', background: 'none', border: 'none', borderBottom: activeTab === 'US' ? '2px solid var(--accent-green)' : '2px solid transparent', color: activeTab === 'US' ? 'var(--text-primary)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600, fontFamily: 'var(--font-display)', fontSize: '0.9rem' }}
-          onClick={() => setActiveTab('US')}
-        >
-          Pasar Amerika
-        </button>
-      </div>
+      <MarketTabBar activeTab={activeTab} onChange={setActiveTab} />
+
+      {hasUSAssets && (
+        <div className="bento-card" style={{ marginBottom: 24, borderLeft: '4px solid var(--accent-blue)', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                Estimasi Total Aset Gabungan (IDR + Converted USD)
+              </div>
+              <h2 className="font-mono text-profit" style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>
+                {formatRupiah(totalCombinedEquityIDR)}
+              </h2>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              <div>IDR Equity: {formatRupiah(balanceID.realizedEquity)}</div>
+              <div>USD Equity: {formatUSD(balanceUS.realizedEquity)} (Kurs: Rp {usdToIdrRate.toLocaleString('id-ID')})</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredTrades.length === 0 ? (
         <div className="empty-state" style={{ marginTop: 40 }}>
@@ -188,6 +149,7 @@ export default function DashboardPage() {
                 value={formatMoney(balance.realizedEquity)}
                 subValue={`Modal Aktif: ${formatMoney(balance.totalCapital)}`}
                 bgColor="var(--accent-blue-dim)"
+                valueStyle={blurStyle}
               />
             </div>
             <div className="bento-col-3">
@@ -198,6 +160,17 @@ export default function DashboardPage() {
                 subValue={balance.totalCapital > 0 ? formatPercent(stats.totalPnL / balance.totalCapital * 100) : '0%'}
                 colorClass={stats.totalPnL >= 0 ? 'text-profit' : 'text-loss'}
                 bgColor={stats.totalPnL >= 0 ? 'var(--accent-green-dim)' : 'var(--accent-red-dim)'}
+                valueStyle={blurStyle}
+              />
+            </div>
+            <div className="bento-col-3">
+              <StatCard
+                icon={Icons.Wallet}
+                label="Trading Balance"
+                value={formatMoney(tradingBalance)}
+                subValue={`Investasi + Floating P/L`}
+                bgColor="var(--accent-blue-dim)"
+                valueStyle={blurStyle}
               />
             </div>
             <div className="bento-col-3">
@@ -212,7 +185,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Row 2 */}
-            <div className="bento-col-4">
+            <div className="bento-col-3">
               <StatCard
                 icon={Icons.Activity}
                 label="Buying Power"
@@ -220,9 +193,10 @@ export default function DashboardPage() {
                 subValue={`Posisi Terbuka: ${balance.openPositionsCount}`}
                 colorClass="text-profit"
                 bgColor="rgba(16, 185, 129, 0.1)"
+                valueStyle={blurStyle}
               />
             </div>
-            <div className="bento-col-4">
+            <div className="bento-col-3">
               <StatCard
                 icon={totalFloating >= 0 ? Icons.Layers : Icons.TrendingDown}
                 label="Total Floating P/L"
@@ -230,9 +204,10 @@ export default function DashboardPage() {
                 subValue={balance.investedAmount > 0 ? formatPercent(totalFloating / balance.investedAmount * 100) : '0%'}
                 colorClass={totalFloating >= 0 ? 'text-profit' : 'text-loss'}
                 bgColor={totalFloating >= 0 ? 'var(--accent-green-dim)' : 'var(--accent-red-dim)'}
+                valueStyle={blurStyle}
               />
             </div>
-            <div className="bento-col-4">
+            <div className="bento-col-3">
               <StatCard
                 icon={Icons.FileText}
                 label="Total Transaksi"
@@ -292,30 +267,80 @@ export default function DashboardPage() {
 
           {/* Charts Row - Bento styled columns */}
           <div className="bento-grid" style={{ marginBottom: 24 }}>
-            {/* Equity Curve */}
+            {/* Equity & Drawdown Curve */}
             <div className="bento-card bento-col-8">
-              <div className="bento-card-title">
-                <Icons.TrendingUp size={18} style={{ color: 'var(--accent-green)' }} />
-                <span>Equity Curve</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+                <div className="bento-card-title" style={{ margin: 0 }}>
+                  <Icons.TrendingUp size={18} style={{ color: 'var(--accent-green)' }} />
+                  <span>Grafik Performa</span>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => setChartTab('equity')}
+                    className={`btn btn-sm ${chartTab === 'equity' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '4px 10px', height: 28 }}
+                  >
+                    Pertumbuhan Modal
+                  </button>
+                  <button
+                    onClick={() => setChartTab('drawdown')}
+                    className={`btn btn-sm ${chartTab === 'drawdown' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '4px 10px', height: 28 }}
+                  >
+                    Drawdown (%)
+                  </button>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', padding: '4px 8px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', marginBottom: 12 }}>
+                <div>Modal Awal: <strong>{formatMoney(initialCap)}</strong></div>
+                <div style={{ color: 'var(--accent-red)' }}>
+                  Max Drawdown: <strong>-{maxDrawdownPercent.toFixed(2)}%</strong> ({formatMoney(maxDrawdownAmount)})
+                </div>
               </div>
               <div style={{ height: 280, marginTop: 8 }}>
                 {equityCurve.length > 1 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={equityCurve}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
-                      <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-                      <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => isUS ? formatMoney(v) : `${(v/1000000).toFixed(1)}Jt`} />
-                      <Tooltip content={<CustomTooltip formatValue={formatMoney} />} />
-                      <Line
-                        type="monotone"
-                        dataKey="equity"
-                        stroke="#10b981"
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4, fill: '#10b981' }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  chartTab === 'equity' ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={equityCurve}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
+                        <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
+                        <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => isUS ? formatMoney(v) : `${(v/1000000).toFixed(1)}Jt`} />
+                        <Tooltip content={<ChartTooltip formatValue={formatMoney} />} />
+                        <Line
+                          type="monotone"
+                          dataKey="equity"
+                          stroke="#10b981"
+                          strokeWidth={2}
+                          dot={false}
+                          activeDot={{ r: 4, fill: '#10b981' }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={equityCurve}>
+                        <defs>
+                          <linearGradient id="colorDd" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
+                        <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
+                        <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => `-${v.toFixed(1)}%`} />
+                        <Tooltip content={<ChartTooltip formatValue={(val) => `-${val.toFixed(2)}%`} />} />
+                        <Area
+                          type="monotone"
+                          dataKey="drawdownPercent"
+                          stroke="#f43f5e"
+                          strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#colorDd)"
+                          activeDot={{ r: 4, fill: '#f43f5e' }}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )
                 ) : (
                   <div className="empty-state" style={{ padding: 40 }}>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -382,7 +407,7 @@ export default function DashboardPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
                     <XAxis dataKey="month" tick={{ fill: '#71717a', fontSize: 11 }} />
                     <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => isUS ? formatMoney(v) : `${(v/1000000).toFixed(1)}Jt`} />
-                    <Tooltip content={<CustomTooltip formatValue={formatMoney} />} />
+                    <Tooltip content={<ChartTooltip formatValue={formatMoney} />} />
                     <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                       {monthlyPnL.map((entry, i) => (
                         <Cell key={i} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />

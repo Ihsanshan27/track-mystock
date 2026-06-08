@@ -269,7 +269,11 @@ function AverageCalculator({ draft, setDraft }: CalcProps) {
 }
 
 function PositionSizeCalculator({ draft, setDraft }: CalcProps) {
+  const { settings } = useData();
   const { capital, risk, entry, stopLoss } = draft;
+
+  const defaultRisk = (settings.defaultRiskPercent || 2).toString();
+  const currentRisk = risk !== '' ? risk : defaultRisk;
 
   const setCapital = (val: string) => setDraft({ ...draft, capital: val });
   const setRisk = (val: string) => setDraft({ ...draft, risk: val });
@@ -277,7 +281,7 @@ function PositionSizeCalculator({ draft, setDraft }: CalcProps) {
   const setStopLoss = (val: string) => setDraft({ ...draft, stopLoss: val });
 
   const c = parseFloat(capital) || 0;
-  const r = parseFloat(risk) || 0;
+  const r = parseFloat(currentRisk) || 0;
   const ep = parseFloat(entry) || 0;
   const sl = parseFloat(stopLoss) || 0;
   const result = c > 0 && r > 0 && ep > 0 && sl > 0
@@ -285,7 +289,7 @@ function PositionSizeCalculator({ draft, setDraft }: CalcProps) {
     : null;
 
   const reset = () => {
-    setDraft({ capital: '', risk: '2', entry: '', stopLoss: '' });
+    setDraft({ capital: '', risk: defaultRisk, entry: '', stopLoss: '' });
   };
 
   return (
@@ -297,7 +301,7 @@ function PositionSizeCalculator({ draft, setDraft }: CalcProps) {
         </div>
         <div className="form-group">
           <label className="form-label">Risiko per Trade (%)</label>
-          <input type="number" className="form-input" step="0.1" placeholder="2" value={risk} onChange={e => setRisk(e.target.value)} />
+          <input type="number" className="form-input" step="0.1" placeholder={defaultRisk} value={currentRisk} onChange={e => setRisk(e.target.value)} />
         </div>
       </div>
       <div className="form-row">
@@ -665,6 +669,7 @@ function AverageDownCalculator({ draft, setDraft }: CalcProps) {
 }
 
 function RiskRewardCalculator({ draft, setDraft }: CalcProps) {
+  const { settings } = useData();
   const { entry, stopLoss, takeProfit, lots } = draft;
 
   const setEntry = (val: string) => setDraft({ ...draft, entry: val });
@@ -687,8 +692,9 @@ function RiskRewardCalculator({ draft, setDraft }: CalcProps) {
     setDraft({ entry: '', stopLoss: '', takeProfit: '', lots: '1' });
   };
 
-  const getRRClass = (rr: number) => rr >= 3 ? 'text-profit' : rr >= 2 ? '' : 'text-loss';
-  const getRRLabel = (rr: number) => rr >= 3 ? 'Excellent!' : rr >= 2 ? 'Baik' : 'Kurang Ideal';
+  const targetRR = settings.defaultTargetRR || 2;
+  const getRRClass = (rr: number) => rr >= targetRR + 1 ? 'text-profit' : rr >= targetRR ? '' : 'text-loss';
+  const getRRLabel = (rr: number) => rr >= targetRR + 1 ? 'Excellent!' : rr >= targetRR ? 'Baik' : 'Kurang Ideal';
 
   return (
     <div>
@@ -756,7 +762,7 @@ function RiskRewardCalculator({ draft, setDraft }: CalcProps) {
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
               {result.minWinRate <= 40
                 ? `Dengan setup ini kamu boleh salah hingga ${(100 - result.minWinRate).toFixed(0)}% dari semua trade dan tetap profit secara keseluruhan!`
-                : `Setup ini butuh tingkat kebenaran analisa yang cukup tinggi. Pertimbangkan memperlebar Take Profit.`}
+                : `Setup ini butuh tingkat kebenaran analisa yang cukup tinggi (Target R:R minimal adalah 1 : ${targetRR}). Pertimbangkan memperlebar Take Profit.`}
             </div>
           </div>
         </div>

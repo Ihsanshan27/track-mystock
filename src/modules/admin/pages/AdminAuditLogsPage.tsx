@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
-import { listAuditLogs } from '@/modules/admin/services/auditLogService';
+import { listAuditLogs, cleanOldAuditLogs } from '@/modules/admin/services/auditLogService';
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { formatDateTime } from '@/modules/shared/utils/formatters';
 
 export default function AdminAuditLogsPage() {
-  const { showToast } = useData();
+  const { showToast, settings } = useData();
   const [logs, setLogs] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,14 @@ export default function AdminAuditLogsPage() {
   const loadLogs = useCallback(async () => {
     setLoading(true);
     try {
+      const retentionDays = parseInt(settings.logRetentionDays) || 0;
+      if (retentionDays > 0) {
+        try {
+          await cleanOldAuditLogs(retentionDays);
+        } catch (cleanErr) {
+          console.warn('Gagal membersihkan log usang:', cleanErr.message);
+        }
+      }
       const [logRows, profileRows] = await Promise.all([
         listAuditLogs(150),
         listProfiles(),
@@ -50,7 +58,7 @@ export default function AdminAuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, settings.logRetentionDays]);
 
   useEffect(() => {
     loadLogs();

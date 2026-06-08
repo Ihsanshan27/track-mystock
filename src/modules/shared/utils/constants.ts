@@ -52,10 +52,13 @@ export const NAV_ITEMS = [
   // [MENTOR DISABLED] { path: '/mentor/traders', label: 'Trader Share', icon: 'Compass', section: 'MENU', roles: ['mentor', 'admin'] },
   { path: '/calculator', label: 'Kalkulator', icon: 'Calculator', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/watchlist', label: 'Watchlist', icon: 'Eye', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
+  { path: '/plans', label: 'Rencana Trading', icon: 'BookOpen', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
+  { path: '/ipo', label: 'IPO Journey', icon: 'Rocket', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/notes', label: 'Catatan', icon: 'FileText', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/portfolios', label: 'Dompet', icon: 'Wallet', section: 'TOOLS', roles: ['admin', 'mentor', 'trader'] },
   { path: '/admin/users', label: 'Users', icon: 'Users', section: 'ADMIN', roles: ['admin'] },
   // { path: '/admin/workspaces', label: 'Workspaces', icon: 'Building', section: 'ADMIN', roles: ['admin'] },
   { path: '/admin/audit-logs', label: 'Audit Logs', icon: 'History', section: 'ADMIN', roles: ['admin'] },
+  { path: '/profile', label: 'Profil Saya', icon: 'User', section: 'LAINNYA', roles: ['admin', 'mentor', 'trader', 'viewer'] },
   { path: '/settings', label: 'Pengaturan', icon: 'Settings', section: 'LAINNYA', roles: ['admin', 'mentor', 'trader'] },
 ];

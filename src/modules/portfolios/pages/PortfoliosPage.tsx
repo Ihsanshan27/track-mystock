@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
-import { formatRupiah, formatDate } from '@/modules/shared/utils/formatters';
+import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
 import * as Icons from 'lucide-react';
 
@@ -21,12 +21,23 @@ export default function PortfoliosPage() {
     allDividends,
   } = useData();
 
-  const activeStats = calculatePortfolioBalance(
-    filteredTrades,
-    filteredCashflows,
-    filteredDividends,
+  const activeStatsID = calculatePortfolioBalance(
+    filteredTrades.filter((t: any) => t.market !== 'US'),
+    filteredCashflows.filter((c: any) => c.market !== 'US'),
+    filteredDividends.filter((d: any) => d.market !== 'US'),
     activePortfolioId === 'default' ? settings.initialCapital : 0
   );
+
+  const activeStatsUS = calculatePortfolioBalance(
+    filteredTrades.filter((t: any) => t.market === 'US'),
+    filteredCashflows.filter((c: any) => c.market === 'US'),
+    filteredDividends.filter((d: any) => d.market === 'US'),
+    activePortfolioId === 'default' ? (settings.initialCapitalUS || 1000) : 0
+  );
+
+  const hasUS = filteredTrades.some((t: any) => t.market === 'US') || 
+                filteredCashflows.some((c: any) => c.market === 'US') || 
+                filteredDividends.some((d: any) => d.market === 'US');
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
@@ -176,16 +187,29 @@ export default function PortfoliosPage() {
         <div className="grid grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Buying Power</div>
-            <div className="font-mono" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>{formatRupiah(activeStats.buyingPower)}</div>
+            <div className="font-mono" style={{ fontSize: '1.10rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div>IDR: {formatRupiah(activeStatsID.buyingPower)}</div>
+              {hasUS && <div style={{ color: 'var(--accent-blue-light)' }}>USD: {formatUSD(activeStatsUS.buyingPower)}</div>}
+            </div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Nilai Investasi Terbuka</div>
-            <div className="font-mono" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-secondary)' }}>{formatRupiah(activeStats.investedAmount)}</div>
+            <div className="font-mono" style={{ fontSize: '1.10rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div>IDR: {formatRupiah(activeStatsID.investedAmount)}</div>
+              {hasUS && <div style={{ color: 'var(--accent-blue-light)' }}>USD: {formatUSD(activeStatsUS.investedAmount)}</div>}
+            </div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Total Realized P&L</div>
-            <div className="font-mono" style={{ fontSize: '1.25rem', fontWeight: 700, color: activeStats.realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              {activeStats.realizedPnL >= 0 ? '+' : ''}{formatRupiah(activeStats.realizedPnL)}
+            <div className="font-mono" style={{ fontSize: '1.10rem', fontWeight: 700, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className={activeStatsID.realizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
+                IDR: {activeStatsID.realizedPnL >= 0 ? '+' : ''}{formatRupiah(activeStatsID.realizedPnL)}
+              </div>
+              {hasUS && (
+                <div className={activeStatsUS.realizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
+                  USD: {activeStatsUS.realizedPnL >= 0 ? '+' : ''}{formatUSD(activeStatsUS.realizedPnL)}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -226,19 +250,44 @@ export default function PortfoliosPage() {
                     const pTrades = allTrades.filter((t: any) => (t.portfolioId || 'default') === p.id);
                     const pCashflows = allCashflows.filter((c: any) => (c.portfolioId || 'default') === p.id);
                     const pDividends = allDividends.filter((d: any) => (d.portfolioId || 'default') === p.id);
-                    const initialCap = p.id === 'default' ? settings.initialCapital : 0;
-                    const stats = calculatePortfolioBalance(pTrades, pCashflows, pDividends, initialCap);
+                    
+                    const initialCapID = p.id === 'default' ? settings.initialCapital : 0;
+                    const initialCapUS = p.id === 'default' ? (settings.initialCapitalUS || 1000) : 0;
+                    
+                    const statsID = calculatePortfolioBalance(
+                      pTrades.filter((t: any) => t.market !== 'US'),
+                      pCashflows.filter((c: any) => c.market !== 'US'),
+                      pDividends.filter((d: any) => d.market !== 'US'),
+                      initialCapID
+                    );
+                    const statsUS = calculatePortfolioBalance(
+                      pTrades.filter((t: any) => t.market === 'US'),
+                      pCashflows.filter((c: any) => c.market === 'US'),
+                      pDividends.filter((d: any) => d.market === 'US'),
+                      initialCapUS
+                    );
+
+                    const pHasUS = pTrades.some((t: any) => t.market === 'US') || 
+                                   pCashflows.some((c: any) => c.market === 'US') || 
+                                   pDividends.some((d: any) => d.market === 'US');
+
                     return (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-                        <div style={{ background: 'rgba(16,185,129,0.06)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', border: '1px solid rgba(16,185,129,0.15)' }}>
-                          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 2 }}>Buying Power</div>
-                          <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-green)' }}>{formatRupiah(stats.buyingPower)}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                        <div style={{ background: 'rgba(16,185,129,0.06)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', border: '1px solid rgba(16,185,129,0.15)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>Buying Power</div>
+                          <div className="font-mono" style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-green)' }}>IDR: {formatRupiah(statsID.buyingPower)}</div>
+                          {pHasUS && <div className="font-mono" style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-blue)' }}>USD: {formatUSD(statsUS.buyingPower)}</div>}
                         </div>
-                        <div style={{ background: stats.realizedPnL >= 0 ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', border: `1px solid ${stats.realizedPnL >= 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}` }}>
-                          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 2 }}>Realized P&L</div>
-                          <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: stats.realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                            {stats.realizedPnL >= 0 ? '+' : ''}{formatRupiah(stats.realizedPnL)}
+                        <div style={{ background: statsID.realizedPnL >= 0 ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', border: `1px solid ${statsID.realizedPnL >= 0 ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}`, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>Realized P&L</div>
+                          <div className="font-mono" style={{ fontSize: '0.9rem', fontWeight: 700, color: statsID.realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                            IDR: {statsID.realizedPnL >= 0 ? '+' : ''}{formatRupiah(statsID.realizedPnL)}
                           </div>
+                          {pHasUS && (
+                            <div className="font-mono" style={{ fontSize: '0.9rem', fontWeight: 700, color: statsUS.realizedPnL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                              USD: {statsUS.realizedPnL >= 0 ? '+' : ''}{formatUSD(statsUS.realizedPnL)}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

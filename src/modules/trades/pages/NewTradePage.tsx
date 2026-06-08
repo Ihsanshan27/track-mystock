@@ -1,33 +1,35 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 import { formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 
 export default function NewTradePage() {
-  const { addTrade, settings, portfolios, activePortfolioId, tradeFormDraft, setTradeFormDraft } = useData();
+  const { addTrade, settings, portfolios, activePortfolioId, tradeFormDraft, setTradeFormDraft, deleteTradingPlan } = useData();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [form, setForm] = useState(() => {
     if (tradeFormDraft) return tradeFormDraft;
+    const plan = location.state?.plan;
     return {
-      market: 'ID',
-      stockCode: '',
-      dateBuy: '',
+      market: plan?.market || 'ID',
+      stockCode: plan?.stockCode || '',
+      dateBuy: plan?.createdAt ? plan.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
       dateSell: '',
-      buyPrice: '',
+      buyPrice: plan?.entryPrice != null ? String(plan.entryPrice) : '',
       sellPrice: '',
-      lots: '',
+      lots: plan?.lots != null ? String(plan.lots) : '',
       buyFee: settings.defaultBuyFee || 0.15,
       sellFee: settings.defaultSellFee || 0.25,
-      strategy: '',
-      reasonEntry: '',
+      strategy: plan?.strategy || '',
+      reasonEntry: plan?.reason || '',
       reasonExit: '',
       emotion: '',
       rating: 0,
-      tags: '',
+      tags: plan ? 'rencana-trading' : '',
       notes: '',
-      portfolioId: activePortfolioId || 'default',
+      portfolioId: plan?.portfolioId || activePortfolioId || 'default',
     };
   });
 
@@ -49,12 +51,18 @@ export default function NewTradePage() {
       stockCode: form.stockCode.toUpperCase(),
       buyPrice: parseFloat(form.buyPrice),
       sellPrice: form.sellPrice ? parseFloat(form.sellPrice) : null,
-      lots: parseFloat(form.lots), // use float to support US fractional shares
+      lots: parseFloat(form.lots),
       buyFee: parseFloat(form.buyFee),
       sellFee: parseFloat(form.sellFee),
       rating: form.rating,
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
     });
+
+    const planId = location.state?.plan?.id;
+    if (planId) {
+      deleteTradingPlan(planId);
+    }
+
     setTradeFormDraft(null);
     navigate('/trades');
   };
@@ -73,6 +81,9 @@ export default function NewTradePage() {
   const pnlPct = totalBuy > 0 ? (pnl / totalBuy) * 100 : 0;
   
   const formatMoney = isUS ? formatUSD : formatRupiah;
+
+  const strategiesList = settings.customStrategies || STRATEGIES;
+  const emotionsList = settings.customEmotions || EMOTIONS;
 
   return (
     <div>
@@ -210,14 +221,14 @@ export default function NewTradePage() {
                     <label className="form-label">Strategi</label>
                     <select className="form-select" value={form.strategy} onChange={e => set('strategy', e.target.value)}>
                       <option value="">Pilih strategi...</option>
-                      {STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}
+                      {strategiesList.map((s: string) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Emosi</label>
                     <select className="form-select" value={form.emotion} onChange={e => set('emotion', e.target.value)}>
                       <option value="">Pilih emosi...</option>
-                      {EMOTIONS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                      {emotionsList.map((e: any) => <option key={e.value} value={e.value}>{e.label}</option>)}
                     </select>
                   </div>
                 </div>

@@ -6,7 +6,7 @@ import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/sh
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 
 export default function TradesPage() {
-  const { trades, deleteTrade, marketPrices } = useData();
+  const { trades, deleteTrade, marketPrices, settings } = useData();
   const [search, setSearch] = useState('');
   const [filterStrategy, setFilterStrategy] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -98,7 +98,7 @@ export default function TradesPage() {
         </div>
         <select className="form-select" style={{ width: 160 }} value={filterStrategy} onChange={e => { setFilterStrategy(e.target.value); setPage(1); }}>
           <option value="">Semua Strategi</option>
-          {STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}
+          {(settings.customStrategies || STRATEGIES).map((s: string) => <option key={s} value={s}>{s}</option>)}
         </select>
         <select className="form-select" style={{ width: 140 }} value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}>
           <option value="">Semua Status</option>

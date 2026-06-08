@@ -13,7 +13,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem('jurnal_saham_theme');
     if (stored === 'light' || stored === 'dark') return stored;
-    // Default to light mode
+    // Default to system preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
     return 'light';
   });
 

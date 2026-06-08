@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
-import { formatRupiah, formatDate } from '@/modules/shared/utils/formatters';
+import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
 import { Coins, Plus, X, Trash2, Save, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
 
 export default function CashflowPage() {
   const { trades, cashflows, dividends, addCashflow, deleteCashflow, settings, cashflowFormDraft, setCashflowFormDraft } = useData();
+
+  const [activeTab, setActiveTab] = useState(() => {
+    if (cashflowFormDraft && cashflowFormDraft.activeTab) return cashflowFormDraft.activeTab;
+    return 'ID';
+  });
 
   const [showForm, setShowForm] = useState(() => {
     if (cashflowFormDraft) return cashflowFormDraft.showForm;
@@ -19,10 +24,16 @@ export default function CashflowPage() {
   });
 
   useEffect(() => {
-    setCashflowFormDraft({ form, showForm });
-  }, [form, showForm, setCashflowFormDraft]);
+    setCashflowFormDraft({ form, showForm, activeTab });
+  }, [form, showForm, activeTab, setCashflowFormDraft]);
 
-  const balance = calculatePortfolioBalance(trades, cashflows, dividends, settings.initialCapital);
+  const isUS = activeTab === 'US';
+  const formatMoney = isUS ? formatUSD : formatRupiah;
+
+  const initCap = isUS ? (settings.initialCapitalUS || 1000) : settings.initialCapital;
+  const balance = calculatePortfolioBalance(trades, cashflows, dividends, initCap, activeTab);
+
+  const filteredCashflows = cashflows.filter((cf: any) => cf.market === activeTab || (!cf.market && activeTab === 'ID'));
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -41,6 +52,7 @@ export default function CashflowPage() {
     if (!form.amount || !form.date) return;
     addCashflow({
       ...form,
+      market: activeTab,
       amount: parseFloat(form.amount),
     });
     setForm({ type: 'deposit', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
@@ -81,24 +93,41 @@ export default function CashflowPage() {
         </button>
       </div>
 
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border-color)' }}>
+        <button
+          className={`tab-btn ${activeTab === 'ID' ? 'active' : ''}`}
+          style={{ padding: '8px 16px', background: 'none', border: 'none', borderBottom: activeTab === 'ID' ? '2px solid var(--accent-blue)' : '2px solid transparent', color: activeTab === 'ID' ? 'var(--accent-blue)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+          onClick={() => { setActiveTab('ID'); setShowForm(false); }}
+        >
+          Pasar Indonesia (IDR)
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'US' ? 'active' : ''}`}
+          style={{ padding: '8px 16px', background: 'none', border: 'none', borderBottom: activeTab === 'US' ? '2px solid var(--accent-blue)' : '2px solid transparent', color: activeTab === 'US' ? 'var(--accent-blue)' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}
+          onClick={() => { setActiveTab('US'); setShowForm(false); }}
+        >
+          Pasar Amerika (USD)
+        </button>
+      </div>
+
       <div className="grid-stats" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: 24 }}>
         <div className="stat-card">
           <div className="stat-card-label">Modal Awal (Setting)</div>
-          <div className="stat-card-value">{formatRupiah(balance.initialCapital)}</div>
+          <div className="stat-card-value">{formatMoney(balance.initialCapital)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-card-label">Net Cashflow</div>
           <div className={`stat-card-value ${balance.netCashflow >= 0 ? 'text-profit' : 'text-loss'}`}>
-            {balance.netCashflow > 0 ? '+' : ''}{formatRupiah(balance.netCashflow)}
+            {balance.netCashflow > 0 ? '+' : ''}{formatMoney(balance.netCashflow)}
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-card-label">Realized Equity (RDN Aktual)</div>
-          <div className="stat-card-value" style={{ color: 'var(--accent-blue)' }}>{formatRupiah(balance.realizedEquity)}</div>
+          <div className="stat-card-value" style={{ color: 'var(--accent-blue)' }}>{formatMoney(balance.realizedEquity)}</div>
         </div>
         <div className="stat-card" style={{ border: '1px solid var(--accent-green)', background: 'rgba(16, 185, 129, 0.05)' }}>
           <div className="stat-card-label">Buying Power (Saldo Kas)</div>
-          <div className="stat-card-value text-profit">{formatRupiah(balance.buyingPower)}</div>
+          <div className="stat-card-value text-profit">{formatMoney(balance.buyingPower)}</div>
           <div className="stat-card-change" style={{ marginTop: 4 }}>Dana tersedia untuk trading</div>
         </div>
       </div>
@@ -116,11 +145,12 @@ export default function CashflowPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Jumlah (Rp) *</label>
+                  <label className="form-label">Jumlah ({isUS ? 'USD' : 'IDR'}) *</label>
                   <CurrencyInput
-                    placeholder="1.000.000"
+                    placeholder={isUS ? '100.00' : '1.000.000'}
                     value={form.amount}
                     onChange={v => set('amount', v)}
+                    allowDecimal={isUS}
                   />
                 </div>
               </div>
@@ -146,8 +176,8 @@ export default function CashflowPage() {
       )}
 
       <div className="card">
-        <div className="card-header"><h3 className="card-title">Riwayat Transaksi Kas</h3></div>
-        {cashflows.length === 0 ? (
+        <div className="card-header"><h3 className="card-title">Riwayat Transaksi Kas ({isUS ? 'USD' : 'IDR'})</h3></div>
+        {filteredCashflows.length === 0 ? (
           <div className="empty-state" style={{ padding: '40px 20px' }}>
             <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center' }}>
               <Coins size={48} />
@@ -168,7 +198,7 @@ export default function CashflowPage() {
                 </tr>
               </thead>
               <tbody>
-                {cashflows.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((cf: any) => (
+                {filteredCashflows.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((cf: any) => (
                   <tr key={cf.id}>
                     <td>{formatDate(cf.date)}</td>
                     <td>
@@ -178,7 +208,7 @@ export default function CashflowPage() {
                       </span>
                     </td>
                     <td style={{ fontWeight: 600 }} className={cf.type === 'deposit' ? 'text-profit' : 'text-loss'}>
-                      {cf.type === 'deposit' ? '+' : '-'}{formatRupiah(cf.amount)}
+                      {cf.type === 'deposit' ? '+' : '-'}{formatMoney(cf.amount)}
                     </td>
                     <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{cf.notes || '-'}</td>
                     <td>

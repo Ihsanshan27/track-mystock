@@ -8,12 +8,27 @@ import { ACCESS_LEVELS, listOwnedSharedAccess, revokeSharedAccess, upsertSharedA
 import { isSupabaseConfigured } from '@/modules/shared/services/supabaseClient';
 import { formatDateTime, formatRupiah } from '@/modules/shared/utils/formatters';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
+import { Trash2, Plus, X } from 'lucide-react';
 
 const ACCESS_LABELS = {
   read: 'Read Only',
   review: 'Review Mentor',
   admin: 'Admin Share',
 };
+
+const BROKERS_ID = [
+  { name: 'Custom', buyFee: 0.15, sellFee: 0.25 },
+  { name: 'Ajaib', buyFee: 0.15, sellFee: 0.25 },
+  { name: 'Stockbit', buyFee: 0.15, sellFee: 0.25 },
+  { name: 'IndoPremier', buyFee: 0.19, sellFee: 0.29 },
+  { name: 'Mirae Asset', buyFee: 0.15, sellFee: 0.25 },
+];
+
+const BROKERS_US = [
+  { name: 'Custom', buyFee: 0.00, sellFee: 0.00 },
+  { name: 'Gotrade', buyFee: 0.00, sellFee: 0.00 },
+  { name: 'Interactive Brokers', buyFee: 0.05, sellFee: 0.05 },
+];
 
 export default function SettingsPage() {
   const { settings, updateSettings, showToast, exportData, importData, clearData } = useData();
@@ -30,6 +45,10 @@ export default function SettingsPage() {
     accessLevel: 'review',
     expiresAt: '',
   });
+
+  const [newStrategy, setNewStrategy] = useState('');
+  const [newEmotionVal, setNewEmotionVal] = useState('');
+  const [newEmotionLbl, setNewEmotionLbl] = useState('');
 
   useEffect(() => {
     setForm({ ...settings });
@@ -70,6 +89,84 @@ export default function SettingsPage() {
 
   const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
+  const handleBrokerIDChange = (brokerName: string) => {
+    const broker = BROKERS_ID.find(b => b.name === brokerName);
+    if (broker) {
+      setForm(prev => ({
+        ...prev,
+        selectedBrokerID: brokerName,
+        ...(brokerName !== 'Custom' ? { defaultBuyFee: broker.buyFee, defaultSellFee: broker.sellFee } : {})
+      }));
+    }
+  };
+
+  const handleBrokerUSChange = (brokerName: string) => {
+    const broker = BROKERS_US.find(b => b.name === brokerName);
+    if (broker) {
+      setForm(prev => ({
+        ...prev,
+        selectedBrokerUS: brokerName,
+        ...(brokerName !== 'Custom' ? { defaultBuyFeeUS: broker.buyFee, defaultSellFeeUS: broker.sellFee } : {})
+      }));
+    }
+  };
+
+  const addStrategy = () => {
+    const val = newStrategy.trim();
+    if (!val) return;
+    if ((form.customStrategies || []).includes(val)) {
+      showToast('Strategi sudah terdaftar', 'error');
+      return;
+    }
+    setForm(prev => ({
+      ...prev,
+      customStrategies: [...(prev.customStrategies || []), val]
+    }));
+    setNewStrategy('');
+  };
+
+  const removeStrategy = (strat: string) => {
+    setForm(prev => ({
+      ...prev,
+      customStrategies: (prev.customStrategies || []).filter(s => s !== strat)
+    }));
+  };
+
+  const addEmotion = () => {
+    const val = newEmotionVal.trim().toLowerCase();
+    const lbl = newEmotionLbl.trim();
+    if (!val || !lbl) return;
+    if ((form.customEmotions || []).some((e: any) => e.value === val)) {
+      showToast('Value emosi sudah terdaftar', 'error');
+      return;
+    }
+    setForm(prev => ({
+      ...prev,
+      customEmotions: [...(prev.customEmotions || []), { value: val, label: lbl }]
+    }));
+    setNewEmotionVal('');
+    setNewEmotionLbl('');
+  };
+
+  const removeEmotion = (val: string) => {
+    setForm(prev => ({
+      ...prev,
+      customEmotions: (prev.customEmotions || []).filter((e: any) => e.value !== val)
+    }));
+  };
+
+  const handleThemePreferenceChange = (pref: 'light' | 'dark' | 'system') => {
+    setForm(prev => ({ ...prev, themePreference: pref }));
+    if (pref === 'system') {
+      const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      localStorage.setItem('jurnal_saham_theme', isDark ? 'dark' : 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', pref);
+      localStorage.setItem('jurnal_saham_theme', pref);
+    }
+  };
+
   const handleSaveSettings = () => {
     updateSettings({
       initialCapital: parseFloat(form.initialCapital) || 10000000,
@@ -79,6 +176,16 @@ export default function SettingsPage() {
       initialCapitalUS: parseFloat(form.initialCapitalUS) || 1000,
       defaultBuyFeeUS: parseFloat(form.defaultBuyFeeUS) || 0,
       defaultSellFeeUS: parseFloat(form.defaultSellFeeUS) || 0,
+      selectedBrokerID: form.selectedBrokerID || 'Custom',
+      selectedBrokerUS: form.selectedBrokerUS || 'Custom',
+      customStrategies: form.customStrategies || [],
+      customEmotions: form.customEmotions || [],
+      usdToIdrRate: parseFloat(form.usdToIdrRate) || 16200,
+      defaultRiskPercent: parseFloat(form.defaultRiskPercent) || 2,
+      defaultTargetRR: parseFloat(form.defaultTargetRR) || 2,
+      themePreference: form.themePreference || 'system',
+      logRetentionDays: form.logRetentionDays === '' ? 90 : (parseInt(form.logRetentionDays as any) >= 0 ? parseInt(form.logRetentionDays as any) : 90),
+      privacyMode: !!form.privacyMode,
     });
   };
 
@@ -233,29 +340,6 @@ export default function SettingsPage() {
       </div>
 
       <div style={{ maxWidth: 700 }}>
-        {/* Profile */}
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card-header"><h3 className="card-title">👤 Profil</h3></div>
-          <div className="card-body">
-            <div className="form-group">
-              <label className="form-label">Nama Tampilan</label>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <input className="form-input" value={newUsername} onChange={e => setNewUsername(e.target.value)} />
-                <button className="btn btn-secondary" onClick={handleSaveUsername}>Simpan</button>
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Role</label>
-              <div className="badge badge-blue">{roleLabel}</div>
-              {roleError && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--accent-yellow)', marginTop: 8 }}>
-                  Role fallback aktif: {roleError}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Trading Settings */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card-header"><h3 className="card-title">📈 Pengaturan Trading</h3></div>
@@ -277,18 +361,34 @@ export default function SettingsPage() {
                 <input type="number" className="form-input" step="0.1" value={form.monthlyTarget} onChange={e => set('monthlyTarget', e.target.value)} />
               </div>
             </div>
+            
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label className="form-label">Preset Broker Indonesia (IDR)</label>
+              <select className="form-select" value={form.selectedBrokerID || 'Custom'} onChange={e => handleBrokerIDChange(e.target.value)}>
+                {BROKERS_ID.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+              </select>
+            </div>
+
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Default Fee Beli (%)</label>
-                <input type="number" className="form-input" step="0.01" value={form.defaultBuyFee} onChange={e => set('defaultBuyFee', e.target.value)} />
+                <input type="number" className="form-input" step="0.01" value={form.defaultBuyFee} onChange={e => set('defaultBuyFee', e.target.value)} disabled={form.selectedBrokerID !== 'Custom'} />
               </div>
               <div className="form-group">
                 <label className="form-label">Default Fee Jual (%)</label>
-                <input type="number" className="form-input" step="0.01" value={form.defaultSellFee} onChange={e => set('defaultSellFee', e.target.value)} />
+                <input type="number" className="form-input" step="0.01" value={form.defaultSellFee} onChange={e => set('defaultSellFee', e.target.value)} disabled={form.selectedBrokerID !== 'Custom'} />
               </div>
             </div>
 
             <h4 style={{ margin: '20px 0 10px', fontSize: '1.1rem' }}>🌎 Pasar US (Gotrade)</h4>
+            
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <label className="form-label">Preset Broker Amerika (USD)</label>
+              <select className="form-select" value={form.selectedBrokerUS || 'Custom'} onChange={e => handleBrokerUSChange(e.target.value)}>
+                {BROKERS_US.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+              </select>
+            </div>
+
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Modal Awal US ($)</label>
@@ -306,14 +406,117 @@ export default function SettingsPage() {
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Default Fee Beli US (%)</label>
-                <input type="number" className="form-input" step="0.01" value={form.defaultBuyFeeUS} onChange={e => set('defaultBuyFeeUS', e.target.value)} />
+                <input type="number" className="form-input" step="0.01" value={form.defaultBuyFeeUS} onChange={e => set('defaultBuyFeeUS', e.target.value)} disabled={form.selectedBrokerUS !== 'Custom'} />
               </div>
               <div className="form-group">
                 <label className="form-label">Default Fee Jual US (%)</label>
-                <input type="number" className="form-input" step="0.01" value={form.defaultSellFeeUS} onChange={e => set('defaultSellFeeUS', e.target.value)} />
+                <input type="number" className="form-input" step="0.01" value={form.defaultSellFeeUS} onChange={e => set('defaultSellFeeUS', e.target.value)} disabled={form.selectedBrokerUS !== 'Custom'} />
               </div>
             </div>
             <button className="btn btn-primary" onClick={handleSaveSettings}>💾 Simpan Pengaturan</button>
+          </div>
+        </div>
+
+        {/* Custom Prefs */}
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card-header"><h3 className="card-title">⚙️ Preferensi Kustom & UI</h3></div>
+          <div className="card-body">
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Kurs Konversi USD ke IDR (Rp)</label>
+                <input type="number" className="form-input" value={form.usdToIdrRate} onChange={e => set('usdToIdrRate', e.target.value)} />
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  Digunakan untuk mengonversi total aset portofolio gabungan.
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Tema Aplikasi</label>
+                <select className="form-select" value={form.themePreference || 'system'} onChange={e => handleThemePreferenceChange(e.target.value as any)}>
+                  <option value="system">Ikuti Sistem (Otomatis)</option>
+                  <option value="light">Light Mode (Terang)</option>
+                  <option value="dark">Dark Mode (Gelap)</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Default Toleransi Risiko per Trade (%)</label>
+                <input type="number" className="form-input" step="0.1" value={form.defaultRiskPercent} onChange={e => set('defaultRiskPercent', e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Default Target Rasio Risk:Reward (1 : X)</label>
+                <input type="number" className="form-input" step="0.1" value={form.defaultTargetRR} onChange={e => set('defaultTargetRR', e.target.value)} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Masa Simpan Audit Log (Hari)</label>
+                <input
+                  type="number"
+                  min="0"
+                  className="form-input"
+                  placeholder="90"
+                  value={form.logRetentionDays ?? 90}
+                  onChange={e => {
+                    const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0);
+                    set('logRetentionDays', val);
+                  }}
+                />
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  Isi 0 untuk menyimpan selamanya. Minimal 1 hari jika ingin dibersihkan otomatis.
+                </div>
+              </div>
+              <div className="form-group"></div>
+            </div>
+            <button className="btn btn-primary" onClick={handleSaveSettings}>💾 Simpan Preferensi</button>
+          </div>
+        </div>
+
+        {/* Custom Strategies & Emotions Manager */}
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card-header"><h3 className="card-title">🏷️ Strategi & Emosi Kustom</h3></div>
+          <div className="card-body">
+            <h4 style={{ fontSize: '1rem', marginBottom: 12 }}>Daftar Strategi Trading</h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {(form.customStrategies || []).map((strat: string) => (
+                <span key={strat} className="badge badge-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20 }}>
+                  {strat}
+                  <button type="button" onClick={() => removeStrategy(strat)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: 'inherit', padding: 0 }}>
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+              <input className="form-input" placeholder="Tambah strategi baru... (cth: Breakaway)" value={newStrategy} onChange={e => setNewStrategy(e.target.value)} />
+              <button type="button" className="btn btn-secondary" onClick={addStrategy} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Plus size={14} />
+                Tambah
+              </button>
+            </div>
+
+            <h4 style={{ fontSize: '1rem', marginBottom: 12 }}>Daftar Emosi / Psikologi</h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {(form.customEmotions || []).map((em: any) => (
+                <span key={em.value} className="badge badge-yellow" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20 }}>
+                  {em.label} ({em.value})
+                  <button type="button" onClick={() => removeEmotion(em.value)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', color: 'inherit', padding: 0 }}>
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="form-input" style={{ flex: 1 }} placeholder="Label (cth: Dendam)" value={newEmotionLbl} onChange={e => setNewEmotionLbl(e.target.value)} />
+              <input className="form-input" style={{ flex: 1 }} placeholder="Value (cth: revenge)" value={newEmotionVal} onChange={e => setNewEmotionVal(e.target.value)} />
+              <button type="button" className="btn btn-secondary" onClick={addEmotion} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Plus size={14} />
+                Tambah
+              </button>
+            </div>
+            <div style={{ marginTop: 20 }}>
+              <button className="btn btn-primary" onClick={handleSaveSettings}>💾 Simpan Strategi & Emosi</button>
+            </div>
           </div>
         </div>
 

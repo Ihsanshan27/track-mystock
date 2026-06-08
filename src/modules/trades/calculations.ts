@@ -116,12 +116,32 @@ export function calculateEquityCurve(trades, initialCapital = 10000000) {
     .sort((a, b) => new Date(a.dateSell).getTime() - new Date(b.dateSell).getTime());
 
   let equity = initialCapital;
-  const curve = [{ date: closed[0]?.dateBuy || new Date().toISOString().split('T')[0], equity: initialCapital }];
+  let peak = initialCapital;
+
+  const curve = [{
+    date: closed[0]?.dateBuy || new Date().toISOString().split('T')[0],
+    equity: initialCapital,
+    drawdown: 0,
+    drawdownPercent: 0,
+    peak: initialCapital
+  }];
 
   for (const t of closed) {
     const { pnl } = calculateTradePnL(t);
     equity += pnl;
-    curve.push({ date: t.dateSell, equity });
+    if (equity > peak) {
+      peak = equity;
+    }
+    const drawdown = peak - equity;
+    const drawdownPercent = peak > 0 ? (drawdown / peak) * 100 : 0;
+
+    curve.push({
+      date: t.dateSell,
+      equity,
+      drawdown,
+      drawdownPercent,
+      peak
+    });
   }
 
   return curve;
@@ -366,26 +386,38 @@ export function calcTargetPrice({ buyPrice, targetPercent, buyFee = 0.15, sellFe
 
 // === Portfolio Balance & Buying Power ===
 
-export function calculatePortfolioBalance(trades, cashflows = [], dividends = [], initialCapital = 10000000) {
-  const netCashflow = cashflows.reduce((sum, cf) => {
+export function calculatePortfolioBalance(trades, cashflows = [], dividends = [], initialCapital = 10000000, market?: 'ID' | 'US') {
+  const filteredTrades = market 
+    ? trades.filter(t => t.market === market || (!t.market && market === 'ID'))
+    : trades;
+  
+  const filteredCashflows = market
+    ? cashflows.filter(c => c.market === market || (!c.market && market === 'ID'))
+    : cashflows;
+
+  const filteredDividends = market
+    ? dividends.filter(d => d.market === market || (!d.market && market === 'ID'))
+    : dividends;
+
+  const netCashflow = filteredCashflows.reduce((sum, cf) => {
     return sum + (cf.type === 'deposit' ? cf.amount : -cf.amount);
   }, 0);
 
   const totalCapital = initialCapital + netCashflow;
 
   let realizedPnL = 0;
-  const closedTrades = trades.filter(t => t.sellPrice && t.dateSell);
+  const closedTrades = filteredTrades.filter(t => t.sellPrice && t.dateSell);
   for (const t of closedTrades) {
     const { pnl } = calculateTradePnL(t);
     realizedPnL += pnl;
   }
 
-  const totalDividend = dividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+  const totalDividend = filteredDividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
 
   const realizedEquity = totalCapital + realizedPnL + totalDividend;
 
   let investedAmount = 0;
-  const openTrades = trades.filter(t => !t.sellPrice || !t.dateSell);
+  const openTrades = filteredTrades.filter(t => !t.sellPrice || !t.dateSell);
   for (const t of openTrades) {
     const { totalBuy, buyCommission } = calculateTradePnL(t);
     investedAmount += (totalBuy + buyCommission);
