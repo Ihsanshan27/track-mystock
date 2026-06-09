@@ -130,12 +130,18 @@ export default function IpoListPage() {
           </h1>
           <p className="page-subtitle">Lacak partisipasi IPO dari berbagai akun dalam satu tempat</p>
         </div>
-        {canWrite && (
-          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-            {showForm ? <Icons.X size={16} /> : <Icons.Plus size={16} />}
-            {showForm ? 'Batal' : 'Buat IPO Baru'}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button className="btn btn-secondary" onClick={() => navigate('/ipo/summary')} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icons.BarChart3 size={16} />
+            Ringkasan IPO
           </button>
-        )}
+          {canWrite && (
+            <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+              {showForm ? <Icons.X size={16} /> : <Icons.Plus size={16} />}
+              {showForm ? 'Batal' : 'Buat IPO Baru'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Create Form */}

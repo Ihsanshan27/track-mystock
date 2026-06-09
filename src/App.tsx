@@ -25,6 +25,7 @@ import CashflowPage from '@/modules/cashflow/pages/CashflowPage';
 import DividendPage from '@/modules/dividends/pages/DividendPage';
 import IpoListPage from '@/modules/ipo/pages/IpoListPage';
 import IpoDetailPage from '@/modules/ipo/pages/IpoDetailPage';
+import IpoSummaryPage from '@/modules/ipo/pages/IpoSummaryPage';
 import AdminUsersPage from '@/modules/admin/pages/AdminUsersPage';
 import AdminWorkspacesPage from '@/modules/admin/pages/AdminWorkspacesPage';
 import AdminAuditLogsPage from '@/modules/admin/pages/AdminAuditLogsPage';
@@ -144,6 +145,7 @@ function AppRoutes() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/plans" element={<TradingPlansPage />} />
         <Route path="/ipo" element={<IpoListPage />} />
+        <Route path="/ipo/summary" element={<IpoSummaryPage />} />
         <Route path="/ipo/:id" element={<IpoDetailPage />} />
         <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
         <Route path="/admin/workspaces" element={<AdminRoute><AdminWorkspacesPage /></AdminRoute>} />

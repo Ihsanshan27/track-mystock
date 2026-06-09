@@ -186,6 +186,15 @@ export default function SettingsPage() {
       themePreference: form.themePreference || 'system',
       logRetentionDays: form.logRetentionDays === '' ? 90 : (parseInt(form.logRetentionDays as any) >= 0 ? parseInt(form.logRetentionDays as any) : 90),
       privacyMode: !!form.privacyMode,
+      behaviorDailyTradeLimitEnabled: !!form.behaviorDailyTradeLimitEnabled,
+      behaviorDailyTradeLimit: parseInt(form.behaviorDailyTradeLimit as any) >= 0 ? parseInt(form.behaviorDailyTradeLimit as any) : 3,
+      behaviorNegativeEmotionWarning: !!form.behaviorNegativeEmotionWarning,
+      behaviorBlockNegativeEmotion: !!form.behaviorBlockNegativeEmotion,
+      behaviorRequireStrategy: !!form.behaviorRequireStrategy,
+      behaviorRequireReason: !!form.behaviorRequireReason,
+      behaviorMaxPositionSizeWarning: !!form.behaviorMaxPositionSizeWarning,
+      behaviorMaxPositionSizePercent: parseFloat(form.behaviorMaxPositionSizePercent as any) >= 0 ? parseFloat(form.behaviorMaxPositionSizePercent as any) : 20,
+      behaviorDoubleConfirmExit: !!form.behaviorDoubleConfirmExit,
     });
   };
 
@@ -469,6 +478,179 @@ export default function SettingsPage() {
               <div className="form-group"></div>
             </div>
             <button className="btn btn-primary" onClick={handleSaveSettings}>💾 Simpan Preferensi</button>
+          </div>
+        </div>
+
+        {/* User Behavior Guard */}
+        <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card-header">
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              🧠 Proteksi Perilaku & Psikologi Pengguna (User Behavior Guard)
+            </h3>
+          </div>
+          <div className="card-body">
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: 20 }}>
+              Fitur-fitur ini membantu Anda mendisiplinkan diri, membatasi impulse trading, menjaga psikologi emosi, dan mematuhi rencana risk management.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Daily Limit */}
+              <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem' }}>Maksimal Transaksi Harian</strong>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Membatasi jumlah pencatatan transaksi baru per hari untuk mencegah over-trading.</div>
+                  </div>
+                  <label className="switch-container" style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!form.behaviorDailyTradeLimitEnabled}
+                      onChange={e => set('behaviorDailyTradeLimitEnabled', e.target.checked)}
+                      style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
+                  </label>
+                </div>
+                {form.behaviorDailyTradeLimitEnabled && (
+                  <div className="form-group" style={{ maxWidth: 200, marginTop: 8 }}>
+                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Maksimal Transaksi</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-input"
+                      value={form.behaviorDailyTradeLimit ?? 3}
+                      onChange={e => set('behaviorDailyTradeLimit', Math.max(1, parseInt(e.target.value) || 1))}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Emotion Guard */}
+              <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem' }}>Peringatan Emosi Negatif (Negative Emotion Tip)</strong>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Menampilkan pesan edukatif jika Anda memilih emosi negatif saat mencatat transaksi.</div>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!form.behaviorNegativeEmotionWarning}
+                      onChange={e => set('behaviorNegativeEmotionWarning', e.target.checked)}
+                      style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem' }}>Blokir Transaksi Emosi Negatif</strong>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Mencegah Anda menyimpan transaksi baru jika memilih emosi negatif (mencegah impulsiveness).</div>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!form.behaviorBlockNegativeEmotion}
+                      onChange={e => set('behaviorBlockNegativeEmotion', e.target.checked)}
+                      style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Strategy and Reason */}
+              <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem' }}>Kepatuhan Rencana Trading (Wajib Strategi)</strong>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Mencegah transaksi disimpan jika Anda tidak menentukan strategi trading.</div>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!form.behaviorRequireStrategy}
+                      onChange={e => set('behaviorRequireStrategy', e.target.checked)}
+                      style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem' }}>Wajib Isi Alasan Entry</strong>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Mencegah transaksi disimpan jika kolom Alasan Entry dibiarkan kosong.</div>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!form.behaviorRequireReason}
+                      onChange={e => set('behaviorRequireReason', e.target.checked)}
+                      style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Position Sizing */}
+              <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem' }}>Peringatan Ukuran Posisi Maksimal</strong>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Memberikan warning jika nilai beli transaksi melebihi batas toleransi dari total modal awal.</div>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!form.behaviorMaxPositionSizeWarning}
+                      onChange={e => set('behaviorMaxPositionSizeWarning', e.target.checked)}
+                      style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
+                  </label>
+                </div>
+                {form.behaviorMaxPositionSizeWarning && (
+                  <div className="form-group" style={{ maxWidth: 200, marginTop: 8 }}>
+                    <label className="form-label" style={{ fontSize: '0.8rem' }}>Maksimal Ukuran Posisi (%)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="100"
+                      className="form-input"
+                      value={form.behaviorMaxPositionSizePercent ?? 20}
+                      onChange={e => set('behaviorMaxPositionSizePercent', Math.min(100, Math.max(1, parseFloat(e.target.value) || 1)))}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Double Confirm Exit */}
+              <div style={{ paddingBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong style={{ fontSize: '0.95rem' }}>Konfirmasi Batalkan Input</strong>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Menanyakan konfirmasi sebelum menutup halaman jika form transaksi telah diisi.</div>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!form.behaviorDoubleConfirmExit}
+                      onChange={e => set('behaviorDoubleConfirmExit', e.target.checked)}
+                      style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 24 }}>
+              <button className="btn btn-primary" onClick={handleSaveSettings}>💾 Simpan Pengaturan Perilaku</button>
+            </div>
           </div>
         </div>
 

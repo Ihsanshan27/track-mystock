@@ -11,7 +11,7 @@ export function buildReportSnapshot({
   trades = [],
   cashflows = [],
   dividends = [],
-  settings = {},
+  settings = {} as any,
   marketPrices = {},
   market = 'ID',
   ownerName = 'User',

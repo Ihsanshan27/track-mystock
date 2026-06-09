@@ -49,6 +49,15 @@ const DEFAULT_SETTINGS = {
   themePreference: 'system',
   logRetentionDays: 90,
   privacyMode: false,
+  behaviorDailyTradeLimitEnabled: false,
+  behaviorDailyTradeLimit: 3,
+  behaviorNegativeEmotionWarning: true,
+  behaviorBlockNegativeEmotion: false,
+  behaviorRequireStrategy: false,
+  behaviorRequireReason: false,
+  behaviorMaxPositionSizeWarning: true,
+  behaviorMaxPositionSizePercent: 20,
+  behaviorDoubleConfirmExit: true,
 };
 const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries'];
 

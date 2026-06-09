@@ -5,7 +5,7 @@ import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 import { formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 
 export default function NewTradePage() {
-  const { addTrade, settings, portfolios, activePortfolioId, tradeFormDraft, setTradeFormDraft, deleteTradingPlan } = useData();
+  const { addTrade, allTrades, settings, portfolios, activePortfolioId, tradeFormDraft, setTradeFormDraft, deleteTradingPlan } = useData();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -37,6 +37,65 @@ export default function NewTradePage() {
     setTradeFormDraft(form);
   }, [form, setTradeFormDraft]);
 
+  const isFormDirty = () => {
+    const plan = location.state?.plan;
+    const initialForm = {
+      market: plan?.market || 'ID',
+      stockCode: plan?.stockCode || '',
+      buyPrice: plan?.entryPrice != null ? String(plan.entryPrice) : '',
+      sellPrice: '',
+      lots: plan?.lots != null ? String(plan.lots) : '',
+      strategy: plan?.strategy || '',
+      reasonEntry: plan?.reason || '',
+      reasonExit: '',
+      emotion: '',
+      rating: 0,
+      tags: plan ? 'rencana-trading' : '',
+      notes: '',
+      portfolioId: plan?.portfolioId || activePortfolioId || 'default',
+    };
+    
+    return (
+      form.market !== initialForm.market ||
+      form.stockCode !== initialForm.stockCode ||
+      form.buyPrice !== initialForm.buyPrice ||
+      form.sellPrice !== initialForm.sellPrice ||
+      form.lots !== initialForm.lots ||
+      form.strategy !== initialForm.strategy ||
+      form.reasonEntry !== initialForm.reasonEntry ||
+      form.reasonExit !== initialForm.reasonExit ||
+      form.emotion !== initialForm.emotion ||
+      form.rating !== initialForm.rating ||
+      form.tags !== initialForm.tags ||
+      form.notes !== initialForm.notes ||
+      form.portfolioId !== initialForm.portfolioId
+    );
+  };
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (settings.behaviorDoubleConfirmExit && isFormDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [settings.behaviorDoubleConfirmExit, form]);
+
+  const handleCancel = () => {
+    if (settings.behaviorDoubleConfirmExit && isFormDirty()) {
+      if (!window.confirm('Apakah Anda yakin ingin keluar? Data transaksi yang belum disimpan akan hilang.')) {
+        return;
+      }
+    }
+    setTradeFormDraft(null);
+    navigate('/trades');
+  };
+
+  const tradesOnDate = allTrades.filter(t => t.dateBuy === form.dateBuy);
+  const dailyLimitReached = settings.behaviorDailyTradeLimitEnabled && tradesOnDate.length >= (settings.behaviorDailyTradeLimit || 3);
+
   const set = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
   const handleSubmit = (e) => {
@@ -45,6 +104,31 @@ export default function NewTradePage() {
       alert('Kode saham, tanggal beli, harga beli, dan jumlah wajib diisi');
       return;
     }
+
+    // Behavior Guard: Daily Limit check
+    if (dailyLimitReached) {
+      alert(`Penyimpanan diblokir: Batas transaksi harian (${settings.behaviorDailyTradeLimit}) untuk tanggal ${form.dateBuy} telah tercapai.`);
+      return;
+    }
+
+    // Behavior Guard: Required Strategy
+    if (settings.behaviorRequireStrategy && !form.strategy) {
+      alert('Penyimpanan diblokir: Anda wajib memilih strategi trading.');
+      return;
+    }
+
+    // Behavior Guard: Required Entry Reason
+    if (settings.behaviorRequireReason && !form.reasonEntry.trim()) {
+      alert('Penyimpanan diblokir: Anda wajib mengisi alasan entry.');
+      return;
+    }
+
+    // Behavior Guard: Block Negative Emotion
+    if (settings.behaviorBlockNegativeEmotion && form.emotion && ['fearful', 'greedy', 'revenge', 'doubtful', 'fomo'].includes(form.emotion)) {
+      alert('Penyimpanan diblokir: Anda dilarang menyimpan transaksi saat terdeteksi emosi negatif.');
+      return;
+    }
+
     addTrade({
       ...form,
       market: form.market,
@@ -82,6 +166,10 @@ export default function NewTradePage() {
   
   const formatMoney = isUS ? formatUSD : formatRupiah;
 
+  const capital = isUS ? (settings.initialCapitalUS || 1000) : (settings.initialCapital || 10000000);
+  const maxPosVal = capital * ((settings.behaviorMaxPositionSizePercent ?? 20) / 100);
+  const isOverSized = settings.behaviorMaxPositionSizeWarning && totalBuy > maxPosVal;
+
   const strategiesList = settings.customStrategies || STRATEGIES;
   const emotionsList = settings.customEmotions || EMOTIONS;
 
@@ -92,7 +180,7 @@ export default function NewTradePage() {
           <h1 className="page-title">📝 Catat Transaksi Baru</h1>
           <p className="page-subtitle">Catat detail transaksi trading Anda</p>
         </div>
-        <button className="btn btn-ghost" onClick={() => navigate('/trades')}>← Kembali</button>
+        <button className="btn btn-ghost" onClick={handleCancel}>← Kembali</button>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -230,6 +318,27 @@ export default function NewTradePage() {
                       <option value="">Pilih emosi...</option>
                       {emotionsList.map((e: any) => <option key={e.value} value={e.value}>{e.label}</option>)}
                     </select>
+                    {form.emotion && ['fearful', 'greedy', 'revenge', 'doubtful', 'fomo'].includes(form.emotion) && (settings.behaviorNegativeEmotionWarning || settings.behaviorBlockNegativeEmotion) && (
+                      <div style={{ 
+                        marginTop: 6, 
+                        fontSize: '0.8rem', 
+                        padding: '6px 10px', 
+                        borderRadius: 6, 
+                        background: settings.behaviorBlockNegativeEmotion ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                        color: settings.behaviorBlockNegativeEmotion ? 'var(--accent-red)' : 'var(--accent-yellow)',
+                        border: `1px solid ${settings.behaviorBlockNegativeEmotion ? 'var(--accent-red)' : 'var(--accent-yellow)'}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2
+                      }}>
+                        <strong>{settings.behaviorBlockNegativeEmotion ? '🚫 Blokir Disiplin' : '🧠 Kesadaran Emosi'}</strong>
+                        <span>
+                          {settings.behaviorBlockNegativeEmotion 
+                            ? 'Mode disiplin ketat aktif. Simpan diblokir karena terdeteksi emosi negatif.' 
+                            : `Peringatan: Anda trading saat merasa ${emotionsList.find(e => e.value === form.emotion)?.label || form.emotion}. Tetap disiplin!`}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -315,18 +424,42 @@ export default function NewTradePage() {
                       ⏳ Posisi masih terbuka (belum ada harga jual)
                     </div>
                   )}
+                  {isOverSized && (
+                    <div style={{ 
+                      marginTop: 16, 
+                      fontSize: '0.8rem', 
+                      padding: '8px 12px', 
+                      borderRadius: 6, 
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      color: 'var(--accent-yellow)',
+                      border: '1px solid var(--accent-yellow)',
+                    }}>
+                      ⚠️ <strong>Ukuran Posisi Tinggi</strong>: Pembelian ({formatMoney(totalBuy)}) melebihi {settings.behaviorMaxPositionSizePercent}% dari modal awal ({formatMoney(capital)}).
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
-              <button type="submit" className="btn btn-primary btn-lg" style={{ flex: 1 }}>
-                💾 Simpan Transaksi
-              </button>
-              <button type="button" className="btn btn-secondary btn-lg" onClick={() => {
-                setTradeFormDraft(null);
-                navigate('/trades');
+            {dailyLimitReached && (
+              <div style={{ 
+                marginTop: 20,
+                fontSize: '0.85rem', 
+                padding: '10px 14px', 
+                borderRadius: 8, 
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: 'var(--accent-red)',
+                border: '1px solid var(--accent-red)',
               }}>
+                🚫 <strong>Batas Transaksi Tercapai</strong>: Anda telah mencatat {tradesOnDate.length} transaksi pada tanggal {form.dateBuy}. Batas harian Anda adalah {settings.behaviorDailyTradeLimit}. Simpan transaksi baru diblokir.
+              </div>
+            )}
+
+            <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
+              <button type="submit" className="btn btn-primary btn-lg" style={{ flex: 1 }} disabled={dailyLimitReached}>
+                💾 Simpan Transaksi {dailyLimitReached && '(Diblokir)'}
+              </button>
+              <button type="button" className="btn btn-secondary btn-lg" onClick={handleCancel}>
                 Batal
               </button>
             </div>

@@ -11,7 +11,7 @@ export default function TradeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { getTradeById, updateTrade, deleteTrade, marketPrices, showToast, portfolios, tradeEditDraft, setTradeEditDraft } = useData();
+  const { getTradeById, updateTrade, deleteTrade, marketPrices, showToast, portfolios, settings, tradeEditDraft, setTradeEditDraft } = useData();
   const trade = getTradeById(id);
 
   // Restore editing + form state from context draft (keyed by trade id)
@@ -37,9 +37,12 @@ export default function TradeDetailPage() {
     );
   }
 
+  const strategiesList = settings.customStrategies || STRATEGIES;
+  const emotionsList = settings.customEmotions || EMOTIONS;
+
   const calc = calculateTradePnL(trade);
   const isOpen = !trade.sellPrice || !trade.dateSell;
-  const emotion = EMOTIONS.find(e => e.value === trade.emotion);
+  const emotion = emotionsList.find(e => e.value === trade.emotion);
   const isUS = trade.market === 'US';
   const formatMoney = isUS ? formatUSD : formatRupiah;
 
@@ -60,6 +63,24 @@ export default function TradeDetailPage() {
   const hasPnL = !isOpen || isEstimasi;
 
   const handleSave = () => {
+    // Behavior Guard: Required Strategy
+    if (settings.behaviorRequireStrategy && !form.strategy) {
+      alert('Penyimpanan diblokir: Anda wajib memilih strategi trading.');
+      return;
+    }
+
+    // Behavior Guard: Required Entry Reason
+    if (settings.behaviorRequireReason && !form.reasonEntry?.trim()) {
+      alert('Penyimpanan diblokir: Anda wajib mengisi alasan entry.');
+      return;
+    }
+
+    // Behavior Guard: Block Negative Emotion
+    if (settings.behaviorBlockNegativeEmotion && form.emotion && ['fearful', 'greedy', 'revenge', 'doubtful', 'fomo'].includes(form.emotion)) {
+      alert('Penyimpanan diblokir: Anda dilarang menyimpan transaksi saat terdeteksi emosi negatif.');
+      return;
+    }
+
     updateTrade(id, {
       ...form,
       stockCode: form.stockCode?.toUpperCase(),
@@ -163,15 +184,36 @@ export default function TradeDetailPage() {
                     <label className="form-label">Strategi</label>
                     <select className="form-select" value={form.strategy || ''} onChange={e => set('strategy', e.target.value)}>
                       <option value="">Pilih strategi...</option>
-                      {STRATEGIES.map(s => <option key={s} value={s}>{s}</option>)}
+                      {strategiesList.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Emosi</label>
                     <select className="form-select" value={form.emotion || ''} onChange={e => set('emotion', e.target.value)}>
                       <option value="">Pilih emosi...</option>
-                      {EMOTIONS.map(em => <option key={em.value} value={em.value}>{em.label}</option>)}
+                      {emotionsList.map(em => <option key={em.value} value={em.value}>{em.label}</option>)}
                     </select>
+                    {form.emotion && ['fearful', 'greedy', 'revenge', 'doubtful', 'fomo'].includes(form.emotion) && (settings.behaviorNegativeEmotionWarning || settings.behaviorBlockNegativeEmotion) && (
+                      <div style={{ 
+                        marginTop: 6, 
+                        fontSize: '0.8rem', 
+                        padding: '6px 10px', 
+                        borderRadius: 6, 
+                        background: settings.behaviorBlockNegativeEmotion ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                        color: settings.behaviorBlockNegativeEmotion ? 'var(--accent-red)' : 'var(--accent-yellow)',
+                        border: `1px solid ${settings.behaviorBlockNegativeEmotion ? 'var(--accent-red)' : 'var(--accent-yellow)'}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2
+                      }}>
+                        <strong>{settings.behaviorBlockNegativeEmotion ? '🚫 Blokir Disiplin' : '🧠 Kesadaran Emosi'}</strong>
+                        <span>
+                          {settings.behaviorBlockNegativeEmotion 
+                            ? 'Mode disiplin ketat aktif. Simpan diblokir karena terdeteksi emosi negatif.' 
+                            : `Peringatan: Anda trading saat merasa ${emotionsList.find(e => e.value === form.emotion)?.label || form.emotion}. Tetap disiplin!`}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="form-group">

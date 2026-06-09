@@ -136,7 +136,7 @@ export function migrateWorkspaceScopeToUserScope(userId) {
 // --- Export / Import / Clear (user-scoped) ---
 
 export function exportAllData(userId) {
-  const data = {};
+  const data: any = {};
   const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
   if (userId) {
     for (const key of keys) {
