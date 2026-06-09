@@ -20,6 +20,7 @@ import NotesPage from '@/modules/notes/pages/NotesPage';
 import PortfoliosPage from '@/modules/portfolios/pages/PortfoliosPage';
 import SettingsPage from '@/modules/settings/pages/SettingsPage';
 import ProfilePage from '@/modules/profile/pages/ProfilePage';
+import BsjpRecapPage from './modules/trades/pages/BsjpRecapPage'; // bsjp recap page
 import TradingPlansPage from '@/modules/plans/pages/TradingPlansPage';
 import CashflowPage from '@/modules/cashflow/pages/CashflowPage';
 import DividendPage from '@/modules/dividends/pages/DividendPage';
@@ -126,6 +127,7 @@ function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<PermissionRoute permission="dashboard:read"><DashboardPage /></PermissionRoute>} />
         <Route path="/trades" element={<PermissionRoute permission="journal:write"><TradesPage /></PermissionRoute>} />
+        <Route path="/bsjp-recap" element={<PermissionRoute permission="dashboard:read"><BsjpRecapPage /></PermissionRoute>} />
         <Route path="/trades/new" element={<PermissionRoute permission="journal:write"><NewTradePage /></PermissionRoute>} />
         <Route path="/trades/:id" element={<PermissionRoute permission="journal:write"><TradeDetailPage /></PermissionRoute>} />
         <Route path="/analytics" element={<PermissionRoute permission="analytics:read"><AnalyticsPage /></PermissionRoute>} />

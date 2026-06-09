@@ -59,7 +59,7 @@ const DEFAULT_SETTINGS = {
   behaviorMaxPositionSizePercent: 20,
   behaviorDoubleConfirmExit: true,
 };
-const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries'];
+const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'bsjpTrades'];
 
 const DEFAULT_PORTFOLIO = {
   id: 'default',
@@ -85,6 +85,7 @@ export function DataProvider({ children }) {
   const [tradingPlans, setTradingPlans] = useState([]);
   const [ipoEvents, setIpoEvents] = useState<any[]>([]);
   const [ipoEntries, setIpoEntries] = useState<any[]>([]);
+  const [bsjpTrades, setBsjpTrades] = useState<any[]>([]);
   const [toasts, setToasts] = useState([]);
   const [tradeFormDraft, setTradeFormDraft] = useState<any>(null);
   const [tradeEditDraft, setTradeEditDraft] = useState<any>(null);
@@ -120,6 +121,7 @@ export function DataProvider({ children }) {
     setTradingPlans(data.tradingPlans || []);
     setIpoEvents(data.ipoEvents || []);
     setIpoEntries(data.ipoEntries || []);
+    setBsjpTrades(data.bsjpTrades || []);
   }, []);
 
   // Toast helper
@@ -508,6 +510,37 @@ export function DataProvider({ children }) {
     showToast(`${newEntries.length} entry berhasil disalin`);
   };
 
+  // === BSJP CRUD ===
+  const addBsjpTrade = (trade) => {
+    if (!ensureWritable()) return null;
+    const newTrade = {
+      ...trade,
+      id: generateId(),
+      createdAt: new Date().toISOString()
+    };
+    const updated = [newTrade, ...bsjpTrades];
+    setBsjpTrades(updated);
+    persistData('bsjpTrades', updated);
+    showToast('Transaksi BSJP berhasil ditambahkan');
+    return newTrade;
+  };
+
+  const updateBsjpTrade = (id, updates) => {
+    if (!ensureWritable()) return;
+    const updated = bsjpTrades.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
+    setBsjpTrades(updated);
+    persistData('bsjpTrades', updated);
+    showToast('Transaksi BSJP berhasil diperbarui');
+  };
+
+  const deleteBsjpTrade = (id) => {
+    if (!ensureWritable()) return;
+    const updated = bsjpTrades.filter(t => t.id !== id);
+    setBsjpTrades(updated);
+    persistData('bsjpTrades', updated);
+    showToast('Transaksi BSJP berhasil dihapus');
+  };
+
   // === SETTINGS ===
   const updateSettings = (updates) => {
     if (!ensureWritable()) return;
@@ -533,6 +566,7 @@ export function DataProvider({ children }) {
     settings,
     marketPrices,
     portfolios,
+    bsjpTrades,
     exportDate: new Date().toISOString(),
     version: '2.0',
     storage: isSupabaseConfigured ? 'supabase' : 'localStorage',
@@ -550,6 +584,7 @@ export function DataProvider({ children }) {
       settings: normalizeSettings(data.settings || settings),
       marketPrices: data.marketPrices || {},
       portfolios: data.portfolios || [DEFAULT_PORTFOLIO],
+      bsjpTrades: data.bsjpTrades || [],
     };
 
     applyData(nextData);
@@ -572,6 +607,7 @@ export function DataProvider({ children }) {
     setMarketPrices({});
     setPortfolios([DEFAULT_PORTFOLIO]);
     setActivePortfolioId('default');
+    setBsjpTrades([]);
 
     if (isSupabaseConfigured) {
       await clearUserData(userId);
@@ -585,6 +621,7 @@ export function DataProvider({ children }) {
       setScopedItem('marketPrices', userId, {});
       setScopedItem('portfolios', userId, [DEFAULT_PORTFOLIO]);
       setScopedItem('active_portfolio', userId, 'default');
+      setScopedItem('bsjpTrades', userId, []);
     }
   };
 
@@ -634,6 +671,10 @@ export function DataProvider({ children }) {
       updateIpoEntry,
       deleteIpoEntry,
       batchAddIpoEntries,
+      bsjpTrades,
+      addBsjpTrade,
+      updateBsjpTrade,
+      deleteBsjpTrade,
       dataLoading,
       dataError,
       databaseSetupError,
@@ -681,6 +722,7 @@ function loadLocalData(userId) {
     tradingPlans: getScopedItem('tradingPlans', userId) || [],
     ipoEvents: getScopedItem('ipoEvents', userId) || [],
     ipoEntries: getScopedItem('ipoEntries', userId) || [],
+    bsjpTrades: getScopedItem('bsjpTrades', userId) || [],
   };
 }
 
