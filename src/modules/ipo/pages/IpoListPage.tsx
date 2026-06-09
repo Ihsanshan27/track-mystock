@@ -12,10 +12,11 @@ const DRAFT_OPEN_KEY = 'ipo_list_form_open';
 const EMPTY_FORM = { stockCode: '', ipoDate: '', offeringPrice: '', notes: '' };
 
 export default function IpoListPage() {
-  const { ipoEvents, ipoEntries, addIpoEvent, addIpoEntry, batchAddIpoEntries, deleteIpoEvent, canWrite } = useData();
+  const { ipoEvents, ipoEntries, addIpoEvent, updateIpoEvent, addIpoEntry, batchAddIpoEntries, deleteIpoEvent, canWrite } = useData();
   const navigate = useNavigate();
   const blurStyle = usePrivacyStyle();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [editingEvent, setEditingEvent] = useState<IpoEvent | null>(null);
 
   // Persist form state across navigation using sessionStorage
   const [showForm, setShowFormState] = useState<boolean>(
@@ -46,20 +47,52 @@ export default function IpoListPage() {
     setShowFormState(false);
   };
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleOpenAdd = () => {
+    setEditingEvent(null);
+    clearDraft();
+    setShowForm(true);
+  };
+
+  const handleOpenEdit = (event: IpoEvent) => {
+    setEditingEvent(event);
+    setFormState({
+      stockCode: event.stockCode,
+      ipoDate: event.ipoDate,
+      offeringPrice: String(event.offeringPrice),
+      notes: event.notes || ''
+    });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancel = () => {
+    clearDraft();
+    setEditingEvent(null);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.stockCode || !form.ipoDate || !form.offeringPrice) {
       alert('Mohon isi semua field yang wajib.');
       return;
     }
-    const newEvent = addIpoEvent({
+    const payload = {
       stockCode: form.stockCode.toUpperCase(),
       ipoDate: form.ipoDate,
       offeringPrice: parseFloat(form.offeringPrice) || 0,
       notes: form.notes,
-    });
-    clearDraft();
-    if (newEvent?.id) navigate(`/ipo/${newEvent.id}`);
+    };
+
+    if (editingEvent) {
+      updateIpoEvent(editingEvent.id, payload);
+      clearDraft();
+      setEditingEvent(null);
+      setShowForm(false);
+    } else {
+      const newEvent = addIpoEvent(payload);
+      clearDraft();
+      if (newEvent?.id) navigate(`/ipo/${newEvent.id}`);
+    }
   };
 
   // Duplicate an entire IPO event + all its entries
@@ -136,7 +169,13 @@ export default function IpoListPage() {
             Ringkasan IPO
           </button>
           {canWrite && (
-            <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+            <button className="btn btn-primary" onClick={() => {
+              if (showForm) {
+                handleCancel();
+              } else {
+                handleOpenAdd();
+              }
+            }}>
               {showForm ? <Icons.X size={16} /> : <Icons.Plus size={16} />}
               {showForm ? 'Batal' : 'Buat IPO Baru'}
             </button>
@@ -149,12 +188,12 @@ export default function IpoListPage() {
         <div className="card" style={{ marginBottom: 28 }}>
           <div className="card-header">
             <h3 className="card-title">
-              <Icons.PlusCircle size={16} style={{ color: 'var(--accent-green)' }} />
-              Buat IPO Event Baru
+              {editingEvent ? <Icons.Edit3 size={16} style={{ color: 'var(--accent-blue-light)' }} /> : <Icons.PlusCircle size={16} style={{ color: 'var(--accent-green)' }} />}
+              {editingEvent ? 'Edit IPO Event' : 'Buat IPO Event Baru'}
             </h3>
           </div>
           <div className="card-body">
-            <form onSubmit={handleAdd}>
+            <form onSubmit={handleSubmit}>
               <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
                 <div className="form-group">
                   <label className="form-label">Kode Saham *</label>
@@ -199,7 +238,8 @@ export default function IpoListPage() {
                 />
               </div>
               <button type="submit" className="btn btn-primary">
-                <Icons.Rocket size={15} /> Buat & Mulai Catat
+                {editingEvent ? <Icons.Save size={15} /> : <Icons.Rocket size={15} />}
+                {editingEvent ? ' Simpan Perubahan' : ' Buat & Mulai Catat'}
               </button>
             </form>
           </div>
@@ -274,6 +314,14 @@ export default function IpoListPage() {
                   <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
                     {canWrite && (
                       <>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 6px', height: 28, color: 'var(--accent-blue-light)' }}
+                          onClick={() => handleOpenEdit(event)}
+                          title="Edit IPO"
+                        >
+                          <Icons.Edit3 size={14} />
+                        </button>
                         <button
                           className="btn btn-ghost btn-sm"
                           style={{ padding: '4px 6px', height: 28, color: 'var(--accent-blue-light)' }}

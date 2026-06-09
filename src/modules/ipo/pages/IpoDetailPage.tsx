@@ -32,7 +32,7 @@ function calcEntry(e: IpoEntry): IpoEntryCalc {
 export default function IpoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { ipoEvents, ipoEntries, addIpoEntry, updateIpoEntry, deleteIpoEntry, canWrite } = useData();
+  const { ipoEvents, ipoEntries, addIpoEntry, updateIpoEntry, deleteIpoEntry, updateIpoEvent, canWrite } = useData();
   const blurStyle = usePrivacyStyle();
 
   // Session storage keys scoped per IPO event
@@ -73,6 +73,41 @@ export default function IpoDetailPage() {
   };
 
   const event = ipoEvents.find((e: any) => e.id === id);
+
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [eventForm, setEventForm] = useState({
+    stockCode: '',
+    ipoDate: '',
+    offeringPrice: '',
+    notes: '',
+  });
+
+  const handleOpenEditEvent = () => {
+    if (event) {
+      setEventForm({
+        stockCode: event.stockCode,
+        ipoDate: event.ipoDate,
+        offeringPrice: String(event.offeringPrice),
+        notes: event.notes || ''
+      });
+      setShowEditEventModal(true);
+    }
+  };
+
+  const handleSaveEvent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eventForm.stockCode || !eventForm.ipoDate || !eventForm.offeringPrice) {
+      alert('Mohon isi semua field wajib.');
+      return;
+    }
+    updateIpoEvent(id, {
+      stockCode: eventForm.stockCode.toUpperCase(),
+      ipoDate: eventForm.ipoDate,
+      offeringPrice: parseFloat(eventForm.offeringPrice) || 0,
+      notes: eventForm.notes
+    });
+    setShowEditEventModal(false);
+  };
 
   const entries: IpoEntryCalc[] = useMemo(() => {
     return ipoEntries
@@ -221,7 +256,7 @@ export default function IpoDetailPage() {
               <Icons.ChevronLeft size={16} /> Daftar IPO
             </button>
           </div>
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{
               background: 'var(--accent-green-dim)',
               color: 'var(--accent-green)',
@@ -233,6 +268,16 @@ export default function IpoDetailPage() {
               {event.stockCode}
             </span>
             <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>IPO Journey</span>
+            {canWrite && (
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '6px 10px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 8 }}
+                onClick={handleOpenEditEvent}
+                title="Edit Detail IPO (Kode/Harga/Tanggal)"
+              >
+                <Icons.Edit3 size={13} /> Edit Detail
+              </button>
+            )}
           </h1>
           <p className="page-subtitle">
             Harga Penawaran: <strong>{formatRupiah(event.offeringPrice)}</strong>
@@ -571,6 +616,74 @@ export default function IpoDetailPage() {
                 </tr>
               </tfoot>
             </table>
+          </div>
+        </div>
+      )}
+      {/* Edit Event Modal */}
+      {showEditEventModal && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal" style={{ maxWidth: 500, width: '90%' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ margin: 0 }}>Edit Detail IPO Event</h3>
+              <button className="btn btn-ghost btn-icon" onClick={() => setShowEditEventModal(false)}>
+                <Icons.X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEvent}>
+              <div className="modal-body" style={{ padding: '20px' }}>
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Kode Saham *</label>
+                  <input
+                    className="form-input"
+                    placeholder="Contoh: WBSA"
+                    value={eventForm.stockCode}
+                    onChange={e => setEventForm(prev => ({ ...prev, stockCode: e.target.value.toUpperCase() }))}
+                    required
+                  />
+                </div>
+                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  <div className="form-group">
+                    <label className="form-label">Tanggal IPO *</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={eventForm.ipoDate}
+                      onChange={e => setEventForm(prev => ({ ...prev, ipoDate: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Harga Penawaran (Rp) *</label>
+                    <input
+                      type="number"
+                      step="any"
+                      className="form-input"
+                      placeholder="Contoh: 100"
+                      value={eventForm.offeringPrice}
+                      onChange={e => setEventForm(prev => ({ ...prev, offeringPrice: e.target.value }))}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Catatan</label>
+                  <input
+                    className="form-input"
+                    placeholder="Catatan singkat tentang IPO ini..."
+                    value={eventForm.notes}
+                    onChange={e => setEventForm(prev => ({ ...prev, notes: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 20px', borderTop: '1px solid var(--border-color)' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowEditEventModal(false)}>
+                  Batal
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <Icons.Save size={15} /> Simpan Perubahan
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
