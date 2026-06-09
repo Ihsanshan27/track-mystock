@@ -22,19 +22,67 @@ export default function TradingPlansPage() {
 
   const navigate = useNavigate();
 
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    stockCode: '',
-    market: 'ID',
-    entryPrice: '',
-    stopLoss: '',
-    targetProfit: '',
-    riskPercent: settings.defaultRiskPercent || 2,
-    portfolioId: activePortfolioId || 'default',
-    reason: '',
+  const DRAFT_KEY = 'trading_plan_form_draft';
+  const DRAFT_OPEN_KEY = 'trading_plan_form_open';
+
+  // Persist form state across navigation using sessionStorage
+  const [showForm, setShowFormState] = useState<boolean>(
+    () => sessionStorage.getItem(DRAFT_OPEN_KEY) === 'true'
+  );
+
+  const [form, setFormState] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(DRAFT_KEY);
+      return saved ? JSON.parse(saved) : {
+        stockCode: '',
+        market: 'ID',
+        entryPrice: '',
+        stopLoss: '',
+        targetProfit: '',
+        riskPercent: settings.defaultRiskPercent || 2,
+        portfolioId: activePortfolioId || 'default',
+        reason: '',
+      };
+    } catch {
+      return {
+        stockCode: '',
+        market: 'ID',
+        entryPrice: '',
+        stopLoss: '',
+        targetProfit: '',
+        riskPercent: settings.defaultRiskPercent || 2,
+        portfolioId: activePortfolioId || 'default',
+        reason: '',
+      };
+    }
   });
 
-  const set = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
+  const setShowForm = (v: boolean) => {
+    setShowFormState(v);
+    sessionStorage.setItem(DRAFT_OPEN_KEY, String(v));
+  };
+
+  const set = (key: string, value: any) => setFormState(prev => {
+    const next = { ...prev, [key]: value };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+    return next;
+  });
+
+  const clearDraft = () => {
+    sessionStorage.removeItem(DRAFT_KEY);
+    sessionStorage.removeItem(DRAFT_OPEN_KEY);
+    setFormState({
+      stockCode: '',
+      market: 'ID',
+      entryPrice: '',
+      stopLoss: '',
+      targetProfit: '',
+      riskPercent: settings.defaultRiskPercent || 2,
+      portfolioId: activePortfolioId || 'default',
+      reason: '',
+    });
+    setShowFormState(false);
+  };
 
   const activePort = portfolios.find(p => p.id === form.portfolioId) || portfolios[0] || { id: 'default', name: 'Utama' };
 
@@ -102,17 +150,7 @@ export default function TradingPlansPage() {
       requiredCapital: parseFloat(requiredCapital.toFixed(2)),
     });
 
-    setForm({
-      stockCode: '',
-      market: 'ID',
-      entryPrice: '',
-      stopLoss: '',
-      targetProfit: '',
-      riskPercent: settings.defaultRiskPercent || 2,
-      portfolioId: activePortfolioId || 'default',
-      reason: '',
-    });
-    setShowForm(false);
+    clearDraft();
   };
 
   const handleConvert = (plan: any) => {
