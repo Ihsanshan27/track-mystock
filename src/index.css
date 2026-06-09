@@ -81,8 +81,8 @@
   --bg-card: #2c2c2e;        /* system tertiary background dark */
   --bg-card-hover: #3a3a3c;
   --bg-sidebar: #1c1c1e;
-  --bg-input: #2c2c2e;
-  --bg-input-focus: #3a3a3c;
+  --bg-input: #1c1c1e;
+  --bg-input-focus: #2c2c2e;
 
   --accent-green: #30d158;   /* system dark green */
   --accent-green-light: #4cd964;
@@ -107,8 +107,8 @@
   --text-muted: #8e8e93;     /* system gray gray */
   --text-inverse: #161617;
 
-  --border-color: #2c2c2e;   /* dark border */
-  --border-color-hover: #3a3a3c;
+  --border-color: #3a3a3c;   /* dark border */
+  --border-color-hover: #48484a;
 
   --gradient-primary: linear-gradient(135deg, #0a84ff, #0056b3);
   --gradient-danger: linear-gradient(135deg, #ff453a, #c02a25);
