@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
@@ -7,12 +7,38 @@ import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 
 export default function TradesPage() {
   const { trades, deleteTrade, marketPrices, settings } = useData();
-  const [search, setSearch] = useState('');
-  const [filterStrategy, setFilterStrategy] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [sortBy, setSortBy] = useState('date');
-  const [sortDir, setSortDir] = useState('desc');
-  const [page, setPage] = useState(1);
+  
+  const [search, setSearch] = useState(() => sessionStorage.getItem('trades_filter_search') || '');
+  const [filterStrategy, setFilterStrategy] = useState(() => sessionStorage.getItem('trades_filter_strategy') || '');
+  const [filterStatus, setFilterStatus] = useState(() => sessionStorage.getItem('trades_filter_status') || '');
+  const [sortBy, setSortBy] = useState(() => sessionStorage.getItem('trades_sort_by') || 'date');
+  const [sortDir, setSortDir] = useState(() => sessionStorage.getItem('trades_sort_dir') || 'desc');
+  const [page, setPage] = useState(() => parseInt(sessionStorage.getItem('trades_filter_page') || '1') || 1);
+
+  // Sync to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('trades_filter_search', search);
+  }, [search]);
+
+  useEffect(() => {
+    sessionStorage.setItem('trades_filter_strategy', filterStrategy);
+  }, [filterStrategy]);
+
+  useEffect(() => {
+    sessionStorage.setItem('trades_filter_status', filterStatus);
+  }, [filterStatus]);
+
+  useEffect(() => {
+    sessionStorage.setItem('trades_sort_by', sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    sessionStorage.setItem('trades_sort_dir', sortDir);
+  }, [sortDir]);
+
+  useEffect(() => {
+    sessionStorage.setItem('trades_filter_page', String(page));
+  }, [page]);
   const perPage = 15;
 
   const filtered = useMemo(() => {

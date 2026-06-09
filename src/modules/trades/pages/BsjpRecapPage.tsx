@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'; // React hooks
+import { useState, useMemo, useEffect } from 'react'; // React hooks
 import { useData } from '@/modules/shared/context/DataContext';
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
@@ -18,18 +18,47 @@ export default function BsjpRecapPage() {
   const trades = bsjpTrades;
   
   // Filter states
-  const [filterYear, setFilterYear] = useState<string>('');
-  const [filterMonth, setFilterMonth] = useState<string>('');
-  const [filterDate, setFilterDate] = useState<string>('');
-  const [filterBroker, setFilterBroker] = useState<string>('');
+  const [filterYear, setFilterYear] = useState<string>(() => sessionStorage.getItem('bsjp_filter_year') || '');
+  const [filterMonth, setFilterMonth] = useState<string>(() => sessionStorage.getItem('bsjp_filter_month') || '');
+  const [filterDate, setFilterDate] = useState<string>(() => sessionStorage.getItem('bsjp_filter_date') || '');
+  const [filterBroker, setFilterBroker] = useState<string>(() => sessionStorage.getItem('bsjp_filter_broker') || '');
   
   // Sort states
-  const [sortBy, setSortBy] = useState<string>('dateBuy');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState<string>(() => sessionStorage.getItem('bsjp_sort_by') || 'dateBuy');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() => (sessionStorage.getItem('bsjp_sort_dir') as 'asc' | 'desc') || 'desc');
 
   // Page pagination states
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => parseInt(sessionStorage.getItem('bsjp_filter_page') || '1') || 1);
   const perPage = 20;
+
+  // Sync to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('bsjp_filter_year', filterYear);
+  }, [filterYear]);
+
+  useEffect(() => {
+    sessionStorage.setItem('bsjp_filter_month', filterMonth);
+  }, [filterMonth]);
+
+  useEffect(() => {
+    sessionStorage.setItem('bsjp_filter_date', filterDate);
+  }, [filterDate]);
+
+  useEffect(() => {
+    sessionStorage.setItem('bsjp_filter_broker', filterBroker);
+  }, [filterBroker]);
+
+  useEffect(() => {
+    sessionStorage.setItem('bsjp_sort_by', sortBy);
+  }, [sortBy]);
+
+  useEffect(() => {
+    sessionStorage.setItem('bsjp_sort_dir', sortDir);
+  }, [sortDir]);
+
+  useEffect(() => {
+    sessionStorage.setItem('bsjp_filter_page', String(page));
+  }, [page]);
 
   // Modal & form states
   const [showModal, setShowModal] = useState(false);
