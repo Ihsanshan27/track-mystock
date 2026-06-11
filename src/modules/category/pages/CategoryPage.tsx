@@ -3,11 +3,23 @@ import { EMITEN_DATA, SECTORS, SECTOR_META, getTickersBySector } from '@/modules
 import { fetchQuotesBatch } from '@/modules/shared/services/yahooFinanceService';
 import { TrendingUp, TrendingDown, Loader2, RefreshCw, Layers, ChevronDown, ChevronUp, Search } from 'lucide-react';
 
+interface QuoteData {
+    ticker: string;
+    price: number | null;
+    changePct: number;
+    name: string;
+    ok: boolean;
+}
+
+interface StockRowProps {
+    emiten: { ticker: string; name: string };
+    quote?: QuoteData;
+}
 
 // ------------------
 // Single mini stock row
 // ------------------
-const StockRow = ({ emiten, quote }) => {
+const StockRow = ({ emiten, quote }: StockRowProps) => {
     const hasPrices = quote?.ok && quote.price !== null;
     const isUp = hasPrices && quote.changePct >= 0;
     // Use real company name from Yahoo Finance API if available, else fall back to static
@@ -55,15 +67,22 @@ const StockRow = ({ emiten, quote }) => {
     );
 };
 
+interface SectorCardProps {
+    sector: string;
+    emitens: Array<{ ticker: string; name: string }>;
+    quotes: Record<string, QuoteData>;
+    loadedSectors: Set<unknown>;
+}
+
 // ------------------
 // Single sector card (collapsible)
 // ------------------
-const SectorCard = ({ sector, emitens, quotes, loadedSectors }) => {
+const SectorCard = ({ sector, emitens, quotes, loadedSectors }: SectorCardProps) => {
     const [open, setOpen] = useState(false);
     const meta = SECTOR_META[sector] || { icon: '📦', color: 'var(--text-secondary)', dim: 'rgba(100,116,139,0.15)' };
     const isLoaded = loadedSectors.has(sector);
 
-    const prices = emitens.map(e => quotes[e.ticker]).filter(q => q?.ok && q.price !== null);
+    const prices = emitens.map(e => quotes[e.ticker]).filter((q): q is QuoteData => q != null && q.ok && q.price !== null);
     const avgChange = prices.length > 0
         ? prices.reduce((s, q) => s + q.changePct, 0) / prices.length
         : null;
@@ -146,10 +165,10 @@ const SectorCard = ({ sector, emitens, quotes, loadedSectors }) => {
 // Main Page
 // ------------------
 const CategoryPage = () => {
-    const [quotes, setQuotes] = useState({});
-    const [loadedSectors, setLoadedSectors] = useState(new Set());
+    const [quotes, setQuotes] = useState<Record<string, QuoteData>>({});
+    const [loadedSectors, setLoadedSectors] = useState<Set<unknown>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [lastUpdated, setLastUpdated] = useState(null);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [search, setSearch] = useState('');
     const [sortBy, setSortBy] = useState('sector'); // 'sector' | 'change'
 
@@ -159,7 +178,7 @@ const CategoryPage = () => {
         const allTickers = [...new Set(EMITEN_DATA.map(e => e.ticker))];
         const results = await fetchQuotesBatch(allTickers);
 
-        setQuotes(results);
+        setQuotes(results as Record<string, QuoteData>);
         setLoadedSectors(new Set(SECTORS));
         setLoading(false);
         setLastUpdated(new Date());
@@ -180,8 +199,8 @@ const CategoryPage = () => {
     // Sort
     const sortedSectors = [...filteredSectors].sort((a, b) => {
         if (sortBy === 'change') {
-            const getAvg = (sector) => {
-                const prices = getTickersBySector(sector).map(e => quotes[e.ticker]).filter(q => q?.ok && q.price !== null);
+            const getAvg = (sector: string) => {
+                const prices = getTickersBySector(sector).map(e => quotes[e.ticker]).filter((q): q is QuoteData => q != null && q.ok && q.price !== null);
                 return prices.length > 0 ? prices.reduce((s, q) => s + q.changePct, 0) / prices.length : -999;
             };
             return getAvg(b) - getAvg(a);
@@ -190,7 +209,7 @@ const CategoryPage = () => {
     });
 
     // Summary stats
-    const allQuotes = Object.values(quotes).filter(q => q?.ok && q.price !== null);
+    const allQuotes = Object.values(quotes).filter((q): q is QuoteData => q != null && q.ok && q.price !== null);
     const totalGainers = allQuotes.filter(q => q.changePct > 0).length;
     const totalLosers = allQuotes.filter(q => q.changePct < 0).length;
     const loadProgress = Math.round((loadedSectors.size / SECTORS.length) * 100);

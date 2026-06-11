@@ -3,6 +3,15 @@ import ScreenerFilter from '@/modules/watchlist/components/ScreenerFilter';
 import StockCard from '@/modules/watchlist/components/StockCard';
 import { getScreenerData } from '@/modules/shared/services/screenerService';
 import { fetchQuotesBatch } from '@/modules/shared/services/yahooFinanceService';
+
+interface QuoteData {
+    ticker: string;
+    price: number | null;
+    changePct: number;
+    name: string;
+    ok: boolean;
+}
+
 import { isMacdGoldenCross, isStochasticOversold, isEmaGoldenCross, getLatestEmaValues, calculateIndicators } from '@/modules/shared/utils/technicalIndicators';
 import {
     isDoubleBottom, isInvertedHeadAndShoulders, isBullFlag, isAscendingTriangle, isCandleBullish,
@@ -138,10 +147,10 @@ const ScreenerPage = () => {
                 // 3. DEFAULT (No Input, No Filters -> Top 10 Gainers)
                 setScanMode('Top 10 Gainers Hari Ini');
                 const allTickers = [...new Set(EMITEN_DATA.map(e => e.ticker))];
-                const quotes = await fetchQuotesBatch(allTickers);
+                const quotes = (await fetchQuotesBatch(allTickers)) as Record<string, QuoteData>;
 
                 tickersToScan = Object.values(quotes)
-                    .filter(q => q && q.ok && q.price !== null)
+                    .filter((q): q is QuoteData => q != null && q.ok && q.price !== null)
                     .sort((a, b) => b.changePct - a.changePct)
                     .map(q => q.ticker)
                     .slice(0, 10);

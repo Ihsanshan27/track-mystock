@@ -85,6 +85,12 @@ export default function PortfolioPage() {
           </h1>
           <p className="page-subtitle">{openTrades.length} posisi terbuka</p>
         </div>
+        {canWrite ? (
+          <Link to="/trades/new" className="btn btn-primary">
+            <Icons.Plus size={16} />
+            <span>Tambah Transaksi</span>
+          </Link>
+        ) : null}
       </div>
 
       <MarketTabBar
@@ -100,7 +106,7 @@ export default function PortfolioPage() {
           <div className="empty-state-desc">
             {isViewer ? 'Tidak ada posisi terbuka pada data yang bisa Anda lihat.' : 'Semua transaksi sudah ditutup, atau belum ada transaksi'}
           </div>
-          {canWrite ? <Link to="/trades/new" className="btn btn-primary">Catat Transaksi</Link> : null}
+          {canWrite ? <Link to="/trades/new" className="btn btn-secondary">Tambah Transaksi</Link> : null}
         </div>
       ) : (
         <>

@@ -6,8 +6,8 @@ import { useWorkspace } from '@/modules/shared/context/WorkspaceContext';
 import { useData } from '@/modules/shared/context/DataContext';
 import * as Icons from 'lucide-react';
 import { useTheme } from '@/modules/shared/context/ThemeContext';
-import { calculatePortfolioBalance } from '@/modules/trades/calculations';
-import { formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
+import { calculatePortfolioAssetIdrEquivalent, calculatePortfolioAssetMetrics } from '@/modules/trades/calculations';
+import { formatRupiah } from '@/modules/shared/utils/formatters';
 
 export default function Header({ pageTitle, onMenuToggle }) {
   const { user, logout } = useAuth();
@@ -21,6 +21,31 @@ export default function Header({ pageTitle, onMenuToggle }) {
   const portfolioMenuRef = useRef(null);
   const displayName = profile?.displayName || user?.username || 'User';
   const email = profile?.email || user?.email || '';
+  const getPortfolioTotalAsset = (portfolioId) => {
+    const portfolioTrades = allTrades.filter((item: any) => (item.portfolioId || 'default') === portfolioId);
+    const portfolioCashflows = allCashflows.filter((item: any) => (item.portfolioId || 'default') === portfolioId);
+    const portfolioDividends = allDividends.filter((item: any) => (item.portfolioId || 'default') === portfolioId);
+
+    const idMetrics = calculatePortfolioAssetMetrics(
+      portfolioTrades,
+      portfolioCashflows,
+      portfolioDividends,
+      portfolioId === 'default' ? settings.initialCapital : 0,
+      {},
+      'ID'
+    );
+
+    const usMetrics = calculatePortfolioAssetMetrics(
+      portfolioTrades,
+      portfolioCashflows,
+      portfolioDividends,
+      portfolioId === 'default' ? (settings.initialCapitalUS || 1000) : 0,
+      {},
+      'US'
+    );
+
+    return calculatePortfolioAssetIdrEquivalent(idMetrics, usMetrics, settings.usdToIdrRate || 16200);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -70,33 +95,9 @@ export default function Header({ pageTitle, onMenuToggle }) {
               <span className="portfolio-switcher-name">
                 {portfolios.find(p => p.id === activePortId)?.name || 'Utama'}
               </span>
-              {(() => {
-                const pTrades = allTrades.filter((t: any) => (t.portfolioId || 'default') === activePortId);
-                const pCF = allCashflows.filter((c: any) => (c.portfolioId || 'default') === activePortId);
-                const pDiv = allDividends.filter((d: any) => (d.portfolioId || 'default') === activePortId);
-                
-                const statsID = calculatePortfolioBalance(
-                  pTrades.filter((t: any) => t.market !== 'US'),
-                  pCF.filter((c: any) => c.market !== 'US'),
-                  pDiv.filter((d: any) => d.market !== 'US'),
-                  activePortId === 'default' ? settings.initialCapital : 0
-                );
-                
-                const statsUS = calculatePortfolioBalance(
-                  pTrades.filter((t: any) => t.market === 'US'),
-                  pCF.filter((c: any) => c.market === 'US'),
-                  pDiv.filter((d: any) => d.market === 'US'),
-                  activePortId === 'default' ? (settings.initialCapitalUS || 1000) : 0
-                );
-
-                const hasUS = pTrades.some((t: any) => t.market === 'US') || pCF.some((c: any) => c.market === 'US') || pDiv.some((d: any) => d.market === 'US');
-                
-                return (
-                  <span className="portfolio-switcher-bp">
-                    {hasUS ? `${formatRupiah(statsID.buyingPower)} | ${formatUSD(statsUS.buyingPower)}` : formatRupiah(statsID.buyingPower)}
-                  </span>
-                );
-              })()}
+              <span className="portfolio-switcher-bp">
+                {formatRupiah(getPortfolioTotalAsset(activePortId))}
+              </span>
               <Icons.ChevronDown size={12} style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0, transition: 'transform 0.2s', transform: portfolioOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
             </div>
           </button>
@@ -105,25 +106,7 @@ export default function Header({ pageTitle, onMenuToggle }) {
             <div className="portfolio-dropdown">
               {portfolios.map(p => {
                 const isActive = p.id === activePortId;
-                const pTrades = allTrades.filter((t: any) => (t.portfolioId || 'default') === p.id);
-                const pCF = allCashflows.filter((c: any) => (c.portfolioId || 'default') === p.id);
-                const pDiv = allDividends.filter((d: any) => (d.portfolioId || 'default') === p.id);
-                
-                const statsID = calculatePortfolioBalance(
-                  pTrades.filter((t: any) => t.market !== 'US'),
-                  pCF.filter((c: any) => c.market !== 'US'),
-                  pDiv.filter((d: any) => d.market !== 'US'),
-                  p.id === 'default' ? settings.initialCapital : 0
-                );
-
-                const statsUS = calculatePortfolioBalance(
-                  pTrades.filter((t: any) => t.market === 'US'),
-                  pCF.filter((c: any) => c.market === 'US'),
-                  pDiv.filter((d: any) => d.market === 'US'),
-                  p.id === 'default' ? (settings.initialCapitalUS || 1000) : 0
-                );
-
-                const hasUS = pTrades.some((t: any) => t.market === 'US') || pCF.some((c: any) => c.market === 'US') || pDiv.some((d: any) => d.market === 'US');
+                const totalAsset = getPortfolioTotalAsset(p.id);
 
                 return (
                   <button
@@ -136,17 +119,9 @@ export default function Header({ pageTitle, onMenuToggle }) {
                       {isActive && <Icons.Check size={12} style={{ color: 'var(--accent-green)', flexShrink: 0 }} />}
                       <span>{p.name}</span>
                     </div>
-                    <div className="portfolio-dropdown-bp" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem', marginRight: 4 }}>BP IDR</span>
-                        <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{formatRupiah(statsID.buyingPower)}</span>
-                      </div>
-                      {hasUS && (
-                        <div>
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem', marginRight: 4 }}>BP USD</span>
-                          <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{formatUSD(statsUS.buyingPower)}</span>
-                        </div>
-                      )}
+                    <div className="portfolio-dropdown-bp">
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.68rem', marginRight: 4 }}>Total Asset</span>
+                      <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{formatRupiah(totalAsset)}</span>
                     </div>
                   </button>
                 );

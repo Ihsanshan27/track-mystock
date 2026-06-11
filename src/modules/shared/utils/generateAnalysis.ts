@@ -28,7 +28,34 @@ const INDICATOR_DESCRIPTIONS = {
     emaGoldenCross: 'EMA Golden Cross: EMA50 memotong EMA200 dari bawah — perubahan tren jangka menengah dari bearish ke bullish terkonfirmasi.',
 };
 
-export function generateAnalysis({ patterns = [], signals = [], indicators = {}, sentiment, ticker, emaValues = {} }) {
+interface IndicatorsType {
+    isMacdGoldenCross?: boolean;
+    isStochasticOversold?: boolean;
+    isEmaGoldenCross?: boolean;
+}
+
+interface EmaValuesType {
+    ema50?: number;
+    ema200?: number;
+}
+
+interface GenerateAnalysisParams {
+    patterns?: string[];
+    signals?: string[];
+    indicators?: IndicatorsType;
+    sentiment?: string;
+    ticker: string;
+    emaValues?: EmaValuesType;
+}
+
+export function generateAnalysis({
+    patterns = [],
+    signals = [],
+    indicators = {},
+    sentiment,
+    ticker,
+    emaValues = {}
+}: GenerateAnalysisParams) {
     const bullets = [];
 
     // Trading signals first (most actionable)

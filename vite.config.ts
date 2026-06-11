@@ -14,6 +14,21 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('recharts')) return 'charts'
+          if (id.includes('@supabase')) return 'supabase'
+          if (id.includes('react-router-dom')) return 'router'
+          if (id.includes('lucide-react')) return 'icons'
+          if (id.includes('react') || id.includes('react-dom')) return 'react-vendor'
+          return 'vendor'
+        },
+      },
+    },
+  },
   server: {
     host: '127.0.0.1',
     port: 5174,

@@ -11,7 +11,13 @@ import {
   PieChart, Pie, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
 
-function CustomTooltip({ active, payload, label }) {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  label?: string | number;
+}
+
+function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: '0.8rem' }}>
@@ -23,10 +29,21 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
+const EMOJI_MAP: Record<string, string> = {
+  calm: '😌',
+  confident: '😎',
+  fearful: '😨',
+  greedy: '🤑',
+  revenge: '😡',
+  doubtful: '🤔',
+  fomo: '😱',
+  neutral: '😐'
+};
+
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#F43F5E', '#06B6D4', '#EC4899', '#84CC16'];
 
 export default function AnalyticsPage() {
-  const { trades } = useData();
+  const { trades, settings } = useData();
 
   const stats = useMemo(() => calculateStats(trades), [trades]);
   const strategyStats = useMemo(() => calculateStrategyStats(trades), [trades]);
@@ -137,11 +154,12 @@ export default function AnalyticsPage() {
             {emotionStats.length > 0 ? (
               <div>
                 {emotionStats.map(es => {
-                  const em = EMOTIONS.find(e => e.value === es.emotion);
+                  const emotionsList = settings?.customEmotions || EMOTIONS;
+                  const em = emotionsList.find(e => e.value === es.emotion);
                   return (
                     <div key={es.emotion} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: '1.2rem' }}>{em?.emoji || '❓'}</span>
+                        <span style={{ fontSize: '1.2rem' }}>{EMOJI_MAP[es.emotion] || '❓'}</span>
                         <span style={{ fontSize: '0.85rem' }}>{em?.label || es.emotion}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

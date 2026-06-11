@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import {
   BarChart,
   Bar,
@@ -16,7 +17,14 @@ function resolveMoneyFormatter(currency) {
   return currency === 'USD' ? formatUSD : formatRupiah;
 }
 
-function MoneyTooltip({ active, payload, label, currency }) {
+interface MoneyTooltipProps {
+  active?: boolean;
+  payload?: any[];
+  label?: string | number;
+  currency: string;
+}
+
+function MoneyTooltip({ active, payload, label, currency }: MoneyTooltipProps) {
   if (!active || !payload?.length) return null;
   const formatMoney = resolveMoneyFormatter(currency);
 
@@ -53,7 +61,23 @@ function SummaryCard({ label, value, note, tone = 'default' }) {
   );
 }
 
-export default function ReportView({ report, title, shareMeta, actions = null, emptyMessage = 'Belum ada data report.' }) {
+interface ReportViewProps {
+  report: any;
+  title: string;
+  shareMeta?: {
+    updatedAt?: string;
+  } | null;
+  actions?: ReactNode;
+  emptyMessage?: string;
+}
+
+export default function ReportView({
+  report,
+  title,
+  shareMeta,
+  actions = null,
+  emptyMessage = 'Belum ada data report.',
+}: ReportViewProps) {
   if (!report) {
     return (
       <div className="empty-state">

@@ -438,6 +438,66 @@ export function calculatePortfolioBalance(trades, cashflows = [], dividends = []
   };
 }
 
+export function calculateOpenPositionSnapshot(trade, marketPrices = {}) {
+  const market = trade.market || 'ID';
+  const shares = market === 'US' ? trade.lots : trade.lots * 100;
+  const totalBuy = trade.buyPrice * shares;
+  const buyCommission = totalBuy * ((trade.buyFee || 0) / 100);
+  const livePrice = Number(marketPrices?.[trade.stockCode]) || Number(trade.sellPrice) || 0;
+  const priceUsed = livePrice > 0 ? livePrice : trade.buyPrice;
+  const marketValue = priceUsed * shares;
+  const floatingPnL = marketValue - totalBuy - buyCommission;
+
+  return {
+    shares,
+    totalBuy,
+    buyCommission,
+    priceUsed,
+    marketValue,
+    floatingPnL,
+    hasLivePrice: livePrice > 0,
+    usedFallbackPrice: livePrice <= 0,
+  };
+}
+
+export function calculatePortfolioAssetMetrics(
+  trades,
+  cashflows = [],
+  dividends = [],
+  initialCapital = 10000000,
+  marketPrices = {},
+  market?: 'ID' | 'US'
+) {
+  const balance = calculatePortfolioBalance(trades, cashflows, dividends, initialCapital, market);
+  const filteredTrades = market
+    ? trades.filter(t => (market === 'US' ? t.market === 'US' : t.market !== 'US' || !t.market))
+    : trades;
+
+  const openTrades = filteredTrades.filter(t => !t.sellPrice || !t.dateSell);
+  const snapshots = openTrades.map((trade) => calculateOpenPositionSnapshot(trade, marketPrices));
+  const displayInvestedAmount = snapshots.reduce((sum, snapshot) => sum + snapshot.totalBuy, 0);
+  const totalFloatingPnL = snapshots.reduce((sum, snapshot) => {
+    return snapshot.hasLivePrice ? sum + snapshot.floatingPnL : sum;
+  }, 0);
+  const totalMarketValue = snapshots.reduce((sum, snapshot) => sum + snapshot.marketValue, 0);
+  const hasMarketValueFallback = snapshots.some((snapshot) => snapshot.usedFallbackPrice);
+  const totalAsset = balance.buyingPower + balance.investedAmount + totalFloatingPnL;
+
+  return {
+    ...balance,
+    displayInvestedAmount,
+    totalFloatingPnL,
+    totalMarketValue,
+    totalAsset,
+    hasMarketValueFallback,
+  };
+}
+
+export function calculatePortfolioAssetIdrEquivalent(idMetrics, usMetrics, usdToIdrRate = 16200) {
+  const normalizedRate = Number(usdToIdrRate) > 0 ? Number(usdToIdrRate) : 16200;
+  return (idMetrics?.totalAsset || 0) + ((usMetrics?.totalAsset || 0) * normalizedRate);
+}
+
 // === Gamifikasi & Achievements ===
 
 export function calculateAchievements(trades, dividends = []) {

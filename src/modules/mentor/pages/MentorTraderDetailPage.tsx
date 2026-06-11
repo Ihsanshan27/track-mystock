@@ -8,7 +8,7 @@ import { usePermissions } from '@/modules/shared/context/PermissionContext';
 import { listProfilesByIds } from '@/modules/shared/services/profileService';
 import { loadSharedJournalData } from '@/modules/shared/services/sharedJournalService';
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
-import { formatDate, formatPercent, formatUSD } from '@/modules/shared/utils/formatters';
+import { formatDate, formatPercent, formatUSD, formatRupiah } from '@/modules/shared/utils/formatters';
 
 export default function MentorTraderDetailPage() {
   const { userId } = useParams();

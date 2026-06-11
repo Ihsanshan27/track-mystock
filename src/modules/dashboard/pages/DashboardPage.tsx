@@ -106,26 +106,6 @@ export default function DashboardPage() {
   return (
     <div>
       <MarketTabBar activeTab={activeTab} onChange={setActiveTab} />
-
-      {hasUSAssets && (
-        <div className="bento-card" style={{ marginBottom: 24, borderLeft: '4px solid var(--accent-blue)', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-                Estimasi Total Aset Gabungan (IDR + Converted USD)
-              </div>
-              <h2 className="font-mono text-profit" style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>
-                {formatRupiah(totalCombinedEquityIDR)}
-              </h2>
-            </div>
-            <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              <div>IDR Equity: {formatRupiah(balanceID.realizedEquity)}</div>
-              <div>USD Equity: {formatUSD(balanceUS.realizedEquity)} (Kurs: Rp {usdToIdrRate.toLocaleString('id-ID')})</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {filteredTrades.length === 0 ? (
         <div className="empty-state" style={{ marginTop: 40 }}>
           <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: 'var(--text-muted)' }}>

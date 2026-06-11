@@ -83,4 +83,23 @@ export interface AppSettings {
   initialCapitalUS: number;
   defaultBuyFeeUS: number;
   defaultSellFeeUS: number;
+  selectedBrokerID?: string;
+  selectedBrokerUS?: string;
+  customStrategies?: string[];
+  customEmotions?: Array<{ value: string; label: string }>;
+  usdToIdrRate?: number;
+  defaultRiskPercent?: number;
+  defaultTargetRR?: number;
+  themePreference?: 'light' | 'dark' | 'system';
+  logRetentionDays?: number;
+  privacyMode?: boolean;
+  behaviorDailyTradeLimitEnabled?: boolean;
+  behaviorDailyTradeLimit?: number;
+  behaviorNegativeEmotionWarning?: boolean;
+  behaviorBlockNegativeEmotion?: boolean;
+  behaviorRequireStrategy?: boolean;
+  behaviorRequireReason?: boolean;
+  behaviorMaxPositionSizeWarning?: boolean;
+  behaviorMaxPositionSizePercent?: number;
+  behaviorDoubleConfirmExit?: boolean;
 }
