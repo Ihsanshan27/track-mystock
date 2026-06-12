@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { formatRupiah, formatDate } from '@/modules/shared/utils/formatters';
 import type { IpoEvent, IpoSummary } from '@/modules/ipo/types/ipo';
@@ -15,7 +16,7 @@ export default function IpoListPage() {
   const { ipoEvents, ipoEntries, addIpoEvent, updateIpoEvent, addIpoEntry, batchAddIpoEntries, deleteIpoEvent, canWrite } = useData();
   const navigate = useNavigate();
   const blurStyle = usePrivacyStyle();
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const { alert, confirm } = useDialog();
   const [editingEvent, setEditingEvent] = useState<IpoEvent | null>(null);
 
   // Persist form state across navigation using sessionStorage
@@ -70,10 +71,13 @@ export default function IpoListPage() {
     setEditingEvent(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.stockCode || !form.ipoDate || !form.offeringPrice) {
-      alert('Mohon isi semua field yang wajib.');
+      await alert('Mohon isi semua field yang wajib.', {
+        title: 'Formulir Belum Lengkap',
+        severity: 'warning'
+      });
       return;
     }
     const payload = {
@@ -333,7 +337,16 @@ export default function IpoListPage() {
                         <button
                           className="btn btn-ghost btn-sm"
                           style={{ padding: '4px 6px', height: 28, color: 'var(--accent-red)' }}
-                          onClick={() => setDeleteConfirm(event.id)}
+                          onClick={async () => {
+                            const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus IPO ${event.stockCode}? Semua catatan akun dalam IPO ini juga akan dihapus. Tindakan ini tidak dapat dibatalkan.`, {
+                              title: 'Hapus IPO Event',
+                              severity: 'danger',
+                              confirmText: 'Hapus'
+                            });
+                            if (isConfirmed) {
+                              deleteIpoEvent(event.id);
+                            }
+                          }}
                           title="Hapus IPO"
                         >
                           <Icons.Trash2 size={14} />
@@ -398,35 +411,6 @@ export default function IpoListPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirm && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <div className="card" style={{ maxWidth: 400, width: '90%' }}>
-            <div className="card-body" style={{ textAlign: 'center', padding: 28 }}>
-              <Icons.AlertTriangle size={40} style={{ color: 'var(--accent-red)', marginBottom: 12 }} />
-              <h3 style={{ marginBottom: 8 }}>Hapus IPO Event?</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 20 }}>
-                Semua catatan akun dalam IPO ini juga akan dihapus. Tindakan ini tidak dapat dibatalkan.
-              </p>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                <button className="btn btn-secondary" onClick={() => setDeleteConfirm(null)}>Batal</button>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => {
-                    deleteIpoEvent(deleteConfirm);
-                    setDeleteConfirm(null);
-                  }}
-                >
-                  <Icons.Trash2 size={14} /> Hapus
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

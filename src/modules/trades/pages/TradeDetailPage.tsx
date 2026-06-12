@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
@@ -12,6 +13,7 @@ export default function TradeDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getTradeById, updateTrade, deleteTrade, marketPrices, showToast, portfolios, settings, tradeEditDraft, setTradeEditDraft } = useData();
+  const { alert, confirm } = useDialog();
   const trade = getTradeById(id);
 
   const draftForThis = tradeEditDraft?.tradeId === id ? tradeEditDraft : null;
@@ -59,19 +61,28 @@ export default function TradeDetailPage() {
 
   const hasPnL = !isOpen || isEstimasi;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (settings.behaviorRequireStrategy && !form.strategy) {
-      alert('Penyimpanan diblokir: Anda wajib memilih strategi trading.');
+      await alert('Penyimpanan diblokir: Anda wajib memilih strategi trading.', {
+        title: 'Gagal Menyimpan',
+        severity: 'warning'
+      });
       return;
     }
 
     if (settings.behaviorRequireReason && !form.reasonEntry?.trim()) {
-      alert('Penyimpanan diblokir: Anda wajib mengisi alasan entry.');
+      await alert('Penyimpanan diblokir: Anda wajib mengisi alasan entry.', {
+        title: 'Gagal Menyimpan',
+        severity: 'warning'
+      });
       return;
     }
 
     if (settings.behaviorBlockNegativeEmotion && form.emotion && ['fearful', 'greedy', 'revenge', 'doubtful', 'fomo'].includes(form.emotion)) {
-      alert('Penyimpanan diblokir: Anda dilarang menyimpan transaksi saat terdeteksi emosi negatif.');
+      await alert('Penyimpanan diblokir: Anda dilarang menyimpan transaksi saat terdeteksi emosi negatif.', {
+        title: 'Gagal Menyimpan',
+        severity: 'danger'
+      });
       return;
     }
 
@@ -88,8 +99,13 @@ export default function TradeDetailPage() {
     setTradeEditDraft(null);
   };
 
-  const handleDelete = () => {
-    if (window.confirm(`Hapus transaksi ${trade.stockCode}?`)) {
+  const handleDelete = async () => {
+    const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus transaksi ${trade.stockCode}?`, {
+      title: 'Hapus Transaksi',
+      severity: 'danger',
+      confirmText: 'Hapus'
+    });
+    if (isConfirmed) {
       deleteTrade(id);
       setTradeEditDraft(null);
       navigate('/trades');

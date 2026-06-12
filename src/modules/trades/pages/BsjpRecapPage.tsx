@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'; // React hooks
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
@@ -14,6 +15,7 @@ export default function BsjpRecapPage() {
     settings, 
     canWrite 
   } = useData();
+  const { alert, confirm } = useDialog();
 
   const trades = bsjpTrades;
   
@@ -63,7 +65,6 @@ export default function BsjpRecapPage() {
   // Modal & form states
   const [showModal, setShowModal] = useState(false);
   const [editingTrade, setEditingTrade] = useState<any | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     dateBuy: new Date().toISOString().split('T')[0],
@@ -103,10 +104,13 @@ export default function BsjpRecapPage() {
     setShowModal(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.dateBuy || !form.stockCode || !form.lots || !form.buyPrice) {
-      alert('Mohon isi semua field wajib!');
+      await alert('Mohon isi semua field wajib!', {
+        title: 'Formulir Belum Lengkap',
+        severity: 'warning'
+      });
       return;
     }
 
@@ -563,7 +567,16 @@ export default function BsjpRecapPage() {
                                 <button 
                                   className="btn btn-danger btn-sm" 
                                   style={{ padding: '6px 8px', height: 'auto', display: 'flex', alignItems: 'center', background: 'var(--accent-red-dim)', color: 'var(--accent-red)', border: 'none' }}
-                                  onClick={() => setDeleteConfirmId(row.id)}
+                                  onClick={async () => {
+                                    const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus transaksi BSJP untuk ${row.stockCode}? Tindakan ini tidak dapat dibatalkan.`, {
+                                      title: 'Hapus Transaksi',
+                                      severity: 'danger',
+                                      confirmText: 'Hapus'
+                                    });
+                                    if (isConfirmed) {
+                                      deleteBsjpTrade(row.id);
+                                    }
+                                  }}
                                 >
                                   <Icons.Trash2 size={13} />
                                 </button>
@@ -711,34 +724,6 @@ export default function BsjpRecapPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteConfirmId && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: 400 }}>
-            <div className="modal-header">
-              <h3>Hapus Transaksi</h3>
-              <button className="btn btn-ghost btn-icon" onClick={() => setDeleteConfirmId(null)}>
-                <Icons.X size={16} />
-              </button>
-            </div>
-            <div className="modal-body">
-              Apakah Anda yakin ingin menghapus transaksi BSJP ini? Tindakan ini tidak dapat dibatalkan.
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setDeleteConfirmId(null)}>Batal</button>
-              <button 
-                className="btn btn-danger" 
-                onClick={() => {
-                  deleteBsjpTrade(deleteConfirmId);
-                  setDeleteConfirmId(null);
-                }}
-              >
-                Hapus
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

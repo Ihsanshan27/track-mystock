@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/modules/auth/AuthContext';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { createAuditLog } from '@/modules/admin/services/auditLogService';
 import {
@@ -23,6 +24,7 @@ const ROLE_LABELS = {
 export default function AdminWorkspacesPage() {
   const { user } = useAuth();
   const { showToast } = useData();
+  const { confirm } = useDialog();
   const [workspaces, setWorkspaces] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [members, setMembers] = useState([]);
@@ -150,7 +152,12 @@ export default function AdminWorkspacesPage() {
 
   const handleRemoveMember = async (member) => {
     const memberProfile = profileById[member.user_id];
-    if (!window.confirm(`Hapus ${memberProfile?.displayName || 'member'} dari workspace?`)) return;
+    const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus ${memberProfile?.displayName || 'member'} dari workspace?`, {
+      title: 'Hapus Member Workspace',
+      severity: 'warning',
+      confirmText: 'Hapus Member'
+    });
+    if (!isConfirmed) return;
 
     try {
       await removeWorkspaceMember(member.id);

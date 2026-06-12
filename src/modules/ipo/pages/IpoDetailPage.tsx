@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { formatRupiah, formatPercent } from '@/modules/shared/utils/formatters';
 import type { IpoEntry, IpoEntryCalc } from '@/modules/ipo/types/ipo';
@@ -33,6 +34,7 @@ export default function IpoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { ipoEvents, ipoEntries, addIpoEntry, updateIpoEntry, deleteIpoEntry, updateIpoEvent, canWrite } = useData();
+  const { alert, confirm } = useDialog();
   const blurStyle = usePrivacyStyle();
 
   // Session storage keys scoped per IPO event
@@ -94,10 +96,13 @@ export default function IpoDetailPage() {
     }
   };
 
-  const handleSaveEvent = (e: React.FormEvent) => {
+  const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventForm.stockCode || !eventForm.ipoDate || !eventForm.offeringPrice) {
-      alert('Mohon isi semua field wajib.');
+      await alert('Mohon isi semua field wajib.', {
+        title: 'Formulir Belum Lengkap',
+        severity: 'warning'
+      });
       return;
     }
     updateIpoEvent(id, {
@@ -128,10 +133,13 @@ export default function IpoDetailPage() {
 
   const resetForm = () => clearDraft();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.accountName || !form.buyPrice || !form.lots) {
-      alert('Nama akun, harga beli, dan lot wajib diisi.');
+      await alert('Nama akun, harga beli, dan lot wajib diisi.', {
+        title: 'Formulir Belum Lengkap',
+        severity: 'warning'
+      });
       return;
     }
     const payload = {
@@ -580,8 +588,13 @@ export default function IpoDetailPage() {
                             <button
                               className="btn btn-ghost btn-sm text-loss"
                               style={{ padding: '3px 6px', height: 26 }}
-                              onClick={() => {
-                                if (window.confirm(`Hapus entry "${entry.accountName}"?`)) {
+                              onClick={async () => {
+                                const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus entry "${entry.accountName}"?`, {
+                                  title: 'Hapus Entry Akun',
+                                  severity: 'danger',
+                                  confirmText: 'Hapus'
+                                });
+                                if (isConfirmed) {
                                   deleteIpoEntry(entry.id);
                                 }
                               }}

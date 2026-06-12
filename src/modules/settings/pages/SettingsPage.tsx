@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, ReactNode, ChangeEvent } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useAuth } from '@/modules/auth/AuthContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { ACCESS_LEVELS, listOwnedSharedAccess, revokeSharedAccess, upsertSharedAccess } from '@/modules/shared/services/sharedAccessService';
@@ -135,6 +136,7 @@ export default function SettingsPage() {
   const { settings, updateSettings, showToast, exportData, importData, clearData } = useData();
   const { user, updateUsername, logout } = useAuth();
   const { roleLabel, roleError, refreshProfile, can } = usePermissions();
+  const { confirm } = useDialog();
   const [activeTab, setActiveTab] = useState('trading');
   const [newUsername, setNewUsername] = useState(user?.username || '');
   const [form, setForm] = useState({ ...settings });
@@ -368,8 +370,13 @@ export default function SettingsPage() {
     reader.readAsText(file);
   };
 
-  const handleClearData = () => {
-    if (!window.confirm('PERINGATAN: Semua data transaksi, watchlist, dan catatan akan dihapus permanen. Lanjutkan?')) return;
+  const handleClearData = async () => {
+    const isConfirmed = await confirm('PERINGATAN: Semua data transaksi, watchlist, dan catatan akan dihapus permanen. Lanjutkan?', {
+      title: 'Hapus Semua Data',
+      severity: 'danger',
+      confirmText: 'Hapus Permanen'
+    });
+    if (!isConfirmed) return;
 
     clearData(user?.id)
       .then(async () => {
@@ -421,7 +428,12 @@ export default function SettingsPage() {
   };
 
   const handleRevokeShare = async (row) => {
-    if (!window.confirm('Cabut akses user ini dari jurnal Anda?')) return;
+    const isConfirmed = await confirm('Apakah Anda yakin ingin mencabut akses user ini dari jurnal Anda?', {
+      title: 'Cabut Akses Jurnal',
+      severity: 'warning',
+      confirmText: 'Cabut Akses'
+    });
+    if (!isConfirmed) return;
 
     try {
       await revokeSharedAccess(row.id);

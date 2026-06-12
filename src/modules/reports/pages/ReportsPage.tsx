@@ -3,6 +3,7 @@ import ReportView from '@/modules/reports/components/ReportView';
 import ReadOnlyNotice from '@/modules/shared/components/ReadOnlyNotice';
 import { useData } from '@/modules/shared/context/DataContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { createReportShare, deleteReportShare, listReportShares, updateReportShare } from '@/modules/shared/services/reportShareService';
 import { isSupabaseConfigured } from '@/modules/shared/services/supabaseClient';
@@ -12,6 +13,7 @@ import { formatDateTime } from '@/modules/shared/utils/formatters';
 export default function ReportsPage() {
   const { trades, cashflows, dividends, settings, marketPrices, showToast } = useData();
   const { profile, roleLabel } = usePermissions();
+  const { alert, confirm } = useDialog();
   const [market, setMarket] = useState('ID');
   const [shareTitle, setShareTitle] = useState('Report Portfolio');
   const [shareRows, setShareRows] = useState([]);
@@ -124,7 +126,12 @@ export default function ReportsPage() {
   };
 
   const handleDeleteShare = async (shareId) => {
-    if (!window.confirm('Hapus link report ini? Link yang sudah dibagikan akan berhenti bekerja.')) return;
+    const isConfirmed = await confirm('Hapus link report ini? Link yang sudah dibagikan akan berhenti bekerja.', {
+      title: 'Hapus Link Report',
+      severity: 'danger',
+      confirmText: 'Hapus'
+    });
+    if (!isConfirmed) return;
 
     try {
       await deleteReportShare(shareId);
@@ -154,7 +161,10 @@ export default function ReportsPage() {
       });
       showToast('Link report disalin ke clipboard.');
     } catch {
-      window.prompt('Salin link report ini:', shareUrl);
+      await alert(`Gagal menyalin otomatis. Silakan salin link berikut secara manual:\n\n${shareUrl}`, {
+        title: 'Salin Link Report',
+        severity: 'info'
+      });
     }
   };
 

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent } from '@/modules/shared/utils/formatters';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
@@ -21,6 +22,7 @@ export default function TradingPlansPage() {
   } = useData();
 
   const navigate = useNavigate();
+  const { alert, confirm } = useDialog();
 
   const DRAFT_KEY = 'trading_plan_form_draft';
   const DRAFT_OPEN_KEY = 'trading_plan_form_open';
@@ -123,18 +125,27 @@ export default function TradingPlansPage() {
 
   const formatMoney = isUS ? formatUSD : formatRupiah;
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.stockCode || !form.entryPrice || !form.stopLoss || !form.targetProfit) {
-      alert('Mohon isi semua field yang wajib.');
+      await alert('Mohon isi semua field yang wajib.', {
+        title: 'Formulir Belum Lengkap',
+        severity: 'warning'
+      });
       return;
     }
     if (sl >= entry) {
-      alert('Stop Loss harus lebih rendah dari harga Entry.');
+      await alert('Stop Loss harus lebih rendah dari harga Entry.', {
+        title: 'Validasi Rencana',
+        severity: 'warning'
+      });
       return;
     }
     if (tp <= entry) {
-      alert('Target Profit harus lebih tinggi dari harga Entry.');
+      await alert('Target Profit harus lebih tinggi dari harga Entry.', {
+        title: 'Validasi Rencana',
+        severity: 'warning'
+      });
       return;
     }
 
@@ -368,8 +379,13 @@ export default function TradingPlansPage() {
                         )}
                         <button
                           className="btn btn-ghost btn-sm text-loss"
-                          onClick={() => {
-                            if (window.confirm('Hapus rencana ini?')) {
+                          onClick={async () => {
+                            const isConfirmed = await confirm('Hapus rencana trading ini?', {
+                              title: 'Hapus Rencana',
+                              severity: 'danger',
+                              confirmText: 'Hapus'
+                            });
+                            if (isConfirmed) {
                               deleteTradingPlan(plan.id);
                             }
                           }}

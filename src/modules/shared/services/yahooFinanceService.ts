@@ -50,17 +50,27 @@ async function proxyFetch(url) {
     for (const proxy of PROXIES) {
         try {
             const proxiedUrl = proxy.prefix + (proxy.encode ? encodeURIComponent(fetchUrl) : fetchUrl);
+            console.log(`[proxyFetch] Trying proxy: ${proxy.prefix} for url: ${url}`);
             const res = await fetch(proxiedUrl, { signal: AbortSignal.timeout(8000) });
+            console.log(`[proxyFetch] Proxy response status: ${res.status}`);
             if (!res.ok) continue;
             const text = await res.text();
-            if (!text || text.trim().startsWith('<')) continue;
+            if (!text || text.trim().startsWith('<')) {
+                console.log(`[proxyFetch] Invalid response text (HTML or empty) from ${proxy.prefix}`);
+                continue;
+            }
 
             const json = JSON.parse(text);
             // Ensure we don't return parsed HTML or bad errors masking as OK
-            if (json && json.chart && json.chart.error) continue;
+            if (json && json.chart && json.chart.error) {
+                console.log(`[proxyFetch] Chart error in JSON from ${proxy.prefix}`);
+                continue;
+            }
 
+            console.log(`[proxyFetch] Success with proxy: ${proxy.prefix}`);
             return json;
-        } catch {
+        } catch (err) {
+            console.warn(`[proxyFetch] Proxy failed: ${proxy.prefix}. Error:`, err);
             // try next proxy
         }
     }
@@ -135,10 +145,12 @@ export async function fetchQuote(ticker) {
 }
 
 /**
- * Batch-fetch quotes in bulk (v7 endpoint allows multiple symbols)
- * Reduces CategoryPage fetching from ~120 requests to just 6!
+ * Batch-fetch quotes in bulk.
+ * NOTE: The Yahoo Finance v7/quote endpoint has started returning 401 Unauthorized
+ * for public proxy connections. To circumvent this, we fall back to querying the
+ * v8/chart API (fetchQuote) in parallel batches, which remains fully operational.
  */
-export async function fetchQuotesBatch(tickers, delayMs = 300) {
+export async function fetchQuotesBatch(tickers, delayMs = 150) {
     const results = {};
     const uncachedTickers = [];
 
@@ -155,39 +167,27 @@ export async function fetchQuotesBatch(tickers, delayMs = 300) {
 
     if (uncachedTickers.length === 0) return results;
 
-    // 2. Fetch the rest in bulk chunks of 20
-    const BULK_CHUNK_SIZE = 20;
+    // 2. Fetch the rest in parallel batches of 3 to avoid proxy rate-limits
+    const BATCH_SIZE = 3;
 
-    for (let i = 0; i < uncachedTickers.length; i += BULK_CHUNK_SIZE) {
-        const chunk = uncachedTickers.slice(i, i + BULK_CHUNK_SIZE);
-        const symbols = chunk.map(t => t.endsWith('.JK') ? t : `${t}.JK`).join(',');
-        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`;
+    for (let i = 0; i < uncachedTickers.length; i += BATCH_SIZE) {
+        const batch = uncachedTickers.slice(i, i + BATCH_SIZE);
+        
+        await Promise.all(
+            batch.map(async (ticker) => {
+                try {
+                    const data = await fetchQuote(ticker);
+                    if (data && data.ok) {
+                        results[ticker] = data;
+                    }
+                } catch (err) {
+                    console.error(`Gagal fetch quote untuk ${ticker} via batch:`, err);
+                }
+            })
+        );
 
-        try {
-            const json = await proxyFetch(url);
-            const quoteResults = json?.quoteResponse?.result || [];
-
-            for (const q of quoteResults) {
-                const symbolStr = q.symbol;
-                const originalTicker = chunk.find(t => t === symbolStr || `${t}.JK` === symbolStr) || symbolStr.replace('.JK', '');
-
-                const data = {
-                    ticker: originalTicker,
-                    price: q.regularMarketPrice ?? null,
-                    changePct: q.regularMarketChangePercent ?? 0,
-                    name: q.longName || q.shortName || originalTicker,
-                    ok: q.regularMarketPrice != null
-                };
-
-                results[originalTicker] = data;
-                setCache(`quote_${symbolStr}`, data, CACHE_TTL_QUOTE);
-            }
-        } catch {
-            // Ignore failed proxy chunks; callers already handle partial data.
-        }
-
-        if (i + BULK_CHUNK_SIZE < uncachedTickers.length) {
-            await new Promise(r => setTimeout(r, delayMs)); // delay between giant proxies requests
+        if (i + BATCH_SIZE < uncachedTickers.length) {
+            await new Promise(r => setTimeout(r, delayMs)); // delay between proxy calls
         }
     }
 
@@ -196,8 +196,6 @@ export async function fetchQuotesBatch(tickers, delayMs = 300) {
 
 /**
  * Fetch multiple stocks with OHLCV for the Screener page
- * Batched in groups of 4 to prevent overwhelming CORS proxies, 
- * but parallelizes OHLCV & Quotes inside the batch.
  */
 export async function fetchMultipleStocks(tickers) {
     const results = [];
@@ -210,7 +208,7 @@ export async function fetchMultipleStocks(tickers) {
             batch.map(async (ticker) => {
                 const [ohlcv, quote] = await Promise.all([
                     fetchStockOHLCV(ticker, '60d'),
-                    fetchQuote(ticker) // This hits our bulk-enabled cache/func mostly now
+                    fetchQuote(ticker)
                 ]);
                 return {
                     ticker,

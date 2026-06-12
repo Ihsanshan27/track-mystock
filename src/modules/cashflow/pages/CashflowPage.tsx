@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
 import { Coins, Plus, X, Trash2, Save, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
@@ -7,6 +8,7 @@ import CurrencyInput from '@/modules/shared/components/CurrencyInput';
 
 export default function CashflowPage() {
   const { trades, cashflows, dividends, addCashflow, deleteCashflow, settings, cashflowFormDraft, setCashflowFormDraft } = useData();
+  const { confirm } = useDialog();
 
   const [activeTab, setActiveTab] = useState(() => {
     if (cashflowFormDraft && cashflowFormDraft.activeTab) return cashflowFormDraft.activeTab;
@@ -60,8 +62,13 @@ export default function CashflowPage() {
     setCashflowFormDraft(null);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Batalkan transaksi kas ini?')) {
+  const handleDelete = async (id: string) => {
+    const isConfirmed = await confirm('Apakah Anda yakin ingin membatalkan transaksi kas ini?', {
+      title: 'Batalkan Transaksi Kas',
+      severity: 'danger',
+      confirmText: 'Batalkan'
+    });
+    if (isConfirmed) {
       deleteCashflow(id);
     }
   };

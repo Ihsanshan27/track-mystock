@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { formatDate } from '@/modules/shared/utils/formatters';
 import { BookOpen, Plus, X, Edit2, Trash2, Save } from 'lucide-react';
 
 export default function NotesPage() {
   const { notes, addNote, updateNote, deleteNote, noteFormDraft, setNoteFormDraft } = useData();
+  const { confirm } = useDialog();
 
   const [showForm, setShowForm] = useState(() => {
     if (noteFormDraft) return noteFormDraft.showForm;
@@ -66,8 +68,13 @@ export default function NotesPage() {
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Hapus catatan ini?')) {
+  const handleDelete = async (id: string) => {
+    const isConfirmed = await confirm('Apakah Anda yakin ingin menghapus catatan ini?', {
+      title: 'Hapus Catatan',
+      severity: 'danger',
+      confirmText: 'Hapus'
+    });
+    if (isConfirmed) {
       deleteNote(id);
     }
   };

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 import { formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 
@@ -8,6 +9,7 @@ export default function NewTradePage() {
   const { addTrade, allTrades, settings, portfolios, activePortfolioId, tradeFormDraft, setTradeFormDraft, deleteTradingPlan } = useData();
   const navigate = useNavigate();
   const location = useLocation();
+  const { alert, confirm } = useDialog();
 
   const [form, setForm] = useState(() => {
     if (tradeFormDraft) return tradeFormDraft;
@@ -83,9 +85,13 @@ export default function NewTradePage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [settings.behaviorDoubleConfirmExit, form]);
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (settings.behaviorDoubleConfirmExit && isFormDirty()) {
-      if (!window.confirm('Apakah Anda yakin ingin keluar? Data transaksi yang belum disimpan akan hilang.')) {
+      const isConfirmed = await confirm('Apakah Anda yakin ingin keluar? Data transaksi yang belum disimpan akan hilang.', {
+        title: 'Keluar Halaman',
+        severity: 'warning'
+      });
+      if (!isConfirmed) {
         return;
       }
     }
@@ -98,30 +104,45 @@ export default function NewTradePage() {
 
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.stockCode || !form.dateBuy || !form.buyPrice || !form.lots) {
-      alert('Kode saham, tanggal beli, harga beli, dan jumlah wajib diisi');
+      await alert('Kode saham, tanggal beli, harga beli, dan jumlah wajib diisi', {
+        title: 'Formulir Belum Lengkap',
+        severity: 'warning'
+      });
       return;
     }
 
     if (dailyLimitReached) {
-      alert(`Penyimpanan diblokir: Batas transaksi harian (${settings.behaviorDailyTradeLimit}) untuk tanggal ${form.dateBuy} telah tercapai.`);
+      await alert(`Penyimpanan diblokir: Batas transaksi harian (${settings.behaviorDailyTradeLimit}) untuk tanggal ${form.dateBuy} telah tercapai.`, {
+        title: 'Batas Harian Tercapai',
+        severity: 'danger'
+      });
       return;
     }
 
     if (settings.behaviorRequireStrategy && !form.strategy) {
-      alert('Penyimpanan diblokir: Anda wajib memilih strategi trading.');
+      await alert('Penyimpanan diblokir: Anda wajib memilih strategi trading.', {
+        title: 'Gagal Menyimpan',
+        severity: 'warning'
+      });
       return;
     }
 
     if (settings.behaviorRequireReason && !form.reasonEntry.trim()) {
-      alert('Penyimpanan diblokir: Anda wajib mengisi alasan entry.');
+      await alert('Penyimpanan diblokir: Anda wajib mengisi alasan entry.', {
+        title: 'Gagal Menyimpan',
+        severity: 'warning'
+      });
       return;
     }
 
     if (settings.behaviorBlockNegativeEmotion && form.emotion && ['fearful', 'greedy', 'revenge', 'doubtful', 'fomo'].includes(form.emotion)) {
-      alert('Penyimpanan diblokir: Anda dilarang menyimpan transaksi saat terdeteksi emosi negatif.');
+      await alert('Penyimpanan diblokir: Anda dilarang menyimpan transaksi saat terdeteksi emosi negatif.', {
+        title: 'Gagal Menyimpan',
+        severity: 'danger'
+      });
       return;
     }
 

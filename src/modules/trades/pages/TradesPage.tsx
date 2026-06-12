@@ -1,12 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 
 export default function TradesPage() {
   const { trades, deleteTrade, marketPrices, settings } = useData();
+  const { confirm } = useDialog();
   
   const [search, setSearch] = useState(() => sessionStorage.getItem('trades_filter_search') || '');
   const [filterStrategy, setFilterStrategy] = useState(() => sessionStorage.getItem('trades_filter_strategy') || '');
@@ -77,8 +79,13 @@ export default function TradesPage() {
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const handleDelete = (id, stockCode) => {
-    if (window.confirm(`Hapus transaksi ${stockCode}?`)) {
+  const handleDelete = async (id, stockCode) => {
+    const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus transaksi ${stockCode}?`, {
+      title: 'Hapus Transaksi',
+      severity: 'danger',
+      confirmText: 'Hapus'
+    });
+    if (isConfirmed) {
       deleteTrade(id);
     }
   };

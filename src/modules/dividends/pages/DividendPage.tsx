@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
 import { Coins, Plus, X, Trash2, Save, TrendingUp, Sparkles } from 'lucide-react';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
 
 export default function DividendPage() {
   const { dividends, addDividend, deleteDividend, trades, dividendFormDraft, setDividendFormDraft } = useData();
+  const { confirm } = useDialog();
 
   const [showForm, setShowForm] = useState(() => {
     if (dividendFormDraft) return dividendFormDraft.showForm;
@@ -94,8 +96,13 @@ export default function DividendPage() {
     setDividendFormDraft(null);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Hapus rekam dividen ini?')) {
+  const handleDelete = async (id: string) => {
+    const isConfirmed = await confirm('Apakah Anda yakin ingin menghapus rekam dividen ini?', {
+      title: 'Hapus Rekam Dividen',
+      severity: 'danger',
+      confirmText: 'Hapus'
+    });
+    if (isConfirmed) {
       deleteDividend(id);
     }
   };

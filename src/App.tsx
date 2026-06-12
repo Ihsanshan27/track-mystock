@@ -5,6 +5,7 @@ import { PermissionProvider, usePermissions } from '@/modules/shared/context/Per
 import { WorkspaceProvider, useWorkspace } from '@/modules/shared/context/WorkspaceContext';
 import Layout from '@/modules/shared/components/Layout';
 import { ThemeProvider } from '@/modules/shared/context/ThemeContext';
+import { DialogProvider } from '@/modules/shared/context/DialogContext';
 
 import LoginPage from '@/modules/auth/pages/LoginPage';
 import RegisterPage from '@/modules/auth/pages/RegisterPage';
@@ -161,11 +162,13 @@ function AppRoutes() {
 export default function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </BrowserRouter>
+      <DialogProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </BrowserRouter>
+      </DialogProvider>
     </ThemeProvider>
   );
 }

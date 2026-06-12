@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useDialog } from '@/modules/shared/context/DialogContext';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { formatDate, formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 import { calculatePortfolioAssetIdrEquivalent, calculatePortfolioAssetMetrics } from '@/modules/trades/calculations';
@@ -58,6 +59,7 @@ export default function PortfoliosPage() {
     allCashflows,
     allDividends,
   } = useData();
+  const { confirm } = useDialog();
   const blurStyle = usePrivacyStyle();
 
   const [showForm, setShowForm] = useState(false);
@@ -112,9 +114,14 @@ export default function PortfoliosPage() {
     setEditForm({ name: '', description: '' });
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (id === 'default') return;
-    if (window.confirm(`PERINGATAN: Menghapus portofolio "${name}" akan menghapus seluruh data transaksi, kas, dan dividen di dalamnya secara permanen.\n\nApakah Anda yakin ingin menghapus?`)) {
+    const isConfirmed = await confirm(`PERINGATAN: Menghapus portofolio "${name}" akan menghapus seluruh data transaksi, kas, dan dividen di dalamnya secara permanen.\n\nApakah Anda yakin ingin menghapus?`, {
+      title: 'Hapus Portofolio',
+      severity: 'danger',
+      confirmText: 'Hapus Permanen'
+    });
+    if (isConfirmed) {
       deletePortfolio(id);
     }
   };
