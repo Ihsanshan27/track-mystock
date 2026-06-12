@@ -3,7 +3,7 @@ import { useAuth } from '@/modules/auth/AuthContext';
 import { useData } from '@/modules/shared/context/DataContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
 import { USER_ROLES, listProfiles, updateProfileRole } from '@/modules/shared/services/profileService';
-import { createAuditLog } from '@/modules/admin/services/auditLogService';
+import { createAuditLog, createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { createUserAsAdmin } from '@/modules/admin/services/adminUserService';
 import { getRegistrationEnabled, setRegistrationEnabled } from '@/modules/shared/services/appSettingsService';
 import { formatDate } from '@/modules/shared/utils/formatters';
@@ -128,7 +128,18 @@ export default function AdminUsersPage() {
     event.preventDefault();
     setCreating(true);
     try {
-      await createUserAsAdmin(createForm);
+      const createdUser = await createUserAsAdmin(createForm);
+      await createAuditLogSafe({
+        actorId: user?.id,
+        action: 'admin.user_created',
+        targetType: 'profile',
+        targetId: createdUser?.user?.id || createdUser?.id || createForm.email,
+        metadata: {
+          email: createForm.email,
+          displayName: createForm.displayName || null,
+          role: createForm.role,
+        },
+      });
       setCreateForm({ email: '', displayName: '', password: '', role: 'trader' });
       setCreateOpen(false);
       showToast('User baru berhasil dibuat');

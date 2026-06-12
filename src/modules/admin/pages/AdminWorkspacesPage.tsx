@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/modules/auth/AuthContext';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
+import { useWorkspace } from '@/modules/shared/context/WorkspaceContext';
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { createAuditLog } from '@/modules/admin/services/auditLogService';
 import {
@@ -25,110 +26,127 @@ export default function AdminWorkspacesPage() {
   const { user } = useAuth();
   const { showToast } = useData();
   const { confirm } = useDialog();
-  const [workspaces, setWorkspaces] = useState([]);
-  const [profiles, setProfiles] = useState([]);
-  const [members, setMembers] = useState([]);
+  const { refreshWorkspaces, selectWorkspace } = useWorkspace();
+  const [workspaceList, setWorkspaceList] = useState([]);
+  const [userProfiles, setUserProfiles] = useState([]);
+  const [workspaceMembers, setWorkspaceMembers] = useState([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
-  const [memberForm, setMemberForm] = useState({ userId: '', role: 'trader' });
-  const [loading, setLoading] = useState(true);
-  const [membersLoading, setMembersLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [memberInviteForm, setMemberInviteForm] = useState({ userId: '', role: 'trader' });
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isMemberListLoading, setIsMemberListLoading] = useState(false);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+  const [isSavingMember, setIsSavingMember] = useState(false);
+  const [pageErrorMessage, setPageErrorMessage] = useState('');
 
   const activeWorkspace = useMemo(
-    () => workspaces.find(workspace => workspace.id === activeWorkspaceId),
-    [workspaces, activeWorkspaceId]
+    () => workspaceList.find(workspace => workspace.id === activeWorkspaceId),
+    [workspaceList, activeWorkspaceId]
   );
 
   const profileById = useMemo(() => {
-    return profiles.reduce((acc, profile) => {
-      acc[profile.id] = profile;
-      return acc;
+    return userProfiles.reduce((profilesByIdMap, profile) => {
+      profilesByIdMap[profile.id] = profile;
+      return profilesByIdMap;
     }, {});
-  }, [profiles]);
+  }, [userProfiles]);
 
-  const loadMembers = useCallback(async (workspaceId) => {
+  const inviteableProfiles = useMemo(() => {
+    const currentWorkspaceMemberIds = new Set(workspaceMembers.map(member => member.user_id));
+    return userProfiles.filter(profile => !currentWorkspaceMemberIds.has(profile.id));
+  }, [workspaceMembers, userProfiles]);
+
+  const loadWorkspaceMembers = useCallback(async (workspaceId) => {
     if (!workspaceId) {
-      setMembers([]);
+      setWorkspaceMembers([]);
       return;
     }
 
-    setMembersLoading(true);
+    setIsMemberListLoading(true);
     try {
-      const rows = await listWorkspaceMembers(workspaceId);
-      setMembers(rows);
-    } catch (err) {
-      showToast(`Gagal memuat member: ${err.message}`, 'error');
+      const workspaceMemberRows = await listWorkspaceMembers(workspaceId);
+      setWorkspaceMembers(workspaceMemberRows);
+    } catch (error) {
+      showToast(`Gagal memuat member: ${error.message}`, 'error');
     } finally {
-      setMembersLoading(false);
+      setIsMemberListLoading(false);
     }
   }, [showToast]);
 
-  const loadInitial = useCallback(async () => {
-    setLoading(true);
+  const loadInitialData = useCallback(async () => {
+    setIsPageLoading(true);
+    setPageErrorMessage('');
     try {
       const [workspaceRows, profileRows] = await Promise.all([
         listWorkspaces(),
         listProfiles(),
       ]);
-      setWorkspaces(workspaceRows);
-      setProfiles(profileRows);
+      setWorkspaceList(workspaceRows);
+      setUserProfiles(profileRows);
       const firstWorkspaceId = workspaceRows[0]?.id || '';
       setActiveWorkspaceId(firstWorkspaceId);
-      if (firstWorkspaceId) await loadMembers(firstWorkspaceId);
-    } catch (err) {
-      showToast(`Gagal memuat workspace: ${err.message}`, 'error');
+      if (firstWorkspaceId) await loadWorkspaceMembers(firstWorkspaceId);
+    } catch (error) {
+      setPageErrorMessage(error.message);
+      showToast(`Gagal memuat workspace: ${error.message}`, 'error');
     } finally {
-      setLoading(false);
+      setIsPageLoading(false);
     }
-  }, [loadMembers, showToast]);
+  }, [loadWorkspaceMembers, showToast]);
 
   useEffect(() => {
-    loadInitial();
-  }, [loadInitial]);
+    loadInitialData();
+  }, [loadInitialData]);
 
   const handleWorkspaceChange = async (workspaceId) => {
     setActiveWorkspaceId(workspaceId);
-    await loadMembers(workspaceId);
+    setMemberInviteForm(previousForm => ({ ...previousForm, userId: '' }));
+    await loadWorkspaceMembers(workspaceId);
   };
 
   const handleCreateWorkspace = async (event) => {
     event.preventDefault();
     if (!workspaceName.trim()) return;
+    if (!user?.id) {
+      showToast('User belum login', 'error');
+      return;
+    }
 
-    setSaving(true);
+    setIsCreatingWorkspace(true);
     try {
-      const workspace = await createWorkspace({ name: workspaceName.trim(), ownerId: user?.id });
-      await upsertWorkspaceMember({ workspaceId: workspace.id, userId: user?.id, role: 'admin' });
+      const newWorkspace = await createWorkspace({ name: workspaceName.trim(), ownerId: user.id });
+      await upsertWorkspaceMember({ workspaceId: newWorkspace.id, userId: user.id, role: 'admin' });
       await createAuditLog({
-        actorId: user?.id,
+        actorId: user.id,
         action: 'workspace.created',
         targetType: 'workspace',
-        targetId: workspace.id,
-        metadata: { name: workspace.name },
+        targetId: newWorkspace.id,
+        metadata: { name: newWorkspace.name },
       });
       setWorkspaceName('');
-      setWorkspaces(prev => [workspace, ...prev]);
-      setActiveWorkspaceId(workspace.id);
-      await loadMembers(workspace.id);
+      setWorkspaceList(previousWorkspaceList => [newWorkspace, ...previousWorkspaceList]);
+      setActiveWorkspaceId(newWorkspace.id);
+      selectWorkspace(newWorkspace.id);
+      await refreshWorkspaces();
+      await loadWorkspaceMembers(newWorkspace.id);
       showToast('Workspace berhasil dibuat');
-    } catch (err) {
-      showToast(`Gagal buat workspace: ${err.message}`, 'error');
+    } catch (error) {
+      showToast(`Gagal buat workspace: ${error.message}`, 'error');
     } finally {
-      setSaving(false);
+      setIsCreatingWorkspace(false);
     }
   };
 
   const handleInviteMember = async (event) => {
     event.preventDefault();
-    if (!activeWorkspaceId || !memberForm.userId) return;
+    if (!activeWorkspaceId || !memberInviteForm.userId) return;
 
-    setSaving(true);
+    setIsSavingMember(true);
     try {
       await upsertWorkspaceMember({
         workspaceId: activeWorkspaceId,
-        userId: memberForm.userId,
-        role: memberForm.role,
+        userId: memberInviteForm.userId,
+        role: memberInviteForm.role,
       });
       await createAuditLog({
         actorId: user?.id,
@@ -136,22 +154,27 @@ export default function AdminWorkspacesPage() {
         targetType: 'workspace',
         targetId: activeWorkspaceId,
         metadata: {
-          userId: memberForm.userId,
-          role: memberForm.role,
+          userId: memberInviteForm.userId,
+          role: memberInviteForm.role,
         },
       });
-      setMemberForm({ userId: '', role: 'trader' });
-      await loadMembers(activeWorkspaceId);
+      setMemberInviteForm({ userId: '', role: 'trader' });
+      await loadWorkspaceMembers(activeWorkspaceId);
       showToast('Member workspace diperbarui');
-    } catch (err) {
-      showToast(`Gagal invite member: ${err.message}`, 'error');
+    } catch (error) {
+      showToast(`Gagal invite member: ${error.message}`, 'error');
     } finally {
-      setSaving(false);
+      setIsSavingMember(false);
     }
   };
 
-  const handleRemoveMember = async (member) => {
-    const memberProfile = profileById[member.user_id];
+  const handleRemoveMember = async (workspaceMember) => {
+    if (workspaceMember.user_id === user?.id) {
+      showToast('Admin yang sedang login tidak bisa menghapus dirinya sendiri dari workspace ini.', 'error');
+      return;
+    }
+
+    const memberProfile = profileById[workspaceMember.user_id];
     const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus ${memberProfile?.displayName || 'member'} dari workspace?`, {
       title: 'Hapus Member Workspace',
       severity: 'warning',
@@ -160,21 +183,21 @@ export default function AdminWorkspacesPage() {
     if (!isConfirmed) return;
 
     try {
-      await removeWorkspaceMember(member.id);
+      await removeWorkspaceMember(workspaceMember.id);
       await createAuditLog({
         actorId: user?.id,
         action: 'workspace.member_removed',
         targetType: 'workspace',
-        targetId: member.workspace_id,
+        targetId: workspaceMember.workspace_id,
         metadata: {
-          userId: member.user_id,
-          role: member.role,
+          userId: workspaceMember.user_id,
+          role: workspaceMember.role,
         },
       });
-      await loadMembers(activeWorkspaceId);
+      await loadWorkspaceMembers(activeWorkspaceId);
       showToast('Member dihapus dari workspace');
-    } catch (err) {
-      showToast(`Gagal hapus member: ${err.message}`, 'error');
+    } catch (error) {
+      showToast(`Gagal hapus member: ${error.message}`, 'error');
     }
   };
 
@@ -185,8 +208,16 @@ export default function AdminWorkspacesPage() {
           <h1 className="page-title">Workspace Management</h1>
           <p className="page-subtitle">Buat workspace dan kelola member komunitas</p>
         </div>
-        <button className="btn btn-secondary" onClick={loadInitial} disabled={loading}>Refresh</button>
+        <button className="btn btn-secondary" onClick={loadInitialData} disabled={isPageLoading}>Refresh</button>
       </div>
+
+      {pageErrorMessage && (
+        <div className="card" style={{ marginBottom: 20, borderColor: 'var(--accent-red)' }}>
+          <div className="card-body" style={{ color: 'var(--accent-red)' }}>
+            {pageErrorMessage}
+          </div>
+        </div>
+      )}
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="card">
@@ -198,11 +229,11 @@ export default function AdminWorkspacesPage() {
                 <input
                   className="form-input"
                   value={workspaceName}
-                  onChange={e => setWorkspaceName(e.target.value)}
+                  onChange={event => setWorkspaceName(event.target.value)}
                   placeholder="Contoh: Komunitas Swing Trader"
                 />
               </div>
-              <button className="btn btn-primary" disabled={saving || !workspaceName.trim()}>
+              <button className="btn btn-primary" disabled={isCreatingWorkspace || !workspaceName.trim()}>
                 Buat Workspace
               </button>
             </form>
@@ -218,10 +249,10 @@ export default function AdminWorkspacesPage() {
                 <select
                   className="form-select"
                   value={activeWorkspaceId}
-                  onChange={e => handleWorkspaceChange(e.target.value)}
+                  onChange={event => handleWorkspaceChange(event.target.value)}
                 >
                   <option value="">Pilih workspace</option>
-                  {workspaces.map(workspace => (
+                  {workspaceList.map(workspace => (
                     <option key={workspace.id} value={workspace.id}>{workspace.name}</option>
                   ))}
                 </select>
@@ -230,12 +261,14 @@ export default function AdminWorkspacesPage() {
                 <label className="form-label">User</label>
                 <select
                   className="form-select"
-                  value={memberForm.userId}
-                  onChange={e => setMemberForm(prev => ({ ...prev, userId: e.target.value }))}
+                  value={memberInviteForm.userId}
+                  onChange={event => setMemberInviteForm(previousForm => ({ ...previousForm, userId: event.target.value }))}
                   disabled={!activeWorkspaceId}
                 >
-                  <option value="">Pilih user</option>
-                  {profiles.map(profile => (
+                  <option value="">
+                    {inviteableProfiles.length === 0 ? 'Semua user sudah menjadi member' : 'Pilih user'}
+                  </option>
+                  {inviteableProfiles.map(profile => (
                     <option key={profile.id} value={profile.id}>
                       {profile.displayName} ({profile.email || 'tanpa email'})
                     </option>
@@ -246,15 +279,18 @@ export default function AdminWorkspacesPage() {
                 <label className="form-label">Role Workspace</label>
                 <select
                   className="form-select"
-                  value={memberForm.role}
-                  onChange={e => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
+                  value={memberInviteForm.role}
+                  onChange={event => setMemberInviteForm(previousForm => ({ ...previousForm, role: event.target.value }))}
                 >
                   {WORKSPACE_ROLES.map(role => (
                     <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                   ))}
                 </select>
               </div>
-              <button className="btn btn-primary" disabled={saving || !activeWorkspaceId || !memberForm.userId}>
+              <button
+                className="btn btn-primary"
+                disabled={isSavingMember || !activeWorkspaceId || !memberInviteForm.userId}
+              >
                 Simpan Member
               </button>
             </form>
@@ -267,19 +303,19 @@ export default function AdminWorkspacesPage() {
           <h3 className="card-title">{activeWorkspace ? `Member: ${activeWorkspace.name}` : 'Daftar Workspace'}</h3>
         </div>
         <div className="card-body">
-          {loading ? (
+          {isPageLoading ? (
             <div className="loading-spinner" />
-          ) : workspaces.length === 0 ? (
+          ) : workspaceList.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">🏢</div>
+              <div className="empty-state-icon">ðŸ¢</div>
               <div className="empty-state-title">Belum ada workspace</div>
               <div className="empty-state-desc">Buat workspace pertama untuk mulai mengelola komunitas.</div>
             </div>
-          ) : membersLoading ? (
+          ) : isMemberListLoading ? (
             <div className="loading-spinner" />
-          ) : members.length === 0 ? (
+          ) : workspaceMembers.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">👥</div>
+              <div className="empty-state-icon">ðŸ‘¥</div>
               <div className="empty-state-title">Belum ada member</div>
               <div className="empty-state-desc">Tambahkan user ke workspace ini.</div>
             </div>
@@ -296,18 +332,18 @@ export default function AdminWorkspacesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map(member => {
-                    const profile = profileById[member.user_id];
+                  {workspaceMembers.map(workspaceMember => {
+                    const profile = profileById[workspaceMember.user_id];
                     return (
-                      <tr key={member.id}>
-                        <td><strong>{profile?.displayName || member.user_id}</strong></td>
+                      <tr key={workspaceMember.id}>
+                        <td><strong>{profile?.displayName || workspaceMember.user_id}</strong></td>
                         <td style={{ color: 'var(--text-secondary)' }}>{profile?.email || '-'}</td>
-                        <td><span className="badge badge-blue">{ROLE_LABELS[member.role] || member.role}</span></td>
+                        <td><span className="badge badge-blue">{ROLE_LABELS[workspaceMember.role] || workspaceMember.role}</span></td>
                         <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                          {formatDate(member.created_at)}
+                          {formatDate(workspaceMember.created_at)}
                         </td>
                         <td>
-                          <button className="btn btn-ghost btn-sm" onClick={() => handleRemoveMember(member)}>
+                          <button className="btn btn-ghost btn-sm" onClick={() => handleRemoveMember(workspaceMember)}>
                             Hapus
                           </button>
                         </td>

@@ -3,14 +3,15 @@ import { getItem, setItem, generateId } from '@/modules/shared/utils/storage';
 import { isSupabaseConfigured, supabase } from '@/modules/shared/services/supabaseClient';
 import { updateProfileName } from '@/modules/shared/services/profileService';
 import { getAuthErrorMessage } from '@/modules/shared/utils/errorMessages';
+import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 
 const AuthContext = createContext(null);
 
 function hashPassword(password) {
   let hash = 0;
   for (let i = 0; i < password.length; i++) {
-    const char = password.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    const charCode = password.charCodeAt(i);
+    hash = ((hash << 5) - hash) + charCode;
     hash = hash & hash;
   }
   return 'h_' + Math.abs(hash).toString(36);
@@ -22,10 +23,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (isSupabaseConfigured) {
-      let mounted = true;
+      let isMounted = true;
 
       supabase.auth.getSession().then(({ data }) => {
-        if (!mounted) return;
+        if (!isMounted) return;
         const sessionUser = mapSupabaseUser(data.session?.user);
         setUser(sessionUser);
         setLoading(false);
@@ -38,7 +39,7 @@ export function AuthProvider({ children }) {
       });
 
       return () => {
-        mounted = false;
+        isMounted = false;
         authListener.subscription.unsubscribe();
       };
     }
@@ -67,17 +68,41 @@ export function AuthProvider({ children }) {
         return { success: false, error: getAuthErrorMessage(error.message) };
       }
       if (data.user && !data.session) {
+        await createAuditLogSafe({
+          actorId: data.user.id,
+          action: 'auth.registered',
+          targetType: 'auth_user',
+          targetId: data.user.id,
+          metadata: {
+            email,
+            needsConfirmation: true,
+            provider: 'supabase',
+          },
+        });
         return {
           success: true,
           needsConfirmation: true,
           message: 'Akun dibuat. Cek email untuk konfirmasi, lalu login kembali.',
         };
       }
+      if (data.user) {
+        await createAuditLogSafe({
+          actorId: data.user.id,
+          action: 'auth.registered',
+          targetType: 'auth_user',
+          targetId: data.user.id,
+          metadata: {
+            email,
+            needsConfirmation: false,
+            provider: 'supabase',
+          },
+        });
+      }
       return { success: true };
     }
 
     const users = getItem('users') || [];
-    if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+    if (users.find(storedUser => storedUser.username.toLowerCase() === username.toLowerCase())) {
       return { success: false, error: 'Username sudah digunakan' };
     }
     const newUser = {
@@ -89,20 +114,28 @@ export function AuthProvider({ children }) {
     users.push(newUser);
     setItem('users', users);
 
-    // Auto-login after register
     const session = { id: newUser.id, username: newUser.username };
     setItem('session', session);
     setUser(session);
+    await createAuditLogSafe({
+      actorId: newUser.id,
+      action: 'auth.registered',
+      targetType: 'auth_user',
+      targetId: newUser.id,
+      metadata: {
+        username: newUser.username,
+        provider: 'localStorage',
+      },
+    });
 
-    // Initialize settings with user-scoped key
     setItem(`settings_${newUser.id}`, {
       initialCapital: 10000000,
       monthlyTarget: 5,
       defaultBuyFee: 0.15,
       defaultSellFee: 0.25,
-      initialCapitalUS: 1000, // $1000 default for Gotrade
-      defaultBuyFeeUS: 0,     // 0% for Gotrade
-      defaultSellFeeUS: 0,    // 0% for Gotrade
+      initialCapitalUS: 1000,
+      defaultBuyFeeUS: 0,
+      defaultSellFeeUS: 0,
     });
 
     return { success: true };
@@ -118,29 +151,70 @@ export function AuthProvider({ children }) {
       if (error) {
         return { success: false, error: getAuthErrorMessage(error.message) };
       }
+      const { data: currentUserData } = await supabase.auth.getUser();
+      if (currentUserData.user) {
+        await createAuditLogSafe({
+          actorId: currentUserData.user.id,
+          action: 'auth.logged_in',
+          targetType: 'auth_user',
+          targetId: currentUserData.user.id,
+          metadata: {
+            provider: 'supabase',
+          },
+        });
+      }
       return { success: true };
     }
 
     const users = getItem('users') || [];
-    const found = users.find(
-      u => u.username.toLowerCase() === username.toLowerCase() && u.password === hashPassword(password)
+    const matchingUser = users.find(
+      storedUser => storedUser.username.toLowerCase() === username.toLowerCase() && storedUser.password === hashPassword(password)
     );
-    if (!found) {
+    if (!matchingUser) {
       return { success: false, error: 'Username atau password salah' };
     }
-    const session = { id: found.id, username: found.username };
+    const session = { id: matchingUser.id, username: matchingUser.username };
     setItem('session', session);
     setUser(session);
+    await createAuditLogSafe({
+      actorId: matchingUser.id,
+      action: 'auth.logged_in',
+      targetType: 'auth_user',
+      targetId: matchingUser.id,
+      metadata: {
+        username: matchingUser.username,
+        provider: 'localStorage',
+      },
+    });
     return { success: true };
   };
 
   const logout = async () => {
     if (isSupabaseConfigured) {
+      await createAuditLogSafe({
+        actorId: user?.id,
+        action: 'auth.logged_out',
+        targetType: 'auth_user',
+        targetId: user?.id,
+        metadata: {
+          provider: 'supabase',
+        },
+      });
       await supabase.auth.signOut();
       setUser(null);
       return;
     }
 
+    await createAuditLogSafe({
+      actorId: user?.id,
+      action: 'auth.logged_out',
+      targetType: 'auth_user',
+      targetId: user?.id,
+      metadata: {
+        username: user?.username,
+        provider: 'localStorage',
+      },
+    });
     setItem('session', null);
     setUser(null);
   };
@@ -158,9 +232,9 @@ export function AuthProvider({ children }) {
     }
 
     const users = getItem('users') || [];
-    const idx = users.findIndex(u => u.id === user.id);
-    if (idx !== -1) {
-      users[idx].username = newUsername;
+    const existingUserIndex = users.findIndex(storedUser => storedUser.id === user.id);
+    if (existingUserIndex !== -1) {
+      users[existingUserIndex].username = newUsername;
       setItem('users', users);
       const session = { ...user, username: newUsername };
       setItem('session', session);
@@ -187,7 +261,7 @@ function mapSupabaseUser(supabaseUser) {
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const authContext = useContext(AuthContext);
+  if (!authContext) throw new Error('useAuth must be used within AuthProvider');
+  return authContext;
 }

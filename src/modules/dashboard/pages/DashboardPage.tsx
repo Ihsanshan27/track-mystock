@@ -12,78 +12,78 @@ import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { useMarketFormatter } from '@/modules/shared/hooks/useMarketFormatter';
 import { useOpenPositionMetrics } from '@/modules/shared/hooks/useOpenPositionMetrics';
 
-
-
 export default function DashboardPage() {
   const { trades, cashflows, dividends, settings, marketPrices } = useData();
-  const [activeTab, setActiveTab] = useState<'ID' | 'US'>('ID');
+  const [activeMarketTab, setActiveMarketTab] = useState<'ID' | 'US'>('ID');
   const blurStyle = usePrivacyStyle();
-  const { formatMoney, isUS, formatPercent } = useMarketFormatter(activeTab);
-  const [chartTab, setChartTab] = useState<'equity' | 'drawdown'>('equity');
+  const { formatMoney, isUS, formatPercent } = useMarketFormatter(activeMarketTab);
+  const [activeChartTab, setActiveChartTab] = useState<'equity' | 'drawdown'>('equity');
 
-  const filteredTrades = useMemo(() => trades.filter(t => t.market === activeTab || (!t.market && activeTab === 'ID')), [trades, activeTab]);
-  const filteredCashflows = useMemo(() => cashflows.filter(c => c.market === activeTab || (!c.market && activeTab === 'ID')), [cashflows, activeTab]);
-  const filteredDividends = useMemo(() => dividends.filter(d => d.market === activeTab || (!d.market && activeTab === 'ID')), [dividends, activeTab]);
+  const filteredTrades = useMemo(() => trades.filter(trade => trade.market === activeMarketTab || (!trade.market && activeMarketTab === 'ID')), [trades, activeMarketTab]);
+  const filteredCashflows = useMemo(() => cashflows.filter(cashflow => cashflow.market === activeMarketTab || (!cashflow.market && activeMarketTab === 'ID')), [cashflows, activeMarketTab]);
+  const filteredDividends = useMemo(() => dividends.filter(dividend => dividend.market === activeMarketTab || (!dividend.market && activeMarketTab === 'ID')), [dividends, activeMarketTab]);
 
-  const initialCap = activeTab === 'US' ? (settings.initialCapitalUS || 1000) : settings.initialCapital;
+  const initialCapitalForMarket = activeMarketTab === 'US' ? (settings.initialCapitalUS || 1000) : settings.initialCapital;
 
   const stats = useMemo(() => calculateStats(filteredTrades), [filteredTrades]);
-  const equityCurve = useMemo(() => calculateEquityCurve(filteredTrades, initialCap), [filteredTrades, initialCap]);
+  const equityCurve = useMemo(() => calculateEquityCurve(filteredTrades, initialCapitalForMarket), [filteredTrades, initialCapitalForMarket]);
   const maxDrawdownPercent = useMemo(() => {
-    return Math.max(...equityCurve.map((c: any) => c.drawdownPercent || 0), 0);
+    return Math.max(...equityCurve.map((equityPoint: any) => equityPoint.drawdownPercent || 0), 0);
   }, [equityCurve]);
   const maxDrawdownAmount = useMemo(() => {
-    return Math.max(...equityCurve.map((c: any) => c.drawdown || 0), 0);
+    return Math.max(...equityCurve.map((equityPoint: any) => equityPoint.drawdown || 0), 0);
   }, [equityCurve]);
   const monthlyPnL = useMemo(() => calculateMonthlyPnL(filteredTrades), [filteredTrades]);
   const dailyPnL = useMemo(() => calculateDailyPnL(filteredTrades), [filteredTrades]);
-  const balance = useMemo(() => calculatePortfolioBalance(filteredTrades, filteredCashflows, filteredDividends, initialCap), [filteredTrades, filteredCashflows, filteredDividends, initialCap]);
+  const balance = useMemo(() => calculatePortfolioBalance(filteredTrades, filteredCashflows, filteredDividends, initialCapitalForMarket), [filteredTrades, filteredCashflows, filteredDividends, initialCapitalForMarket]);
   const achievements = useMemo(() => calculateAchievements(filteredTrades, filteredDividends), [filteredTrades, filteredDividends]);
 
-  // Combined calculations
-  const allTradesID = useMemo(() => trades.filter(t => t.market !== 'US'), [trades]);
-  const allTradesUS = useMemo(() => trades.filter(t => t.market === 'US'), [trades]);
-  const allCashflowsID = useMemo(() => cashflows.filter(c => c.market !== 'US'), [cashflows]);
-  const allCashflowsUS = useMemo(() => cashflows.filter(c => c.market === 'US'), [cashflows]);
-  const allDividendsID = useMemo(() => dividends.filter(d => d.market !== 'US'), [dividends]);
-  const allDividendsUS = useMemo(() => dividends.filter(d => d.market === 'US'), [dividends]);
+  const allIndonesianTrades = useMemo(() => trades.filter(trade => trade.market !== 'US'), [trades]);
+  const allUsTrades = useMemo(() => trades.filter(trade => trade.market === 'US'), [trades]);
+  const allIndonesianCashflows = useMemo(() => cashflows.filter(cashflow => cashflow.market !== 'US'), [cashflows]);
+  const allUsCashflows = useMemo(() => cashflows.filter(cashflow => cashflow.market === 'US'), [cashflows]);
+  const allIndonesianDividends = useMemo(() => dividends.filter(dividend => dividend.market !== 'US'), [dividends]);
+  const allUsDividends = useMemo(() => dividends.filter(dividend => dividend.market === 'US'), [dividends]);
 
-  const balanceID = useMemo(() => calculatePortfolioBalance(allTradesID, allCashflowsID, allDividendsID, settings.initialCapital), [allTradesID, allCashflowsID, allDividendsID, settings.initialCapital]);
-  const balanceUS = useMemo(() => calculatePortfolioBalance(allTradesUS, allCashflowsUS, allDividendsUS, settings.initialCapitalUS || 1000), [allTradesUS, allCashflowsUS, allDividendsUS, settings.initialCapitalUS]);
+  const indonesianMarketBalance = useMemo(() => calculatePortfolioBalance(allIndonesianTrades, allIndonesianCashflows, allIndonesianDividends, settings.initialCapital), [allIndonesianTrades, allIndonesianCashflows, allIndonesianDividends, settings.initialCapital]);
+  const usMarketBalance = useMemo(() => calculatePortfolioBalance(allUsTrades, allUsCashflows, allUsDividends, settings.initialCapitalUS || 1000), [allUsTrades, allUsCashflows, allUsDividends, settings.initialCapitalUS]);
 
   const usdToIdrRate = settings.usdToIdrRate || 16200;
-  const totalCombinedEquityIDR = balanceID.realizedEquity + (balanceUS.realizedEquity * usdToIdrRate);
+  const totalCombinedEquityInIdr = indonesianMarketBalance.realizedEquity + (usMarketBalance.realizedEquity * usdToIdrRate);
 
-  const hasUSAssets = useMemo(() => {
-    return trades.some(t => t.market === 'US') || cashflows.some(c => c.market === 'US') || dividends.some(d => d.market === 'US');
+  const hasUsAssets = useMemo(() => {
+    return trades.some(trade => trade.market === 'US') || cashflows.some(cashflow => cashflow.market === 'US') || dividends.some(dividend => dividend.market === 'US');
   }, [trades, cashflows, dividends]);
 
   const { openTrades, totalFloating, totalInvested, tradingBalance } = useOpenPositionMetrics(
     filteredTrades,
-    { market: activeTab, marketPrices: marketPrices as Record<string, number> }
+    { market: activeMarketTab, marketPrices: marketPrices as Record<string, number> }
   );
 
   const recentTrades = filteredTrades
-    .filter(t => t.sellPrice && t.dateSell)
-    .sort((a, b) => new Date(b.dateSell).getTime() - new Date(a.dateSell).getTime())
+    .filter(trade => trade.sellPrice && trade.dateSell)
+    .sort((newerTrade, olderTrade) => new Date(olderTrade.dateSell).getTime() - new Date(newerTrade.dateSell).getTime())
     .slice(0, 8);
 
-  // Calendar heatmap for current month
   const now = useMemo(() => new Date(), []);
   const calendarDays = useMemo(() => {
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days = [];
-    
-    for (let i = 0; i < firstDay; i++) days.push(null);
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const pnl = dailyPnL[dateStr] || 0;
-      days.push({ day: d, date: dateStr, pnl });
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const firstWeekdayOffset = new Date(currentYear, currentMonth, 1).getDay();
+    const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const calendarDayCells = [];
+
+    for (let emptyCellIndex = 0; emptyCellIndex < firstWeekdayOffset; emptyCellIndex++) {
+      calendarDayCells.push(null);
     }
-    return days;
+
+    for (let dayNumber = 1; dayNumber <= totalDaysInMonth; dayNumber++) {
+      const calendarDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
+      const dayProfitLoss = dailyPnL[calendarDate] || 0;
+      calendarDayCells.push({ day: dayNumber, date: calendarDate, pnl: dayProfitLoss });
+    }
+
+    return calendarDayCells;
   }, [dailyPnL, now]);
 
   if (trades.length === 0) {
@@ -105,7 +105,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <MarketTabBar activeTab={activeTab} onChange={setActiveTab} />
+      <MarketTabBar activeTab={activeMarketTab} onChange={setActiveMarketTab} />
       {filteredTrades.length === 0 ? (
         <div className="empty-state" style={{ marginTop: 40 }}>
           <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: 'var(--text-muted)' }}>
@@ -119,9 +119,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* Stat Cards - Bento Grid (Asymmetric layout) */}
           <div className="bento-grid">
-            {/* Row 1 */}
             <div className="bento-col-6">
               <StatCard
                 icon={Icons.Wallet}
@@ -164,7 +162,6 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Row 2 */}
             <div className="bento-col-3">
               <StatCard
                 icon={Icons.Activity}
@@ -198,56 +195,53 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Achievements Horizontal Scroll */}
           <div style={{ marginBottom: 32 }}>
             <h3 style={{ fontSize: '1rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Icons.Award size={18} style={{ color: 'var(--accent-yellow)' }} />
               Pencapaian Anda ({isUS ? 'US' : 'ID'})
             </h3>
             <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 12 }}>
-              {achievements.map(ach => {
-                const AchIcon = (Icons as any)[ach.icon] || Icons.Award;
+              {achievements.map(achievement => {
+                const AchievementIcon = (Icons as any)[achievement.icon] || Icons.Award;
                 return (
-                  <div key={ach.id} className="bento-card" style={{ 
-                    minWidth: 220, 
-                    flex: '0 0 auto', 
-                    padding: 20, 
-                    opacity: ach.unlocked ? 1 : 0.5,
-                    border: ach.unlocked ? '1px solid var(--accent-green)' : '1px solid var(--border-color)',
-                    background: ach.unlocked ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-card)',
+                  <div key={achievement.id} className="bento-card" style={{
+                    minWidth: 220,
+                    flex: '0 0 auto',
+                    padding: 20,
+                    opacity: achievement.unlocked ? 1 : 0.5,
+                    border: achievement.unlocked ? '1px solid var(--accent-green)' : '1px solid var(--border-color)',
+                    background: achievement.unlocked ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-card)',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <div style={{ 
-                        width: 40, 
-                        height: 40, 
-                        borderRadius: '50%', 
-                        background: ach.unlocked ? 'var(--accent-green-dim)' : 'var(--bg-input)',
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        background: achievement.unlocked ? 'var(--accent-green-dim)' : 'var(--bg-input)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: ach.unlocked ? 'var(--accent-green)' : 'var(--text-muted)'
+                        color: achievement.unlocked ? 'var(--accent-green)' : 'var(--text-muted)'
                       }}>
-                        <AchIcon size={20} />
+                        <AchievementIcon size={20} />
                       </div>
                       <div>
-                        {ach.unlocked ? (
+                        {achievement.unlocked ? (
                           <Icons.Unlock size={14} style={{ color: 'var(--accent-green)' }} />
                         ) : (
                           <Icons.Lock size={14} style={{ color: 'var(--text-muted)' }} />
                         )}
                       </div>
                     </div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4 }}>{ach.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>{ach.desc}</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4 }}>{achievement.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>{achievement.desc}</div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Charts Row - Bento styled columns */}
           <div className="bento-grid" style={{ marginBottom: 24 }}>
-            {/* Equity & Drawdown Curve */}
             <div className="bento-card bento-col-8">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
                 <div className="bento-card-title" style={{ margin: 0 }}>
@@ -256,15 +250,15 @@ export default function DashboardPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button
-                    onClick={() => setChartTab('equity')}
-                    className={`btn btn-sm ${chartTab === 'equity' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveChartTab('equity')}
+                    className={`btn btn-sm ${activeChartTab === 'equity' ? 'btn-primary' : 'btn-secondary'}`}
                     style={{ padding: '4px 10px', height: 28 }}
                   >
                     Pertumbuhan Modal
                   </button>
                   <button
-                    onClick={() => setChartTab('drawdown')}
-                    className={`btn btn-sm ${chartTab === 'drawdown' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setActiveChartTab('drawdown')}
+                    className={`btn btn-sm ${activeChartTab === 'drawdown' ? 'btn-primary' : 'btn-secondary'}`}
                     style={{ padding: '4px 10px', height: 28 }}
                   >
                     Drawdown (%)
@@ -272,19 +266,19 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', padding: '4px 8px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', marginBottom: 12 }}>
-                <div>Modal Awal: <strong>{formatMoney(initialCap)}</strong></div>
+                <div>Modal Awal: <strong>{formatMoney(initialCapitalForMarket)}</strong></div>
                 <div style={{ color: 'var(--accent-red)' }}>
                   Max Drawdown: <strong>-{maxDrawdownPercent.toFixed(2)}%</strong> ({formatMoney(maxDrawdownAmount)})
                 </div>
               </div>
               <div style={{ height: 280, marginTop: 8 }}>
                 {equityCurve.length > 1 ? (
-                  chartTab === 'equity' ? (
+                  activeChartTab === 'equity' ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={equityCurve}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
-                        <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-                        <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => isUS ? formatMoney(v) : `${(v/1000000).toFixed(1)}Jt`} />
+                        <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(dateLabel) => dateLabel.slice(5)} />
+                        <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(amount) => isUS ? formatMoney(amount) : `${(amount / 1000000).toFixed(1)}Jt`} />
                         <Tooltip content={<ChartTooltip formatValue={formatMoney} />} />
                         <Line
                           type="monotone"
@@ -306,9 +300,9 @@ export default function DashboardPage() {
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
-                        <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-                        <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => `-${v.toFixed(1)}%`} />
-                        <Tooltip content={<ChartTooltip formatValue={(val) => `-${val.toFixed(2)}%`} />} />
+                        <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(dateLabel) => dateLabel.slice(5)} />
+                        <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(drawdownPercent) => `-${drawdownPercent.toFixed(1)}%`} />
+                        <Tooltip content={<ChartTooltip formatValue={(drawdownPercent) => `-${drawdownPercent.toFixed(2)}%`} />} />
                         <Area
                           type="monotone"
                           dataKey="drawdownPercent"
@@ -331,7 +325,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Calendar Heatmap */}
             <div className="bento-card bento-col-4">
               <div className="bento-card-title">
                 <Icons.Calendar size={18} style={{ color: 'var(--accent-green)' }} />
@@ -339,20 +332,20 @@ export default function DashboardPage() {
               </div>
               <div style={{ marginTop: 8 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 8 }}>
-                  {['M', 'S', 'S', 'R', 'K', 'J', 'S'].map((d, idx) => (
-                    <div key={idx} style={{ textAlign: 'center', fontSize: '0.65rem', color: 'var(--text-muted)', padding: 4, fontWeight: 700 }}>
-                      {d}
+                  {['M', 'S', 'S', 'R', 'K', 'J', 'S'].map((dayLabel, dayLabelIndex) => (
+                    <div key={dayLabelIndex} style={{ textAlign: 'center', fontSize: '0.65rem', color: 'var(--text-muted)', padding: 4, fontWeight: 700 }}>
+                      {dayLabel}
                     </div>
                   ))}
                 </div>
                 <div className="heatmap-grid">
-                  {calendarDays.map((cell, i) => (
+                  {calendarDays.map((calendarCell, calendarCellIndex) => (
                     <div
-                      key={i}
-                      className={`heatmap-cell ${cell ? (cell.pnl > 0 ? 'profit' : cell.pnl < 0 ? 'loss' : 'neutral') : ''}`}
-                      title={cell ? `${cell.date}: ${formatMoney(cell.pnl)}` : ''}
+                      key={calendarCellIndex}
+                      className={`heatmap-cell ${calendarCell ? (calendarCell.pnl > 0 ? 'profit' : calendarCell.pnl < 0 ? 'loss' : 'neutral') : ''}`}
+                      title={calendarCell ? `${calendarCell.date}: ${formatMoney(calendarCell.pnl)}` : ''}
                     >
-                      {cell?.day || ''}
+                      {calendarCell?.day || ''}
                     </div>
                   ))}
                 </div>
@@ -374,7 +367,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Monthly P&L */}
           {monthlyPnL.length > 0 && (
             <div className="bento-card" style={{ marginBottom: 24 }}>
               <div className="bento-card-title">
@@ -386,11 +378,11 @@ export default function DashboardPage() {
                   <BarChart data={monthlyPnL}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
                     <XAxis dataKey="month" tick={{ fill: '#71717a', fontSize: 11 }} />
-                    <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(v) => isUS ? formatMoney(v) : `${(v/1000000).toFixed(1)}Jt`} />
+                    <YAxis tick={{ fill: '#71717a', fontSize: 11 }} tickFormatter={(amount) => isUS ? formatMoney(amount) : `${(amount / 1000000).toFixed(1)}Jt`} />
                     <Tooltip content={<ChartTooltip formatValue={formatMoney} />} />
                     <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                      {monthlyPnL.map((entry, i) => (
-                        <Cell key={i} fill={entry.pnl >= 0 ? '#10b981' : '#ef4444'} />
+                      {monthlyPnL.map((monthlyEntry, monthlyEntryIndex) => (
+                        <Cell key={monthlyEntryIndex} fill={monthlyEntry.pnl >= 0 ? '#10b981' : '#ef4444'} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -399,7 +391,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Recent Trades */}
           {recentTrades.length > 0 && (
             <div className="bento-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
@@ -427,7 +418,7 @@ export default function DashboardPage() {
                   </thead>
                   <tbody>
                     {recentTrades.map(trade => {
-                      const calc = calculateTradePnL(trade);
+                      const tradePerformance = calculateTradePnL(trade);
                       return (
                         <tr key={trade.id}>
                           <td><strong>{trade.stockCode}</strong></td>
@@ -435,11 +426,11 @@ export default function DashboardPage() {
                           <td className="font-mono">{formatMoney(trade.buyPrice)}</td>
                           <td className="font-mono">{formatMoney(trade.sellPrice)}</td>
                           <td className="font-mono">{trade.lots}</td>
-                          <td className={`${calc.pnl >= 0 ? 'text-profit' : 'text-loss'} font-mono`}>
-                            <strong>{formatMoney(calc.pnl)}</strong>
+                          <td className={`${tradePerformance.pnl >= 0 ? 'text-profit' : 'text-loss'} font-mono`}>
+                            <strong>{formatMoney(tradePerformance.pnl)}</strong>
                           </td>
-                          <td className={`${calc.pnlPercent >= 0 ? 'text-profit' : 'text-loss'} font-mono`}>
-                            {formatPercent(calc.pnlPercent)}
+                          <td className={`${tradePerformance.pnlPercent >= 0 ? 'text-profit' : 'text-loss'} font-mono`}>
+                            {formatPercent(tradePerformance.pnlPercent)}
                           </td>
                         </tr>
                       );

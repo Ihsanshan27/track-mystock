@@ -53,9 +53,16 @@ export function WorkspaceProvider({ children }) {
         return;
       }
 
-      // Workspace feature deactivated: always use Personal workspace (workspace_id = null)
-      setWorkspaces([]);
-      setActiveWorkspaceId(null);
+      const workspaceRows = await listWorkspaces();
+      const savedWorkspaceId = getScopedItem('active_workspace', userId);
+      const hasSavedWorkspace = workspaceRows.some(workspace => workspace.id === savedWorkspaceId);
+
+      setWorkspaces(workspaceRows);
+      setActiveWorkspaceId(hasSavedWorkspace ? savedWorkspaceId : null);
+
+      if (savedWorkspaceId && !hasSavedWorkspace) {
+        setScopedItem('active_workspace', userId, null);
+      }
     } catch (error) {
       if (isMissingDatabaseSetupError(error)) {
         setWorkspaceSetupError(error.message);

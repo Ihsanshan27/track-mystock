@@ -4,6 +4,74 @@ import { listAuditLogs, cleanOldAuditLogs } from '@/modules/admin/services/audit
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { formatDateTime } from '@/modules/shared/utils/formatters';
 
+const ACTION_LABELS = {
+  'auth.registered': 'User mendaftar',
+  'auth.logged_in': 'User login',
+  'auth.logged_out': 'User logout',
+  'trade.created': 'Membuat transaksi',
+  'trade.updated': 'Mengubah transaksi',
+  'trade.deleted': 'Menghapus transaksi',
+  'watchlist.created': 'Menambah watchlist',
+  'watchlist.deleted': 'Menghapus watchlist',
+  'note.created': 'Membuat catatan',
+  'note.deleted': 'Menghapus catatan',
+  'cashflow.created': 'Mencatat cashflow',
+  'cashflow.deleted': 'Menghapus cashflow',
+  'dividend.created': 'Mencatat dividen',
+  'dividend.deleted': 'Menghapus dividen',
+  'portfolio.created': 'Membuat portofolio',
+  'portfolio.updated': 'Mengubah portofolio',
+  'portfolio.deleted': 'Menghapus portofolio',
+  'trading_plan.created': 'Membuat trading plan',
+  'trading_plan.deleted': 'Menghapus trading plan',
+  'ipo_event.created': 'Membuat event IPO',
+  'ipo_event.deleted': 'Menghapus event IPO',
+  'ipo_entry.created': 'Menambah entry IPO',
+  'ipo_entry.deleted': 'Menghapus entry IPO',
+  'bsjp_trade.created': 'Membuat transaksi BSJP',
+  'bsjp_trade.updated': 'Mengubah transaksi BSJP',
+  'bsjp_trade.deleted': 'Menghapus transaksi BSJP',
+  'settings.updated': 'Mengubah pengaturan',
+  'settings.registration_updated': 'Mengubah status registrasi',
+  'profile.display_name_updated': 'Mengubah nama tampilan',
+  'profile.role_updated': 'Mengubah role user',
+  'workspace.created': 'Membuat workspace',
+  'workspace.member_upserted': 'Menambah atau mengubah member workspace',
+  'workspace.member_removed': 'Menghapus member workspace',
+  'admin.user_created': 'Admin membuat user',
+  'data.exported': 'Export data',
+  'data.imported': 'Import data',
+  'data.cleared': 'Menghapus semua data',
+  'shared_access.upserted': 'Membuat atau mengubah akses sharing',
+  'shared_access.revoked': 'Mencabut akses sharing',
+  'report_share.created': 'Membuat link report',
+  'report_share.snapshot_refreshed': 'Refresh snapshot report',
+  'report_share.visibility_updated': 'Mengubah visibilitas report',
+  'report_share.deleted': 'Menghapus link report',
+  'report_share.link_copied': 'Menyalin link report',
+};
+
+const TARGET_TYPE_LABELS = {
+  auth_user: 'User',
+  trade: 'Transaksi',
+  watchlist_item: 'Watchlist',
+  note: 'Catatan',
+  cashflow: 'Cashflow',
+  dividend: 'Dividen',
+  portfolio: 'Portofolio',
+  trading_plan: 'Trading Plan',
+  ipo_event: 'Event IPO',
+  ipo_entry: 'Entry IPO',
+  bsjp_trade: 'Transaksi BSJP',
+  settings: 'Pengaturan',
+  profile: 'Profil',
+  workspace: 'Workspace',
+  app_settings: 'App Settings',
+  shared_access: 'Shared Access',
+  report_share: 'Report Share',
+  journal_data: 'Data Jurnal',
+};
+
 export default function AdminAuditLogsPage() {
   const { showToast, settings } = useData();
   const [logs, setLogs] = useState([]);
@@ -12,9 +80,9 @@ export default function AdminAuditLogsPage() {
   const [search, setSearch] = useState('');
 
   const profileById = useMemo(() => {
-    return profiles.reduce((acc, profile) => {
-      acc[profile.id] = profile;
-      return acc;
+    return profiles.reduce((profilesMap, profile) => {
+      profilesMap[profile.id] = profile;
+      return profilesMap;
     }, {});
   }, [profiles]);
 
@@ -26,7 +94,9 @@ export default function AdminAuditLogsPage() {
       const actor = profileById[log.actor_id];
       const haystack = [
         log.action,
+        getActionLabel(log.action),
         log.target_type,
+        getTargetTypeLabel(log.target_type),
         log.target_id,
         actor?.email,
         actor?.displayName,
@@ -43,8 +113,8 @@ export default function AdminAuditLogsPage() {
       if (retentionDays > 0) {
         try {
           await cleanOldAuditLogs(retentionDays);
-        } catch (cleanErr) {
-          console.warn('Gagal membersihkan log usang:', cleanErr.message);
+        } catch (cleanError) {
+          console.warn('Gagal membersihkan log usang:', cleanError.message);
         }
       }
       const [logRows, profileRows] = await Promise.all([
@@ -53,8 +123,8 @@ export default function AdminAuditLogsPage() {
       ]);
       setLogs(logRows);
       setProfiles(profileRows);
-    } catch (err) {
-      showToast(`Gagal memuat audit log: ${err.message}`, 'error');
+    } catch (error) {
+      showToast(`Gagal memuat audit log: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -77,11 +147,11 @@ export default function AdminAuditLogsPage() {
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="card-body">
           <div className="search-bar">
-            <span className="search-bar-icon">🔍</span>
+            <span className="search-bar-icon">ðŸ”</span>
             <input
-              placeholder="Cari action, user, target, atau metadata..."
+              placeholder="Cari aktivitas, user, target, atau metadata..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={event => setSearch(event.target.value)}
             />
           </div>
         </div>
@@ -91,9 +161,9 @@ export default function AdminAuditLogsPage() {
         <div className="loading-spinner" />
       ) : filteredLogs.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">🧾</div>
+          <div className="empty-state-icon">ðŸ§¾</div>
           <div className="empty-state-title">Belum ada audit log</div>
-          <div className="empty-state-desc">Aktivitas admin akan muncul di sini.</div>
+          <div className="empty-state-desc">Aktivitas user dan admin akan muncul di sini.</div>
         </div>
       ) : (
         <div className="table-container">
@@ -102,17 +172,18 @@ export default function AdminAuditLogsPage() {
               <tr>
                 <th>Waktu</th>
                 <th>Actor</th>
-                <th>Action</th>
+                <th>Aktivitas</th>
                 <th>Target</th>
-                <th>Metadata</th>
+                <th>Detail</th>
               </tr>
             </thead>
             <tbody>
               {filteredLogs.map(log => {
                 const actor = profileById[log.actor_id];
+                const metadataEntries = Object.entries(log.metadata || {});
                 return (
                   <tr key={log.id}>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                       {formatDateTime(log.created_at)}
                     </td>
                     <td>
@@ -121,21 +192,29 @@ export default function AdminAuditLogsPage() {
                         {actor?.email || log.actor_id || '-'}
                       </div>
                     </td>
-                    <td><span className="badge badge-purple">{log.action}</span></td>
                     <td>
-                      <div>{log.target_type || '-'}</div>
+                      <span className="badge badge-purple">{getActionLabel(log.action)}</span>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 6 }}>
+                        {log.action}
+                      </div>
+                    </td>
+                    <td>
+                      <div>{getTargetTypeLabel(log.target_type)}</div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{log.target_id || '-'}</div>
                     </td>
                     <td>
-                      <pre style={{
-                        margin: 0,
-                        maxWidth: 360,
-                        whiteSpace: 'pre-wrap',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.75rem',
-                      }}>
-                        {JSON.stringify(log.metadata || {}, null, 2)}
-                      </pre>
+                      {metadataEntries.length === 0 ? (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Tidak ada detail</span>
+                      ) : (
+                        <div style={{ display: 'grid', gap: 6, maxWidth: 420 }}>
+                          {metadataEntries.map(([key, value]) => (
+                            <div key={key} style={{ fontSize: '0.78rem', lineHeight: 1.4 }}>
+                              <strong style={{ color: 'var(--text-primary)' }}>{formatMetadataKey(key)}:</strong>{' '}
+                              <span style={{ color: 'var(--text-secondary)' }}>{formatMetadataValue(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -146,4 +225,29 @@ export default function AdminAuditLogsPage() {
       )}
     </div>
   );
+}
+
+function getActionLabel(action) {
+  return ACTION_LABELS[action] || action;
+}
+
+function getTargetTypeLabel(targetType) {
+  return TARGET_TYPE_LABELS[targetType] || targetType || '-';
+}
+
+function formatMetadataKey(key) {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, character => character.toUpperCase());
+}
+
+function formatMetadataValue(value) {
+  if (value == null || value === '') return '-';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'boolean') return value ? 'Ya' : 'Tidak';
+  return String(value);
 }

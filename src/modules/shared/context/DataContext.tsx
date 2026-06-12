@@ -11,6 +11,7 @@ import { usePermissions } from '@/modules/shared/context/PermissionContext';
 import { isSupabaseConfigured } from '@/modules/shared/services/supabaseClient';
 import { clearUserData, loadUserData, replaceAllUserData, saveUserData } from '@/modules/shared/services/supabaseDataService';
 import { isMissingDatabaseSetupError } from '@/modules/shared/utils/errorMessages';
+import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 
 const DataContext = createContext(null);
 const DEFAULT_SETTINGS = {
@@ -139,6 +140,18 @@ export function DataProvider({ children }) {
     return false;
   }, [can, roleLabel, showToast]);
 
+  const logUserActivity = useCallback((action, targetType, targetId, metadata = {}) => {
+    if (!userId) return;
+
+    createAuditLogSafe({
+      actorId: userId,
+      action,
+      targetType,
+      targetId,
+      metadata,
+    });
+  }, [userId]);
+
   // Active Portfolio state initialization
   useEffect(() => {
     if (userId) {
@@ -242,21 +255,45 @@ export function DataProvider({ children }) {
     };
     const updated = [newTrade, ...allTrades];
     saveTrades(updated);
+    logUserActivity('trade.created', 'trade', newTrade.id, {
+      stockCode: newTrade.stockCode,
+      market: newTrade.market || 'ID',
+      portfolioId: newTrade.portfolioId || 'default',
+      dateBuy: newTrade.dateBuy,
+      isClosed: Boolean(newTrade.sellPrice && newTrade.dateSell),
+    });
     showToast('Transaksi berhasil ditambahkan');
     return newTrade;
   };
 
   const updateTrade = (id, updates) => {
     if (!ensureWritable()) return;
+    const existingTrade = allTrades.find(t => t.id === id);
     const updated = allTrades.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
     saveTrades(updated);
+    if (existingTrade) {
+      logUserActivity('trade.updated', 'trade', id, {
+        stockCode: updates.stockCode || existingTrade.stockCode,
+        market: updates.market || existingTrade.market || 'ID',
+        portfolioId: updates.portfolioId || existingTrade.portfolioId || 'default',
+        fieldsUpdated: Object.keys(updates || {}),
+      });
+    }
     showToast('Transaksi berhasil diperbarui');
   };
 
   const deleteTrade = (id) => {
     if (!ensureWritable()) return;
+    const existingTrade = allTrades.find(t => t.id === id);
     const updated = allTrades.filter(t => t.id !== id);
     saveTrades(updated);
+    if (existingTrade) {
+      logUserActivity('trade.deleted', 'trade', id, {
+        stockCode: existingTrade.stockCode,
+        market: existingTrade.market || 'ID',
+        portfolioId: existingTrade.portfolioId || 'default',
+      });
+    }
     showToast('Transaksi berhasil dihapus');
   };
 
@@ -269,6 +306,10 @@ export function DataProvider({ children }) {
     const updated = [newItem, ...watchlist];
     setWatchlist(updated);
     persistData('watchlist', updated);
+    logUserActivity('watchlist.created', 'watchlist_item', newItem.id, {
+      stockCode: newItem.stockCode || null,
+      market: newItem.market || 'ID',
+    });
     showToast('Item watchlist ditambahkan');
   };
 
@@ -281,9 +322,16 @@ export function DataProvider({ children }) {
 
   const deleteWatchlistItem = (id) => {
     if (!ensureWritable()) return;
+    const existingItem = watchlist.find(w => w.id === id);
     const updated = watchlist.filter(w => w.id !== id);
     setWatchlist(updated);
     persistData('watchlist', updated);
+    if (existingItem) {
+      logUserActivity('watchlist.deleted', 'watchlist_item', id, {
+        stockCode: existingItem.stockCode || null,
+        market: existingItem.market || 'ID',
+      });
+    }
     showToast('Item watchlist dihapus');
   };
 
@@ -294,6 +342,9 @@ export function DataProvider({ children }) {
     const updated = [newNote, ...notes];
     setNotes(updated);
     persistData('notes', updated);
+    logUserActivity('note.created', 'note', newNote.id, {
+      title: newNote.title || null,
+    });
     showToast('Catatan disimpan');
   };
 
@@ -306,9 +357,15 @@ export function DataProvider({ children }) {
 
   const deleteNote = (id) => {
     if (!ensureWritable()) return;
+    const existingNote = notes.find(n => n.id === id);
     const updated = notes.filter(n => n.id !== id);
     setNotes(updated);
     persistData('notes', updated);
+    if (existingNote) {
+      logUserActivity('note.deleted', 'note', id, {
+        title: existingNote.title || null,
+      });
+    }
     showToast('Catatan dihapus');
   };
 
@@ -324,14 +381,28 @@ export function DataProvider({ children }) {
     const updated = [newCf, ...allCashflows];
     setAllCashflows(updated);
     persistData('cashflows', updated);
+    logUserActivity('cashflow.created', 'cashflow', newCf.id, {
+      type: newCf.type || null,
+      amount: newCf.amount || null,
+      market: newCf.market || 'ID',
+      portfolioId: newCf.portfolioId || 'default',
+    });
     showToast('Transaksi kas berhasil dicatat');
   };
 
   const deleteCashflow = (id) => {
     if (!ensureWritable()) return;
+    const existingCashflow = allCashflows.find(c => c.id === id);
     const updated = allCashflows.filter(c => c.id !== id);
     setAllCashflows(updated);
     persistData('cashflows', updated);
+    if (existingCashflow) {
+      logUserActivity('cashflow.deleted', 'cashflow', id, {
+        type: existingCashflow.type || null,
+        amount: existingCashflow.amount || null,
+        market: existingCashflow.market || 'ID',
+      });
+    }
     showToast('Transaksi kas dibatalkan');
   };
 
@@ -347,14 +418,28 @@ export function DataProvider({ children }) {
     const updated = [newDiv, ...allDividends];
     setAllDividends(updated);
     persistData('dividends', updated);
+    logUserActivity('dividend.created', 'dividend', newDiv.id, {
+      stockCode: newDiv.stockCode || null,
+      amount: newDiv.amount || null,
+      market: newDiv.market || 'ID',
+      portfolioId: newDiv.portfolioId || 'default',
+    });
     showToast('Catatan dividen ditambahkan');
   };
 
   const deleteDividend = (id) => {
     if (!ensureWritable()) return;
+    const existingDividend = allDividends.find(d => d.id === id);
     const updated = allDividends.filter(d => d.id !== id);
     setAllDividends(updated);
     persistData('dividends', updated);
+    if (existingDividend) {
+      logUserActivity('dividend.deleted', 'dividend', id, {
+        stockCode: existingDividend.stockCode || null,
+        amount: existingDividend.amount || null,
+        market: existingDividend.market || 'ID',
+      });
+    }
     showToast('Catatan dividen dihapus');
   };
 
@@ -370,15 +455,25 @@ export function DataProvider({ children }) {
     const updated = [...portfolios, newPort];
     setPortfolios(updated);
     persistData('portfolios', updated);
+    logUserActivity('portfolio.created', 'portfolio', newPort.id, {
+      name: newPort.name,
+    });
     showToast('Portofolio berhasil dibuat');
     return newPort;
   };
 
   const updatePortfolio = (id, updates) => {
     if (!ensureWritable()) return;
+    const existingPortfolio = portfolios.find(p => p.id === id);
     const updated = portfolios.map(p => p.id === id ? { ...p, ...updates } : p);
     setPortfolios(updated);
     persistData('portfolios', updated);
+    if (existingPortfolio) {
+      logUserActivity('portfolio.updated', 'portfolio', id, {
+        name: updates.name || existingPortfolio.name,
+        fieldsUpdated: Object.keys(updates || {}),
+      });
+    }
     showToast('Portofolio berhasil diperbarui');
   };
 
@@ -388,6 +483,7 @@ export function DataProvider({ children }) {
       showToast('Portofolio utama tidak bisa dihapus', 'error');
       return;
     }
+    const existingPortfolio = portfolios.find(p => p.id === id);
     const updatedPortfolios = portfolios.filter(p => p.id !== id);
     setPortfolios(updatedPortfolios);
     persistData('portfolios', updatedPortfolios);
@@ -409,6 +505,11 @@ export function DataProvider({ children }) {
     setAllDividends(updatedDividends);
     persistData('dividends', updatedDividends);
 
+    if (existingPortfolio) {
+      logUserActivity('portfolio.deleted', 'portfolio', id, {
+        name: existingPortfolio.name,
+      });
+    }
     showToast('Portofolio beserta datanya berhasil dihapus');
   };
 
@@ -424,19 +525,24 @@ export function DataProvider({ children }) {
     const addTradingPlan = (plan) => {
       if (!ensureWritable()) return;
       const newPlan = { ...plan, id: generateId(), createdAt: new Date().toISOString() };
-      const updated = [newPlan, ...tradingPlans];
-      setTradingPlans(updated);
-      persistData('tradingPlans', updated);
-      showToast('Rencana trading disimpan');
-    };
+    const updated = [newPlan, ...tradingPlans];
+    setTradingPlans(updated);
+    persistData('tradingPlans', updated);
+    logUserActivity('trading_plan.created', 'trading_plan', newPlan.id, {
+      stockCode: newPlan.stockCode || null,
+      market: newPlan.market || 'ID',
+    });
+    showToast('Rencana trading disimpan');
+  };
 
     const deleteTradingPlan = (id) => {
       if (!ensureWritable()) return;
-      const updated = tradingPlans.filter(p => p.id !== id);
-      setTradingPlans(updated);
-      persistData('tradingPlans', updated);
-      showToast('Rencana trading dihapus');
-    };
+    const updated = tradingPlans.filter(p => p.id !== id);
+    setTradingPlans(updated);
+    persistData('tradingPlans', updated);
+    logUserActivity('trading_plan.deleted', 'trading_plan', id);
+    showToast('Rencana trading dihapus');
+  };
 
   // === IPO EVENTS CRUD ===
   const addIpoEvent = (event: any) => {
@@ -445,6 +551,10 @@ export function DataProvider({ children }) {
     const updated = [newEvent, ...ipoEvents];
     setIpoEvents(updated);
     persistData('ipoEvents', updated);
+    logUserActivity('ipo_event.created', 'ipo_event', newEvent.id, {
+      name: newEvent.name || null,
+      stockCode: newEvent.stockCode || null,
+    });
     showToast('IPO event berhasil dibuat');
     return newEvent;
   };
@@ -459,6 +569,7 @@ export function DataProvider({ children }) {
 
   const deleteIpoEvent = (id: string) => {
     if (!ensureWritable()) return;
+    const existingEvent = ipoEvents.find(e => e.id === id);
     const updatedEvents = ipoEvents.filter(e => e.id !== id);
     setIpoEvents(updatedEvents);
     persistData('ipoEvents', updatedEvents);
@@ -466,6 +577,12 @@ export function DataProvider({ children }) {
     const updatedEntries = ipoEntries.filter((e: any) => e.ipoEventId !== id);
     setIpoEntries(updatedEntries);
     persistData('ipoEntries', updatedEntries);
+    if (existingEvent) {
+      logUserActivity('ipo_event.deleted', 'ipo_event', id, {
+        name: existingEvent.name || null,
+        stockCode: existingEvent.stockCode || null,
+      });
+    }
     showToast('IPO event dihapus');
   };
 
@@ -476,6 +593,10 @@ export function DataProvider({ children }) {
     const updated = [...ipoEntries, newEntry];
     setIpoEntries(updated);
     persistData('ipoEntries', updated);
+    logUserActivity('ipo_entry.created', 'ipo_entry', newEntry.id, {
+      ipoEventId: newEntry.ipoEventId || null,
+      accountName: newEntry.accountName || null,
+    });
     showToast('Entry akun ditambahkan');
     return newEntry;
   };
@@ -490,9 +611,16 @@ export function DataProvider({ children }) {
 
   const deleteIpoEntry = (id: string) => {
     if (!ensureWritable()) return;
+    const existingEntry = ipoEntries.find((entry: any) => entry.id === id);
     const updated = ipoEntries.filter((e: any) => e.id !== id);
     setIpoEntries(updated);
     persistData('ipoEntries', updated);
+    if (existingEntry) {
+      logUserActivity('ipo_entry.deleted', 'ipo_entry', id, {
+        ipoEventId: existingEntry.ipoEventId || null,
+        accountName: existingEntry.accountName || null,
+      });
+    }
     showToast('Entry dihapus');
   };
 
@@ -521,23 +649,40 @@ export function DataProvider({ children }) {
     const updated = [newTrade, ...bsjpTrades];
     setBsjpTrades(updated);
     persistData('bsjpTrades', updated);
+    logUserActivity('bsjp_trade.created', 'bsjp_trade', newTrade.id, {
+      stockCode: newTrade.stockCode || null,
+      date: newTrade.date || null,
+    });
     showToast('Transaksi BSJP berhasil ditambahkan');
     return newTrade;
   };
 
   const updateBsjpTrade = (id, updates) => {
     if (!ensureWritable()) return;
+    const existingTrade = bsjpTrades.find(t => t.id === id);
     const updated = bsjpTrades.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
     setBsjpTrades(updated);
     persistData('bsjpTrades', updated);
+    if (existingTrade) {
+      logUserActivity('bsjp_trade.updated', 'bsjp_trade', id, {
+        stockCode: updates.stockCode || existingTrade.stockCode || null,
+        fieldsUpdated: Object.keys(updates || {}),
+      });
+    }
     showToast('Transaksi BSJP berhasil diperbarui');
   };
 
   const deleteBsjpTrade = (id) => {
     if (!ensureWritable()) return;
+    const existingTrade = bsjpTrades.find(t => t.id === id);
     const updated = bsjpTrades.filter(t => t.id !== id);
     setBsjpTrades(updated);
     persistData('bsjpTrades', updated);
+    if (existingTrade) {
+      logUserActivity('bsjp_trade.deleted', 'bsjp_trade', id, {
+        stockCode: existingTrade.stockCode || null,
+      });
+    }
     showToast('Transaksi BSJP berhasil dihapus');
   };
 
@@ -547,6 +692,9 @@ export function DataProvider({ children }) {
     const newSettings = { ...settings, ...updates };
     setSettings(newSettings);
     persistData('settings', newSettings);
+    logUserActivity('settings.updated', 'settings', userId, {
+      fieldsUpdated: Object.keys(updates || {}),
+    });
     showToast('Pengaturan disimpan');
   };
 
