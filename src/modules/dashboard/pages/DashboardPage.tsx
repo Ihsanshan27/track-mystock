@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const filteredCashflows = useMemo(() => cashflows.filter(cashflow => cashflow.market === activeMarketTab || (!cashflow.market && activeMarketTab === 'ID')), [cashflows, activeMarketTab]);
   const filteredDividends = useMemo(() => dividends.filter(dividend => dividend.market === activeMarketTab || (!dividend.market && activeMarketTab === 'ID')), [dividends, activeMarketTab]);
 
-  const initialCapitalForMarket = activeMarketTab === 'US' ? (settings.initialCapitalUS || 1000) : settings.initialCapital;
+  const initialCapitalForMarket = activeMarketTab === 'US' ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000);
 
   const stats = useMemo(() => calculateStats(filteredTrades), [filteredTrades]);
   const equityCurve = useMemo(() => calculateEquityCurve(filteredTrades, initialCapitalForMarket), [filteredTrades, initialCapitalForMarket]);
@@ -46,9 +46,9 @@ export default function DashboardPage() {
   const allUsDividends = useMemo(() => dividends.filter(dividend => dividend.market === 'US'), [dividends]);
 
   const indonesianMarketBalance = useMemo(() => calculatePortfolioBalance(allIndonesianTrades, allIndonesianCashflows, allIndonesianDividends, settings.initialCapital), [allIndonesianTrades, allIndonesianCashflows, allIndonesianDividends, settings.initialCapital]);
-  const usMarketBalance = useMemo(() => calculatePortfolioBalance(allUsTrades, allUsCashflows, allUsDividends, settings.initialCapitalUS || 1000), [allUsTrades, allUsCashflows, allUsDividends, settings.initialCapitalUS]);
+  const usMarketBalance = useMemo(() => calculatePortfolioBalance(allUsTrades, allUsCashflows, allUsDividends, settings.initialCapitalUS ?? 1000), [allUsTrades, allUsCashflows, allUsDividends, settings.initialCapitalUS]);
 
-  const usdToIdrRate = settings.usdToIdrRate || 16200;
+  const usdToIdrRate = settings.usdToIdrRate ?? 16200;
   const totalCombinedEquityInIdr = indonesianMarketBalance.realizedEquity + (usMarketBalance.realizedEquity * usdToIdrRate);
 
   const hasUsAssets = useMemo(() => {
@@ -89,14 +89,14 @@ export default function DashboardPage() {
   if (trades.length === 0) {
     return (
       <div className="empty-state">
-        <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: 'var(--text-muted)' }}>
+        <div className="empty-state-icon dashboard-empty-icon">
           <Icons.LayoutDashboard size={48} />
         </div>
         <div className="empty-state-title">Selamat Datang di Jurnal Saham</div>
         <div className="empty-state-desc">
           Mulai catat transaksi trading Anda untuk melihat dashboard performa di sini.
         </div>
-        <Link to="/trades/new" className="btn btn-primary btn-lg" style={{ marginTop: 16 }}>
+        <Link to="/trades/new" className="btn btn-primary btn-lg dashboard-empty-cta">
           Catat Transaksi Pertama
         </Link>
       </div>
@@ -107,13 +107,13 @@ export default function DashboardPage() {
     <div>
       <MarketTabBar activeTab={activeMarketTab} onChange={setActiveMarketTab} />
       {filteredTrades.length === 0 ? (
-        <div className="empty-state" style={{ marginTop: 40 }}>
-          <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: 'var(--text-muted)' }}>
+        <div className="empty-state dashboard-market-empty-state">
+          <div className="empty-state-icon dashboard-empty-icon">
             <Icons.LayoutDashboard size={48} />
           </div>
           <div className="empty-state-title">Belum ada transaksi di Pasar {isUS ? 'Amerika' : 'Indonesia'}</div>
           <div className="empty-state-desc">Catat transaksi pertama Anda untuk mulai memonitor performa.</div>
-          <Link to="/trades/new" className="btn btn-primary" style={{ marginTop: 16 }}>
+          <Link to="/trades/new" className="btn btn-primary dashboard-empty-cta">
             Catat Transaksi Baru
           </Link>
         </div>
@@ -195,83 +195,68 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ marginBottom: 32 }}>
-            <h3 style={{ fontSize: '1rem', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Icons.Award size={18} style={{ color: 'var(--accent-yellow)' }} />
+          <div className="dashboard-achievements-section">
+            <h3 className="dashboard-achievements-title">
+              <Icons.Award size={18} className="dashboard-achievements-icon" />
               Pencapaian Anda ({isUS ? 'US' : 'ID'})
             </h3>
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 12 }}>
+            <div className="dashboard-achievements-list">
               {achievements.map(achievement => {
                 const AchievementIcon = (Icons as any)[achievement.icon] || Icons.Award;
                 return (
-                  <div key={achievement.id} className="bento-card" style={{
-                    minWidth: 220,
-                    flex: '0 0 auto',
-                    padding: 20,
-                    opacity: achievement.unlocked ? 1 : 0.5,
-                    border: achievement.unlocked ? '1px solid var(--accent-green)' : '1px solid var(--border-color)',
-                    background: achievement.unlocked ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-card)',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <div style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        background: achievement.unlocked ? 'var(--accent-green-dim)' : 'var(--bg-input)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: achievement.unlocked ? 'var(--accent-green)' : 'var(--text-muted)'
-                      }}>
+                  <div
+                    key={achievement.id}
+                    className={`bento-card dashboard-achievement-card ${achievement.unlocked ? 'dashboard-achievement-card-unlocked' : 'dashboard-achievement-card-locked'}`}
+                  >
+                    <div className="dashboard-achievement-header">
+                      <div className={`dashboard-achievement-badge ${achievement.unlocked ? 'dashboard-achievement-badge-unlocked' : 'dashboard-achievement-badge-locked'}`}>
                         <AchievementIcon size={20} />
                       </div>
                       <div>
                         {achievement.unlocked ? (
-                          <Icons.Unlock size={14} style={{ color: 'var(--accent-green)' }} />
+                          <Icons.Unlock size={14} className="dashboard-achievement-status-unlocked" />
                         ) : (
-                          <Icons.Lock size={14} style={{ color: 'var(--text-muted)' }} />
+                          <Icons.Lock size={14} className="dashboard-achievement-status-locked" />
                         )}
                       </div>
                     </div>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 4 }}>{achievement.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>{achievement.desc}</div>
+                    <div className="dashboard-achievement-name">{achievement.name}</div>
+                    <div className="dashboard-achievement-desc">{achievement.desc}</div>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          <div className="bento-grid" style={{ marginBottom: 24 }}>
+          <div className="bento-grid dashboard-charts-grid">
             <div className="bento-card bento-col-8">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
-                <div className="bento-card-title" style={{ margin: 0 }}>
-                  <Icons.TrendingUp size={18} style={{ color: 'var(--accent-green)' }} />
+              <div className="dashboard-chart-header">
+                <div className="bento-card-title dashboard-chart-title">
+                  <Icons.TrendingUp size={18} className="dashboard-chart-title-icon" />
                   <span>Grafik Performa</span>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className="dashboard-chart-tabs">
                   <button
                     onClick={() => setActiveChartTab('equity')}
-                    className={`btn btn-sm ${activeChartTab === 'equity' ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ padding: '4px 10px', height: 28 }}
+                    className={`btn btn-sm dashboard-chart-tab-btn ${activeChartTab === 'equity' ? 'btn-primary' : 'btn-secondary'}`}
                   >
                     Pertumbuhan Modal
                   </button>
                   <button
                     onClick={() => setActiveChartTab('drawdown')}
-                    className={`btn btn-sm ${activeChartTab === 'drawdown' ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ padding: '4px 10px', height: 28 }}
+                    className={`btn btn-sm dashboard-chart-tab-btn ${activeChartTab === 'drawdown' ? 'btn-primary' : 'btn-secondary'}`}
                   >
                     Drawdown (%)
                   </button>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', padding: '4px 8px', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', marginBottom: 12 }}>
+              <div className="dashboard-chart-summary">
                 <div>Modal Awal: <strong>{formatMoney(initialCapitalForMarket)}</strong></div>
-                <div style={{ color: 'var(--accent-red)' }}>
+                <div className="dashboard-chart-summary-drawdown">
                   Max Drawdown: <strong>-{maxDrawdownPercent.toFixed(2)}%</strong> ({formatMoney(maxDrawdownAmount)})
                 </div>
               </div>
-              <div style={{ height: 280, marginTop: 8 }}>
+              <div className="dashboard-chart-body">
                 {equityCurve.length > 1 ? (
                   activeChartTab === 'equity' ? (
                     <ResponsiveContainer width="100%" height="100%">
@@ -316,8 +301,8 @@ export default function DashboardPage() {
                     </ResponsiveContainer>
                   )
                 ) : (
-                  <div className="empty-state" style={{ padding: 40 }}>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <div className="empty-state dashboard-chart-empty-state">
+                    <div className="dashboard-chart-empty-text">
                       Butuh minimal 2 transaksi untuk menampilkan grafik
                     </div>
                   </div>
@@ -327,13 +312,13 @@ export default function DashboardPage() {
 
             <div className="bento-card bento-col-4">
               <div className="bento-card-title">
-                <Icons.Calendar size={18} style={{ color: 'var(--accent-green)' }} />
+                <Icons.Calendar size={18} className="dashboard-chart-title-icon" />
                 <span>Kalender Performa ({now.toLocaleString('id-ID', { month: 'short' })})</span>
               </div>
-              <div style={{ marginTop: 8 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 8 }}>
+              <div className="dashboard-calendar-body">
+                <div className="dashboard-calendar-weekdays">
                   {['M', 'S', 'S', 'R', 'K', 'J', 'S'].map((dayLabel, dayLabelIndex) => (
-                    <div key={dayLabelIndex} style={{ textAlign: 'center', fontSize: '0.65rem', color: 'var(--text-muted)', padding: 4, fontWeight: 700 }}>
+                    <div key={dayLabelIndex} className="dashboard-calendar-weekday">
                       {dayLabel}
                     </div>
                   ))}
@@ -349,17 +334,17 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 16, fontSize: '0.7rem', color: 'var(--text-muted)', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-green)' }}></span>
+                <div className="dashboard-calendar-legend">
+                  <div className="dashboard-calendar-legend-item">
+                    <span className="dashboard-calendar-dot dashboard-calendar-dot-profit"></span>
                     <span>Profit</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-red)' }}></span>
+                  <div className="dashboard-calendar-legend-item">
+                    <span className="dashboard-calendar-dot dashboard-calendar-dot-loss"></span>
                     <span>Loss</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(148, 163, 184, 0.1)' }}></span>
+                  <div className="dashboard-calendar-legend-item">
+                    <span className="dashboard-calendar-dot dashboard-calendar-dot-neutral"></span>
                     <span>No Trade</span>
                   </div>
                 </div>
@@ -368,12 +353,12 @@ export default function DashboardPage() {
           </div>
 
           {monthlyPnL.length > 0 && (
-            <div className="bento-card" style={{ marginBottom: 24 }}>
+            <div className="bento-card dashboard-monthly-card">
               <div className="bento-card-title">
-                <Icons.BarChart3 size={18} style={{ color: 'var(--accent-green)' }} />
+                <Icons.BarChart3 size={18} className="dashboard-chart-title-icon" />
                 <span>Profit/Loss Bulanan</span>
               </div>
-              <div style={{ height: 260, marginTop: 8 }}>
+              <div className="dashboard-monthly-chart-body">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyPnL}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" />
@@ -393,17 +378,17 @@ export default function DashboardPage() {
 
           {recentTrades.length > 0 && (
             <div className="bento-card">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div className="bento-card-title" style={{ marginBottom: 0 }}>
-                  <Icons.History size={18} style={{ color: 'var(--accent-green)' }} />
+              <div className="dashboard-recent-header">
+                <div className="bento-card-title dashboard-recent-title">
+                  <Icons.History size={18} className="dashboard-chart-title-icon" />
                   <span>Transaksi Terakhir</span>
                 </div>
-                <Link to="/trades" className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Link to="/trades" className="btn btn-ghost btn-sm dashboard-recent-link">
                   <span>Lihat Semua</span>
                   <Icons.ArrowRight size={14} />
                 </Link>
               </div>
-              <div className="table-container" style={{ border: 'none' }}>
+              <div className="table-container dashboard-recent-table">
                 <table className="table">
                   <thead>
                     <tr>
@@ -422,7 +407,7 @@ export default function DashboardPage() {
                       return (
                         <tr key={trade.id}>
                           <td><strong>{trade.stockCode}</strong></td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{formatDate(trade.dateSell)}</td>
+                          <td className="dashboard-table-secondary-text">{formatDate(trade.dateSell)}</td>
                           <td className="font-mono">{formatMoney(trade.buyPrice)}</td>
                           <td className="font-mono">{formatMoney(trade.sellPrice)}</td>
                           <td className="font-mono">{trade.lots}</td>

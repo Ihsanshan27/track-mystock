@@ -32,7 +32,7 @@ export default function CashflowPage() {
   const isUS = activeTab === 'US';
   const formatMoney = isUS ? formatUSD : formatRupiah;
 
-  const initCap = isUS ? (settings.initialCapitalUS || 1000) : settings.initialCapital;
+  const initCap = isUS ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000);
   const balance = calculatePortfolioBalance(trades, cashflows, dividends, initCap, activeTab);
 
   const filteredCashflows = cashflows.filter((cf: any) => cf.market === activeTab || (!cf.market && activeTab === 'ID'));

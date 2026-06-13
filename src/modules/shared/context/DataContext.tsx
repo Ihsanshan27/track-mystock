@@ -98,6 +98,7 @@ export function DataProvider({ children }) {
   const [calculatorDrafts, setCalculatorDrafts] = useState<any>({
     pnl: { buyPrice: '', sellPrice: '', lots: '', buyFee: '0.15', sellFee: '0.25' },
     fee: { price: '', lots: '', buyFeeP: '0.15', sellFeeP: '0.15', ppn: '11' },
+    araarb: { referencePrice: '', simulationDays: '3' },
     avg: { purchases: [{ price: '', lots: '' }, { price: '', lots: '' }] },
     avgdown: { currentAvg: '', currentLots: '', currentPrice: '', targetAvg: '' },
     rr: { entry: '', stopLoss: '', takeProfit: '', lots: '1' },
@@ -192,15 +193,23 @@ export function DataProvider({ children }) {
     let cancelled = false;
 
     async function loadData() {
+      const cachedLocalData = loadLocalData(userId);
+      const hasCachedLocalData = hasStoredData(cachedLocalData);
+
       setDataLoading(true);
       setDataError('');
       setDatabaseSetupError('');
       try {
         if (isSupabaseConfigured) {
+          if (hasCachedLocalData) {
+            applyData(cachedLocalData);
+            setDataLoading(false);
+          }
           const remoteData = await loadUserData(userId);
           const nextData = await migrateLocalDataToSupabase(userId, remoteData);
           if (cancelled) return;
           applyData(nextData);
+          cacheLocalData(userId, nextData);
         } else {
           migrateGlobalToUser(userId);
           migrateWorkspaceScopeToUserScope(userId);
@@ -211,8 +220,12 @@ export function DataProvider({ children }) {
         if (isMissingDatabaseSetupError(error)) {
           setDatabaseSetupError(error.message);
         } else {
-          setDataError(error.message);
-          showToast(`Gagal memuat data: ${error.message}`, 'error');
+          if (hasCachedLocalData) {
+            showToast(`Koneksi ke server gagal, memakai cache lokal: ${error.message}`, 'error');
+          } else {
+            setDataError(error.message);
+            showToast(`Gagal memuat data: ${error.message}`, 'error');
+          }
         }
       } finally {
         if (!cancelled) setDataLoading(false);
@@ -227,13 +240,12 @@ export function DataProvider({ children }) {
 
   const persistData = useCallback((key, value) => {
     if (!userId) return;
+    setScopedItem(key, userId, value);
     if (isSupabaseConfigured) {
       saveUserData(key, value, userId)
         .catch((error) => {
           showToast(`Gagal menyimpan ${key}: ${error.message}`, 'error');
         });
-    } else {
-      setScopedItem(key, userId, value);
     }
   }, [userId, showToast]);
 
@@ -867,11 +879,22 @@ function loadLocalData(userId) {
     dividends: getScopedItem('dividends', userId) || [],
     settings: normalizeSettings(getScopedItem('settings', userId)),
     marketPrices: getScopedItem('marketPrices', userId) || {},
+    portfolios: getScopedItem('portfolios', userId) || [DEFAULT_PORTFOLIO],
     tradingPlans: getScopedItem('tradingPlans', userId) || [],
     ipoEvents: getScopedItem('ipoEvents', userId) || [],
     ipoEntries: getScopedItem('ipoEntries', userId) || [],
     bsjpTrades: getScopedItem('bsjpTrades', userId) || [],
   };
+}
+
+function cacheLocalData(userId, data) {
+  if (!userId || !data) return;
+
+  LOCAL_DATA_KEYS.forEach((key) => {
+    if (data[key] !== undefined) {
+      setScopedItem(key, userId, data[key]);
+    }
+  });
 }
 
 function hasStoredData(data) {

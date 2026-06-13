@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import Sidebar from '@/modules/shared/components/Sidebar';
 import Header from '@/modules/shared/components/Header';
 import { useData } from '@/modules/shared/context/DataContext';
+import { useScrollRestoration } from '@/modules/shared/hooks/useScrollRestoration';
 import { CheckCircle, AlertCircle } from 'lucide-react';
 
 const PAGE_TITLES = {
@@ -31,6 +32,7 @@ export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { toasts } = useData();
+  useScrollRestoration();
 
   let pageTitle = PAGE_TITLES[location.pathname] || 'Jurnal Saham';
   if (location.pathname.startsWith('/mentor/traders/')) {

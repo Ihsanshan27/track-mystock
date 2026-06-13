@@ -112,9 +112,12 @@ export default function AdminAuditLogsPage() {
       const retentionDays = parseInt(settings.logRetentionDays) || 0;
       if (retentionDays > 0) {
         try {
-          await cleanOldAuditLogs(retentionDays);
-        } catch (cleanError) {
-          console.warn('Gagal membersihkan log usang:', cleanError.message);
+          const deletedCount = await cleanOldAuditLogs(retentionDays);
+          if (deletedCount > 0) {
+            showToast(`${deletedCount} audit log lama dibersihkan`);
+          }
+        } catch (cleanError: any) {
+          showToast(`Gagal membersihkan log usang: ${cleanError.message}`, 'error');
         }
       }
       const [logRows, profileRows] = await Promise.all([

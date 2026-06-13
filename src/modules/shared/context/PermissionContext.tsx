@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useAuth } from '@/modules/auth/AuthContext';
 import { loadProfile } from '@/modules/shared/services/profileService';
 import { isMissingDatabaseSetupError } from '@/modules/shared/utils/errorMessages';
+import { getScopedItem, setScopedItem } from '@/modules/shared/utils/storage';
 
 const PermissionContext = createContext(null);
 const ROLE_LABELS = {
@@ -88,8 +89,9 @@ const ROLE_PERMISSIONS = {
 
 export function PermissionProvider({ children }) {
   const { user } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [roleLoading, setRoleLoading] = useState(true);
+  const cachedProfile = user?.id ? getScopedItem('profile_cache', user.id) : null;
+  const [profile, setProfile] = useState(cachedProfile);
+  const [roleLoading, setRoleLoading] = useState(!cachedProfile);
   const [roleError, setRoleError] = useState('');
   const [roleSetupError, setRoleSetupError] = useState('');
 
@@ -106,11 +108,17 @@ export function PermissionProvider({ children }) {
       setRoleLoading(true);
       setRoleError('');
       setRoleSetupError('');
+      const localCachedProfile = getScopedItem('profile_cache', user.id);
+      if (localCachedProfile) {
+        setProfile(localCachedProfile);
+        setRoleLoading(false);
+      }
 
       try {
         const nextProfile = await loadProfile(user);
         if (cancelled) return;
         setProfile(nextProfile);
+        setScopedItem('profile_cache', user.id, nextProfile);
       } catch (error) {
         if (cancelled) return;
         const fallbackProfile = {
@@ -142,6 +150,7 @@ export function PermissionProvider({ children }) {
     if (!user) return null;
     const nextProfile = await loadProfile(user);
     setProfile(nextProfile);
+    setScopedItem('profile_cache', user.id, nextProfile);
     setRoleError('');
     setRoleSetupError('');
     return nextProfile;

@@ -31,8 +31,8 @@ export default function ProfilePage() {
       const pCashflows = allCashflows.filter((c: any) => (c.portfolioId || 'default') === p.id);
       const pDividends = allDividends.filter((d: any) => (d.portfolioId || 'default') === p.id);
 
-      const initialCapID = p.id === 'default' ? settings.initialCapital : 0;
-      const initialCapUS = p.id === 'default' ? (settings.initialCapitalUS || 1000) : 0;
+      const initialCapID = p.id === 'default' ? (settings.initialCapital ?? 10000000) : 0;
+      const initialCapUS = p.id === 'default' ? (settings.initialCapitalUS ?? 1000) : 0;
 
       // 1. Calculate Buying Power
       const statsID = calculatePortfolioBalance(
@@ -75,7 +75,7 @@ export default function ProfilePage() {
       const portfolioTotalID = statsID.buyingPower + openValueID;
       const portfolioTotalUS = statsUS.buyingPower + openValueUS;
 
-      total += portfolioTotalID + (portfolioTotalUS * (settings.usdToIdrRate || 16200));
+      total += portfolioTotalID + (portfolioTotalUS * (settings.usdToIdrRate ?? 16200));
     });
 
     return total;
@@ -203,7 +203,7 @@ export default function ProfilePage() {
                 {formatRupiah(totalAssetsIDR)}
               </div>
               <div style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: 6, lineHeight: 1.3 }}>
-                Akumulasi seluruh saldo & nilai saham terbuka. Konversi USD menggunakan kurs Rp {settings.usdToIdrRate || '16.200'}.
+                Akumulasi seluruh saldo & nilai saham terbuka. Konversi USD menggunakan kurs Rp {settings.usdToIdrRate ?? '16.200'}.
               </div>
             </div>
           </div>

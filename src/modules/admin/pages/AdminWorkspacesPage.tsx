@@ -212,14 +212,14 @@ export default function AdminWorkspacesPage() {
       </div>
 
       {pageErrorMessage && (
-        <div className="card" style={{ marginBottom: 20, borderColor: 'var(--accent-red)' }}>
-          <div className="card-body" style={{ color: 'var(--accent-red)' }}>
+        <div className="card admin-workspaces-error-card">
+          <div className="card-body admin-workspaces-error-body">
             {pageErrorMessage}
           </div>
         </div>
       )}
 
-      <div className="grid-2" style={{ alignItems: 'start' }}>
+      <div className="grid-2 admin-workspaces-grid">
         <div className="card">
           <div className="card-header"><h3 className="card-title">Buat Workspace</h3></div>
           <div className="card-body">
@@ -245,9 +245,11 @@ export default function AdminWorkspacesPage() {
           <div className="card-body">
             <form onSubmit={handleInviteMember}>
               <div className="form-group">
-                <label className="form-label">Workspace</label>
+                <label className="form-label" htmlFor="workspace-select">Workspace</label>
                 <select
+                  id="workspace-select"
                   className="form-select"
+                  aria-label="Pilih workspace"
                   value={activeWorkspaceId}
                   onChange={event => handleWorkspaceChange(event.target.value)}
                 >
@@ -258,9 +260,11 @@ export default function AdminWorkspacesPage() {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">User</label>
+                <label className="form-label" htmlFor="workspace-user-select">User</label>
                 <select
+                  id="workspace-user-select"
                   className="form-select"
+                  aria-label="Pilih user untuk workspace"
                   value={memberInviteForm.userId}
                   onChange={event => setMemberInviteForm(previousForm => ({ ...previousForm, userId: event.target.value }))}
                   disabled={!activeWorkspaceId}
@@ -276,9 +280,11 @@ export default function AdminWorkspacesPage() {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Role Workspace</label>
+                <label className="form-label" htmlFor="workspace-role-select">Role Workspace</label>
                 <select
+                  id="workspace-role-select"
                   className="form-select"
+                  aria-label="Pilih role workspace"
                   value={memberInviteForm.role}
                   onChange={event => setMemberInviteForm(previousForm => ({ ...previousForm, role: event.target.value }))}
                 >
@@ -298,7 +304,7 @@ export default function AdminWorkspacesPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 20 }}>
+      <div className="card admin-workspaces-members-card">
         <div className="card-header">
           <h3 className="card-title">{activeWorkspace ? `Member: ${activeWorkspace.name}` : 'Daftar Workspace'}</h3>
         </div>
@@ -337,9 +343,9 @@ export default function AdminWorkspacesPage() {
                     return (
                       <tr key={workspaceMember.id}>
                         <td><strong>{profile?.displayName || workspaceMember.user_id}</strong></td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{profile?.email || '-'}</td>
+                        <td className="admin-workspaces-secondary-text">{profile?.email || '-'}</td>
                         <td><span className="badge badge-blue">{ROLE_LABELS[workspaceMember.role] || workspaceMember.role}</span></td>
-                        <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                        <td className="admin-workspaces-joined-text">
                           {formatDate(workspaceMember.created_at)}
                         </td>
                         <td>

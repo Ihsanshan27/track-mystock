@@ -43,10 +43,19 @@ export async function cleanOldAuditLogs(retentionDays: number) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
+  const { count, error: countError } = await supabase
+    .from('audit_logs')
+    .select('id', { count: 'exact', head: true })
+    .lt('created_at', cutoffDate.toISOString());
+
+  if (countError) throw countError;
+  if (!count) return 0;
+
   const { error } = await supabase
     .from('audit_logs')
     .delete()
     .lt('created_at', cutoffDate.toISOString());
 
   if (error) throw error;
+  return count;
 }

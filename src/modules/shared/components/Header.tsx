@@ -39,12 +39,12 @@ export default function Header({ pageTitle, onMenuToggle }) {
       portfolioTrades,
       portfolioCashflows,
       portfolioDividends,
-      portfolioId === 'default' ? (settings.initialCapitalUS || 1000) : 0,
+      portfolioId === 'default' ? (settings.initialCapitalUS ?? 1000) : 0,
       {},
       'US'
     );
 
-    return calculatePortfolioAssetIdrEquivalent(idMetrics, usMetrics, settings.usdToIdrRate || 16200);
+    return calculatePortfolioAssetIdrEquivalent(idMetrics, usMetrics, settings.usdToIdrRate ?? 16200);
   };
 
   useEffect(() => {

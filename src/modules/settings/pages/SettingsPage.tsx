@@ -3,7 +3,7 @@ import { useData } from '@/modules/shared/context/DataContext';
 import { useAuth } from '@/modules/auth/AuthContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
-import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
+import { cleanOldAuditLogs, createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { ACCESS_LEVELS, listOwnedSharedAccess, revokeSharedAccess, upsertSharedAccess } from '@/modules/shared/services/sharedAccessService';
 import { isSupabaseConfigured } from '@/modules/shared/services/supabaseClient';
@@ -272,24 +272,32 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
+    const toNumberOrDefault = (value: any, fallback: number) => {
+      if (value === '' || value == null) return fallback;
+      const parsed = parseFloat(value);
+      return Number.isNaN(parsed) ? fallback : parsed;
+    };
+
+    const nextLogRetentionDays = form.logRetentionDays === '' ? 90 : (parseInt(form.logRetentionDays as any) >= 0 ? parseInt(form.logRetentionDays as any) : 90);
+
     updateSettings({
-      initialCapital: parseFloat(form.initialCapital) || 10000000,
-      monthlyTarget: parseFloat(form.monthlyTarget) || 5,
-      defaultBuyFee: parseFloat(form.defaultBuyFee) || 0.15,
-      defaultSellFee: parseFloat(form.defaultSellFee) || 0.25,
-      initialCapitalUS: parseFloat(form.initialCapitalUS) || 1000,
-      defaultBuyFeeUS: parseFloat(form.defaultBuyFeeUS) || 0,
-      defaultSellFeeUS: parseFloat(form.defaultSellFeeUS) || 0,
+      initialCapital: toNumberOrDefault(form.initialCapital, 10000000),
+      monthlyTarget: toNumberOrDefault(form.monthlyTarget, 5),
+      defaultBuyFee: toNumberOrDefault(form.defaultBuyFee, 0.15),
+      defaultSellFee: toNumberOrDefault(form.defaultSellFee, 0.25),
+      initialCapitalUS: toNumberOrDefault(form.initialCapitalUS, 1000),
+      defaultBuyFeeUS: toNumberOrDefault(form.defaultBuyFeeUS, 0),
+      defaultSellFeeUS: toNumberOrDefault(form.defaultSellFeeUS, 0),
       selectedBrokerID: form.selectedBrokerID || 'Custom',
       selectedBrokerUS: form.selectedBrokerUS || 'Custom',
       customStrategies: form.customStrategies || [],
       customEmotions: form.customEmotions || [],
-      usdToIdrRate: parseFloat(form.usdToIdrRate) || 16200,
-      defaultRiskPercent: parseFloat(form.defaultRiskPercent) || 2,
-      defaultTargetRR: parseFloat(form.defaultTargetRR) || 2,
+      usdToIdrRate: toNumberOrDefault(form.usdToIdrRate, 16200),
+      defaultRiskPercent: toNumberOrDefault(form.defaultRiskPercent, 2),
+      defaultTargetRR: toNumberOrDefault(form.defaultTargetRR, 2),
       themePreference: form.themePreference || 'system',
-      logRetentionDays: form.logRetentionDays === '' ? 90 : (parseInt(form.logRetentionDays as any) >= 0 ? parseInt(form.logRetentionDays as any) : 90),
+      logRetentionDays: nextLogRetentionDays,
       privacyMode: !!form.privacyMode,
       behaviorDailyTradeLimitEnabled: !!form.behaviorDailyTradeLimitEnabled,
       behaviorDailyTradeLimit: parseInt(form.behaviorDailyTradeLimit as any) >= 0 ? parseInt(form.behaviorDailyTradeLimit as any) : 3,
@@ -301,6 +309,17 @@ export default function SettingsPage() {
       behaviorMaxPositionSizePercent: parseFloat(form.behaviorMaxPositionSizePercent as any) >= 0 ? parseFloat(form.behaviorMaxPositionSizePercent as any) : 20,
       behaviorDoubleConfirmExit: !!form.behaviorDoubleConfirmExit,
     });
+
+    if (nextLogRetentionDays > 0) {
+      try {
+        const deletedCount = await cleanOldAuditLogs(nextLogRetentionDays);
+        if (deletedCount > 0) {
+          showToast(`${deletedCount} audit log lama dibersihkan`);
+        }
+      } catch (error: any) {
+        showToast(`Pengaturan tersimpan, tapi cleanup audit log gagal: ${error.message}`, 'error');
+      }
+    }
   };
 
   const handleSaveUsername = async () => {
@@ -584,14 +603,14 @@ export default function SettingsPage() {
                       allowDecimal={true}
                     />
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      Saat ini: {formatUSD(settings.initialCapitalUS || 1000)}
+                      Saat ini: {formatUSD(settings.initialCapitalUS)}
                     </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Kurs Informasi Saat Ini</label>
                     <div className="settings-summary-item" style={{ height: '100%' }}>
                       <div className="settings-summary-label">USD ke IDR</div>
-                      <div className="settings-summary-value">{formatRupiah(form.usdToIdrRate || 16200)}</div>
+                      <div className="settings-summary-value">{formatRupiah(Number(form.usdToIdrRate ?? 16200))}</div>
                     </div>
                   </div>
                 </div>

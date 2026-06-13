@@ -18,7 +18,7 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState('ID');
 
   const isDefaultPort = activePortfolioId === 'default';
-  const initialCap = isDefaultPort ? (activeTab === 'US' ? (settings.initialCapitalUS || 1000) : settings.initialCapital) : 0;
+  const initialCap = isDefaultPort ? (activeTab === 'US' ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000)) : 0;
   const balanceStats = calculatePortfolioBalance(
     trades,
     cashflows,

@@ -6,6 +6,7 @@ import { getAuthErrorMessage } from '@/modules/shared/utils/errorMessages';
 import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 
 const AuthContext = createContext(null);
+const SESSION_CACHE_KEY = 'supabase_session_cache';
 
 function hashPassword(password) {
   let hash = 0;
@@ -18,8 +19,8 @@ function hashPassword(password) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => getItem(SESSION_CACHE_KEY));
+  const [loading, setLoading] = useState(() => !getItem(SESSION_CACHE_KEY));
 
   useEffect(() => {
     if (isSupabaseConfigured) {
@@ -29,12 +30,14 @@ export function AuthProvider({ children }) {
         if (!isMounted) return;
         const sessionUser = mapSupabaseUser(data.session?.user);
         setUser(sessionUser);
+        setItem(SESSION_CACHE_KEY, sessionUser);
         setLoading(false);
       });
 
       const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
         const sessionUser = mapSupabaseUser(session?.user);
         setUser(sessionUser);
+        setItem(SESSION_CACHE_KEY, sessionUser);
         setLoading(false);
       });
 
@@ -201,6 +204,7 @@ export function AuthProvider({ children }) {
         },
       });
       await supabase.auth.signOut();
+      setItem(SESSION_CACHE_KEY, null);
       setUser(null);
       return;
     }
@@ -216,6 +220,7 @@ export function AuthProvider({ children }) {
       },
     });
     setItem('session', null);
+    setItem(SESSION_CACHE_KEY, null);
     setUser(null);
   };
 

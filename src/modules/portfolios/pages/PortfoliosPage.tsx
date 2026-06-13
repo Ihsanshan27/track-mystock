@@ -25,7 +25,7 @@ function getPortfolioMetrics(portfolioId, trades, cashflows, dividends, settings
     scopedTrades,
     scopedCashflows,
     scopedDividends,
-    portfolioId === 'default' ? (settings.initialCapitalUS || 1000) : 0,
+    portfolioId === 'default' ? (settings.initialCapitalUS ?? 1000) : 0,
     marketPrices,
     'US'
   );
@@ -39,7 +39,7 @@ function getPortfolioMetrics(portfolioId, trades, cashflows, dividends, settings
     idMetrics,
     usMetrics,
     hasUS,
-    totalEquityIdrEquivalent: (idMetrics.realizedEquity || 0) + ((usMetrics.realizedEquity || 0) * (settings.usdToIdrRate || 16200)),
+    totalEquityIdrEquivalent: (idMetrics.realizedEquity || 0) + ((usMetrics.realizedEquity || 0) * (settings.usdToIdrRate ?? 16200)),
     totalAssetIdrEquivalent: calculatePortfolioAssetIdrEquivalent(idMetrics, usMetrics, settings.usdToIdrRate),
     hasFallback: idMetrics.hasMarketValueFallback || usMetrics.hasMarketValueFallback,
   };

@@ -17,12 +17,14 @@ import {
   Plus,
   Settings,
   AlertTriangle,
-  BookOpen
+  BookOpen,
+  ShieldAlert
 } from 'lucide-react';
 
 const TABS = [
   { id: 'pnl', label: 'Profit / Loss', icon: TrendingUp },
   { id: 'fee', label: 'Fee Broker', icon: Percent },
+  { id: 'araarb', label: 'ARA / ARB', icon: ShieldAlert },
   { id: 'avg', label: 'Average Price', icon: Calculator },
   { id: 'avgdown', label: 'Avg Down', icon: ArrowDownCircle },
   { id: 'rr', label: 'Risk / Reward', icon: Scale },
@@ -69,6 +71,174 @@ function CurrencyInput({ value, onChange, placeholder, className, prefix = 'Rp' 
 interface CalcProps {
   draft: any;
   setDraft: (val: any) => void;
+}
+
+function getBeiTickSize(price: number) {
+  if (price < 200) return 1;
+  if (price < 500) return 2;
+  if (price < 2000) return 5;
+  if (price < 5000) return 10;
+  return 25;
+}
+
+function getAutoRejectionPercent(referencePrice: number) {
+  if (referencePrice <= 200) return 35;
+  if (referencePrice <= 5000) return 25;
+  return 20;
+}
+
+function floorToTick(price: number, tick: number) {
+  return Math.floor(price / tick) * tick;
+}
+
+function ceilToTick(price: number, tick: number) {
+  return Math.ceil(price / tick) * tick;
+}
+
+function AutoRejectionCalculator({ draft, setDraft }: CalcProps) {
+  const { referencePrice, simulationDays } = draft;
+
+  const setReferencePrice = (val: string) => setDraft({ ...draft, referencePrice: val });
+  const setSimulationDays = (val: string) => setDraft({ ...draft, simulationDays: val });
+
+  const price = parseFloat(referencePrice) || 0;
+  const days = Math.min(Math.max(parseInt(simulationDays) || 1, 1), 100);
+
+  const result = price > 0
+    ? (() => {
+        const percent = getAutoRejectionPercent(price);
+        const tick = getBeiTickSize(price);
+        const araRaw = price * (1 + percent / 100);
+        const arbRaw = price * (1 - percent / 100);
+        const araPrice = ceilToTick(araRaw, getBeiTickSize(araRaw));
+        const arbPrice = Math.max(50, floorToTick(arbRaw, getBeiTickSize(Math.max(arbRaw, 50))));
+        const steps = [];
+
+        let upPrice = price;
+        let downPrice = price;
+        for (let day = 1; day <= days; day += 1) {
+          const upPct = getAutoRejectionPercent(upPrice);
+          const downPct = getAutoRejectionPercent(downPrice);
+          const nextAraRaw = upPrice * (1 + upPct / 100);
+          const nextArbRaw = downPrice * (1 - downPct / 100);
+          const nextAra = ceilToTick(nextAraRaw, getBeiTickSize(nextAraRaw));
+          const nextArb = Math.max(50, floorToTick(nextArbRaw, getBeiTickSize(Math.max(nextArbRaw, 50))));
+          const cumulativeAraPct = price > 0 ? ((nextAra / price) - 1) * 100 : 0;
+          const cumulativeArbPct = price > 0 ? ((nextArb / price) - 1) * 100 : 0;
+
+          steps.push({
+            day,
+            upPct,
+            downPct,
+            ara: nextAra,
+            arb: nextArb,
+            cumulativeAraPct,
+            cumulativeArbPct,
+          });
+
+          upPrice = nextAra;
+          downPrice = nextArb;
+        }
+
+        const finalAra = steps.length > 0 ? steps[steps.length - 1].ara : araPrice;
+        const totalAraPct = price > 0 ? ((finalAra / price) - 1) * 100 : 0;
+
+        return { percent, tick, araPrice, arbPrice, steps, finalAra, totalAraPct };
+      })()
+    : null;
+
+  const reset = () => {
+    setDraft({ referencePrice: '', simulationDays: '3' });
+  };
+
+  return (
+    <div>
+      <div className="form-row">
+        <div className="form-group">
+          <label className="form-label">Harga Referensi</label>
+          <CurrencyInput className="form-input" placeholder="850" value={referencePrice} onChange={e => setReferencePrice(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Simulasi Hari</label>
+          <input type="number" min="1" max="100" className="form-input" value={simulationDays} onChange={e => setSimulationDays(e.target.value)} />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16, padding: '12px 14px', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.18)', borderRadius: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontWeight: 700, color: 'var(--accent-blue-light)' }}>
+          <BookOpen size={15} />
+          Asumsi Aturan BEI
+        </div>
+        <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          <span>Kalkulator ini memakai batas auto rejection simetris BEI: </span>
+          <span>&le; Rp200: 35%, Rp200-Rp5.000: 25%, dan &gt; Rp5.000: 20%.</span>
+          <span> Harga hasil juga dibulatkan mengikuti tick size BEI terbaru.</span>
+        </div>
+      </div>
+
+      <button className="btn btn-ghost btn-sm" onClick={reset} style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <RotateCcw size={14} />
+        Reset
+      </button>
+
+      {result && (
+        <div className="calc-result">
+          <ResultRow label="Batas Persentase Harian" value={`${result.percent}%`} />
+          <ResultRow label="Tick Size Saat Ini" value={`${formatRupiah(result.tick).replace(',00', '')}`} />
+
+          <ResultRow label="Harga ARA" value={formatRupiah(result.araPrice)} className="text-profit" big />
+          <ResultRow label="Harga ARB" value={formatRupiah(result.arbPrice)} className="text-loss" big />
+          <ResultRow label={`Total ARA ${days} Hari`} value={`${result.totalAraPct >= 0 ? '+' : ''}${result.totalAraPct.toFixed(2)}%`} className="text-profit" />
+
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>
+              Simulasi Beruntun
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {result.steps.map((step: any) => (
+                <div
+                  key={step.day}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '72px 1fr 88px 64px 88px 1fr',
+                    gap: 10,
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    background: 'var(--bg-input)',
+                    borderRadius: 10,
+                    border: '1px solid var(--border-color)'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>Hari {step.day}</div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2 }}>ARA</div>
+                    <div style={{ fontWeight: 700, color: '#22c55e' }}>{formatRupiah(step.ara)}</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 800, color: '#22c55e' }}>
+                      {step.cumulativeAraPct >= 0 ? '+' : ''}{step.cumulativeAraPct.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Total
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 800, color: '#ef4444' }}>
+                      {step.cumulativeArbPct >= 0 ? '+' : ''}{step.cumulativeArbPct.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 2, textAlign: 'right' }}>ARB</div>
+                    <div style={{ fontWeight: 700, color: '#ef4444', textAlign: 'right' }}>{formatRupiah(step.arb)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PnLCalculator({ draft, setDraft }: CalcProps) {
@@ -824,6 +994,12 @@ export default function CalculatorPage() {
             <FeeCalculator
               draft={calculatorDrafts.fee}
               setDraft={(val) => updateDraft('fee', val)}
+            />
+          )}
+          {calculatorActiveTab === 'araarb' && (
+            <AutoRejectionCalculator
+              draft={calculatorDrafts.araarb}
+              setDraft={(val) => updateDraft('araarb', val)}
             />
           )}
           {calculatorActiveTab === 'avg' && (

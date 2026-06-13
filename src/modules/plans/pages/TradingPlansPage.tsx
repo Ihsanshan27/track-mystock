@@ -95,7 +95,7 @@ export default function TradingPlansPage() {
     const pDividends = dividends.filter((d: any) => (d.portfolioId || 'default') === activePort.id);
 
     const isUS = form.market === 'US';
-    const initialCap = activePort.id === 'default' ? (isUS ? (settings.initialCapitalUS || 1000) : settings.initialCapital) : 0;
+    const initialCap = activePort.id === 'default' ? (isUS ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000)) : 0;
 
     const stats = calculatePortfolioBalance(
       pTrades.filter((t: any) => isUS ? t.market === 'US' : t.market !== 'US'),

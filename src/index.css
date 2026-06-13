@@ -1738,6 +1738,281 @@ img {
   transition: all var(--transition-fast);
 }
 
+.admin-workspaces-error-card {
+  margin-bottom: 20px;
+  border-color: var(--accent-red);
+}
+
+.admin-workspaces-error-body {
+  color: var(--accent-red);
+}
+
+.admin-workspaces-grid {
+  align-items: start;
+}
+
+.admin-workspaces-members-card {
+  margin-top: 20px;
+}
+
+.admin-workspaces-secondary-text {
+  color: var(--text-secondary);
+}
+
+.admin-workspaces-joined-text {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.dashboard-empty-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+
+.dashboard-empty-cta {
+  margin-top: 16px;
+}
+
+.dashboard-market-empty-state {
+  margin-top: 40px;
+}
+
+.dashboard-achievements-section {
+  margin-bottom: 32px;
+}
+
+.dashboard-achievements-title {
+  font-size: 1rem;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-achievements-icon {
+  color: var(--accent-yellow);
+}
+
+.dashboard-achievements-list {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+
+.dashboard-achievement-card {
+  min-width: 220px;
+  flex: 0 0 auto;
+  padding: 20px;
+}
+
+.dashboard-achievement-card-unlocked {
+  opacity: 1;
+  border: 1px solid var(--accent-green);
+  background: rgba(16, 185, 129, 0.03);
+}
+
+.dashboard-achievement-card-locked {
+  opacity: 0.5;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.dashboard-achievement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.dashboard-achievement-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-achievement-badge-unlocked {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+}
+
+.dashboard-achievement-badge-locked {
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.dashboard-achievement-status-unlocked {
+  color: var(--accent-green);
+}
+
+.dashboard-achievement-status-locked {
+  color: var(--text-muted);
+}
+
+.dashboard-achievement-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.dashboard-achievement-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.dashboard-charts-grid {
+  margin-bottom: 24px;
+}
+
+.dashboard-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.dashboard-chart-title {
+  margin: 0;
+}
+
+.dashboard-chart-title-icon {
+  color: var(--accent-green);
+}
+
+.dashboard-chart-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.dashboard-chart-tab-btn {
+  padding: 4px 10px;
+  height: 28px;
+}
+
+.dashboard-chart-summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  padding: 4px 8px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+}
+
+.dashboard-chart-summary-drawdown {
+  color: var(--accent-red);
+}
+
+.dashboard-chart-body {
+  height: 280px;
+  margin-top: 8px;
+}
+
+.dashboard-chart-empty-state {
+  padding: 40px;
+}
+
+.dashboard-chart-empty-text {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.dashboard-calendar-body {
+  margin-top: 8px;
+}
+
+.dashboard-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.dashboard-calendar-weekday {
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding: 4px;
+  font-weight: 700;
+}
+
+.dashboard-calendar-legend {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  align-items: center;
+}
+
+.dashboard-calendar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dashboard-calendar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dashboard-calendar-dot-profit {
+  background: var(--accent-green);
+}
+
+.dashboard-calendar-dot-loss {
+  background: var(--accent-red);
+}
+
+.dashboard-calendar-dot-neutral {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.dashboard-monthly-card {
+  margin-bottom: 24px;
+}
+
+.dashboard-monthly-chart-body {
+  height: 260px;
+  margin-top: 8px;
+}
+
+.dashboard-recent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dashboard-recent-title {
+  margin-bottom: 0;
+}
+
+.dashboard-recent-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dashboard-recent-table {
+  border: none;
+}
+
+.dashboard-table-secondary-text {
+  color: var(--text-secondary);
+}
+
 /* Animations */
 @keyframes dialogFadeIn {
   from { opacity: 0; }
@@ -1748,4 +2023,3 @@ img {
   from { transform: scale(0.92); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
-

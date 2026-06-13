@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
@@ -9,6 +9,7 @@ import * as Icons from 'lucide-react';
 
 const DRAFT_KEY = 'ipo_list_form_draft';
 const DRAFT_OPEN_KEY = 'ipo_list_form_open';
+const EDIT_EVENT_KEY = 'ipo_list_edit_event_id';
 
 const EMPTY_FORM = { stockCode: '', ipoDate: '', offeringPrice: '', notes: '' };
 
@@ -17,7 +18,13 @@ export default function IpoListPage() {
   const navigate = useNavigate();
   const blurStyle = usePrivacyStyle();
   const { alert, confirm } = useDialog();
-  const [editingEvent, setEditingEvent] = useState<IpoEvent | null>(null);
+
+  const [editingEventId, setEditingEventId] = useState<string | null>(
+    () => sessionStorage.getItem(EDIT_EVENT_KEY) || null
+  );
+  const editingEvent = editingEventId
+    ? ipoEvents.find((event: IpoEvent) => event.id === editingEventId) || null
+    : null;
 
   // Persist form state across navigation using sessionStorage
   const [showForm, setShowFormState] = useState<boolean>(
@@ -27,12 +34,20 @@ export default function IpoListPage() {
     try {
       const saved = sessionStorage.getItem(DRAFT_KEY);
       return saved ? JSON.parse(saved) : EMPTY_FORM;
-    } catch { return EMPTY_FORM; }
+    } catch {
+      return EMPTY_FORM;
+    }
   });
 
   const setShowForm = (v: boolean) => {
     setShowFormState(v);
     sessionStorage.setItem(DRAFT_OPEN_KEY, String(v));
+  };
+
+  const setEditingEvent = (eventId: string | null) => {
+    setEditingEventId(eventId);
+    if (eventId) sessionStorage.setItem(EDIT_EVENT_KEY, eventId);
+    else sessionStorage.removeItem(EDIT_EVENT_KEY);
   };
 
   const set = (k: string, v: string) => setFormState(prev => {
@@ -44,6 +59,7 @@ export default function IpoListPage() {
   const clearDraft = () => {
     sessionStorage.removeItem(DRAFT_KEY);
     sessionStorage.removeItem(DRAFT_OPEN_KEY);
+    sessionStorage.removeItem(EDIT_EVENT_KEY);
     setFormState(EMPTY_FORM);
     setShowFormState(false);
   };
@@ -55,15 +71,17 @@ export default function IpoListPage() {
   };
 
   const handleOpenEdit = (event: IpoEvent) => {
-    setEditingEvent(event);
-    setFormState({
+    const nextForm = {
       stockCode: event.stockCode,
       ipoDate: event.ipoDate,
       offeringPrice: String(event.offeringPrice),
-      notes: event.notes || ''
-    });
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+      notes: event.notes || '',
+    };
+    setEditingEvent(event.id);
+    setFormState(nextForm);
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(nextForm));
+    sessionStorage.removeItem(DRAFT_OPEN_KEY);
+    setShowFormState(false);
   };
 
   const handleCancel = () => {
@@ -108,7 +126,6 @@ export default function IpoListPage() {
       notes: event.notes ? `${event.notes} (Kopi)` : '(Kopi)',
     });
     if (!newEvent?.id) return;
-    // Collect all original entries and batch-add them under the new event ID
     const originalEntries = ipoEntries
       .filter((e: any) => e.ipoEventId === event.id)
       .map((e: any) => ({
@@ -128,7 +145,6 @@ export default function IpoListPage() {
     navigate(`/ipo/${newEvent.id}`);
   };
 
-  // Calculate summary for each event
   const getSummary = (eventId: string): IpoSummary => {
     const entries = ipoEntries.filter((e: any) => e.ipoEventId === eventId);
     let totalCapital = 0, totalReturn = 0, sellCount = 0, keepCount = 0;
@@ -156,9 +172,66 @@ export default function IpoListPage() {
     (a: IpoEvent, b: IpoEvent) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
+  const renderEventForm = (submitLabel: string, submitIcon: ReactNode) => (
+    <form onSubmit={handleSubmit}>
+      <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+        <div className="form-group">
+          <label className="form-label">Kode Saham *</label>
+          <input
+            className="form-input"
+            placeholder="Contoh: WBSA"
+            value={form.stockCode}
+            onChange={e => set('stockCode', e.target.value.toUpperCase())}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Tanggal IPO *</label>
+          <input
+            type="date"
+            className="form-input"
+            value={form.ipoDate}
+            onChange={e => set('ipoDate', e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Harga Penawaran (Rp) *</label>
+          <input
+            type="number"
+            step="any"
+            className="form-input"
+            placeholder="Contoh: 100"
+            value={form.offeringPrice}
+            onChange={e => set('offeringPrice', e.target.value)}
+            required
+          />
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="form-label">Catatan</label>
+        <input
+          className="form-input"
+          placeholder="Catatan singkat tentang IPO ini..."
+          value={form.notes}
+          onChange={e => set('notes', e.target.value)}
+        />
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="submit" className="btn btn-primary">
+          {submitIcon}
+          {submitLabel}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={handleCancel}>
+          <Icons.X size={15} />
+          Batal
+        </button>
+      </div>
+    </form>
+  );
+
   return (
     <div>
-      {/* Page Header */}
       <div className="page-header">
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -174,83 +247,33 @@ export default function IpoListPage() {
           </button>
           {canWrite && (
             <button className="btn btn-primary" onClick={() => {
-              if (showForm) {
+              if (showForm || editingEvent) {
                 handleCancel();
               } else {
                 handleOpenAdd();
               }
             }}>
-              {showForm ? <Icons.X size={16} /> : <Icons.Plus size={16} />}
-              {showForm ? 'Batal' : 'Buat IPO Baru'}
+              {showForm || editingEvent ? <Icons.X size={16} /> : <Icons.Plus size={16} />}
+              {showForm || editingEvent ? 'Batal' : 'Buat IPO Baru'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Create Form */}
-      {showForm && (
+      {showForm && !editingEvent && (
         <div className="card" style={{ marginBottom: 28 }}>
           <div className="card-header">
             <h3 className="card-title">
-              {editingEvent ? <Icons.Edit3 size={16} style={{ color: 'var(--accent-blue-light)' }} /> : <Icons.PlusCircle size={16} style={{ color: 'var(--accent-green)' }} />}
-              {editingEvent ? 'Edit IPO Event' : 'Buat IPO Event Baru'}
+              <Icons.PlusCircle size={16} style={{ color: 'var(--accent-green)' }} />
+              Buat IPO Event Baru
             </h3>
           </div>
           <div className="card-body">
-            <form onSubmit={handleSubmit}>
-              <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-                <div className="form-group">
-                  <label className="form-label">Kode Saham *</label>
-                  <input
-                    className="form-input"
-                    placeholder="Contoh: WBSA"
-                    value={form.stockCode}
-                    onChange={e => set('stockCode', e.target.value.toUpperCase())}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Tanggal IPO *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={form.ipoDate}
-                    onChange={e => set('ipoDate', e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Harga Penawaran (Rp) *</label>
-                  <input
-                    type="number"
-                    step="any"
-                    className="form-input"
-                    placeholder="Contoh: 100"
-                    value={form.offeringPrice}
-                    onChange={e => set('offeringPrice', e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Catatan</label>
-                <input
-                  className="form-input"
-                  placeholder="Catatan singkat tentang IPO ini..."
-                  value={form.notes}
-                  onChange={e => set('notes', e.target.value)}
-                />
-              </div>
-              <button type="submit" className="btn btn-primary">
-                {editingEvent ? <Icons.Save size={15} /> : <Icons.Rocket size={15} />}
-                {editingEvent ? ' Simpan Perubahan' : ' Buat & Mulai Catat'}
-              </button>
-            </form>
+            {renderEventForm(' Buat & Mulai Catat', <Icons.Rocket size={15} />)}
           </div>
         </div>
       )}
 
-      {/* Empty State */}
       {sorted.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon" style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
@@ -261,7 +284,7 @@ export default function IpoListPage() {
             Buat IPO event pertama Anda untuk mulai mencatat partisipasi dari berbagai akun.
           </div>
           {canWrite && (
-            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setShowForm(true)}>
+            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={handleOpenAdd}>
               <Icons.Plus size={16} /> Buat IPO Pertama
             </button>
           )}
@@ -272,6 +295,7 @@ export default function IpoListPage() {
             const summary = getSummary(event.id);
             const isProfit = summary.totalReturn >= 0;
             const hasEntries = summary.accountCount > 0;
+            const isEditingThisCard = editingEvent?.id === event.id;
 
             return (
               <div
@@ -282,6 +306,8 @@ export default function IpoListPage() {
                   borderLeft: hasEntries
                     ? `4px solid ${isProfit ? 'var(--accent-green)' : 'var(--accent-red)'}`
                     : '4px solid var(--border-color)',
+                  boxShadow: isEditingThisCard ? '0 0 0 1px var(--accent-blue-light), 0 12px 30px rgba(59, 130, 246, 0.12)' : undefined,
+                  background: isEditingThisCard ? 'linear-gradient(180deg, rgba(59, 130, 246, 0.06), transparent 28%)' : undefined,
                   transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                 }}
                 onClick={() => navigate(`/ipo/${event.id}`)}
@@ -294,7 +320,6 @@ export default function IpoListPage() {
                   (e.currentTarget as HTMLDivElement).style.boxShadow = '';
                 }}
               >
-                {/* Card Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -356,7 +381,6 @@ export default function IpoListPage() {
                   </div>
                 </div>
 
-                {/* Big Profit Number */}
                 {hasEntries ? (
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
@@ -374,11 +398,10 @@ export default function IpoListPage() {
                   </div>
                 ) : (
                   <div style={{ marginBottom: 16, color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
-                    Belum ada catatan akun — klik untuk mulai mengisi
+                    Belum ada catatan akun - klik untuk mulai mengisi
                   </div>
                 )}
 
-                {/* Account Stats */}
                 <div style={{ display: 'flex', gap: 12, borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
                   <div style={{ textAlign: 'center', flex: 1 }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{summary.accountCount}</div>
@@ -405,12 +428,28 @@ export default function IpoListPage() {
                     📝 {event.notes}
                   </div>
                 )}
+
+                {isEditingThisCard && canWrite && (
+                  <div
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                      marginTop: 14,
+                      paddingTop: 14,
+                      borderTop: '1px solid var(--border-color)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <Icons.Edit3 size={15} style={{ color: 'var(--accent-blue-light)' }} />
+                      <strong>Edit IPO Langsung Dari List</strong>
+                    </div>
+                    {renderEventForm(' Simpan Perubahan', <Icons.Save size={15} />)}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
-
     </div>
   );
 }

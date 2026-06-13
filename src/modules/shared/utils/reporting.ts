@@ -19,7 +19,7 @@ export function buildReportSnapshot({
   const filteredTrades = trades.filter((trade) => trade.market === market || (!trade.market && market === 'ID'));
   const filteredCashflows = cashflows.filter((item) => item.market === market || (!item.market && market === 'ID'));
   const filteredDividends = dividends.filter((item) => item.market === market || (!item.market && market === 'ID'));
-  const initialCapital = market === 'US' ? (settings.initialCapitalUS || 1000) : (settings.initialCapital || 10000000);
+  const initialCapital = market === 'US' ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000);
 
   const stats = calculateStats(filteredTrades);
   const balance = calculatePortfolioBalance(filteredTrades, filteredCashflows, filteredDividends, initialCapital);

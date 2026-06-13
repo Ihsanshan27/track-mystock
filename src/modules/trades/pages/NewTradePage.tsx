@@ -181,7 +181,7 @@ export default function NewTradePage() {
   const pnlPct = totalBuy > 0 ? (pnl / totalBuy) * 100 : 0;
 
   const formatMoney = isUS ? formatUSD : formatRupiah;
-  const capital = isUS ? (settings.initialCapitalUS || 1000) : (settings.initialCapital || 10000000);
+  const capital = isUS ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000);
   const maxPosVal = capital * ((settings.behaviorMaxPositionSizePercent ?? 20) / 100);
   const isOverSized = settings.behaviorMaxPositionSizeWarning && totalBuy > maxPosVal;
   const strategiesList = settings.customStrategies || STRATEGIES;

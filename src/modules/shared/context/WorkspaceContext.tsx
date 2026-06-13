@@ -16,9 +16,10 @@ const PERSONAL_WORKSPACE = {
 export function WorkspaceProvider({ children }) {
   const { user } = useAuth();
   const userId = user?.id;
-  const [workspaces, setWorkspaces] = useState([]);
+  const cachedWorkspaces = userId ? getScopedItem('workspace_cache', userId) || [] : [];
+  const [workspaces, setWorkspaces] = useState(cachedWorkspaces);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(null);
-  const [workspaceLoading, setWorkspaceLoading] = useState(true);
+  const [workspaceLoading, setWorkspaceLoading] = useState(!cachedWorkspaces.length && Boolean(userId));
   const [workspaceError, setWorkspaceError] = useState('');
   const [workspaceSetupError, setWorkspaceSetupError] = useState('');
 
@@ -46,6 +47,12 @@ export function WorkspaceProvider({ children }) {
     setWorkspaceError('');
     setWorkspaceSetupError('');
 
+    const localCachedWorkspaces = getScopedItem('workspace_cache', userId) || [];
+    if (localCachedWorkspaces.length > 0) {
+      setWorkspaces(localCachedWorkspaces);
+      setWorkspaceLoading(false);
+    }
+
     try {
       if (!isSupabaseConfigured) {
         setWorkspaces([]);
@@ -58,6 +65,7 @@ export function WorkspaceProvider({ children }) {
       const hasSavedWorkspace = workspaceRows.some(workspace => workspace.id === savedWorkspaceId);
 
       setWorkspaces(workspaceRows);
+      setScopedItem('workspace_cache', userId, workspaceRows);
       setActiveWorkspaceId(hasSavedWorkspace ? savedWorkspaceId : null);
 
       if (savedWorkspaceId && !hasSavedWorkspace) {
