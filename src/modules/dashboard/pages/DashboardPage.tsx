@@ -8,9 +8,11 @@ import * as Icons from 'lucide-react';
 import StatCard from '@/modules/shared/components/StatCard';
 import ChartTooltip from '@/modules/shared/components/ChartTooltip';
 import MarketTabBar from '@/modules/shared/components/MarketTabBar';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { useMarketFormatter } from '@/modules/shared/hooks/useMarketFormatter';
 import { useOpenPositionMetrics } from '@/modules/shared/hooks/useOpenPositionMetrics';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 
 export default function DashboardPage() {
   const { trades, cashflows, dividends, settings, marketPrices } = useData();
@@ -64,6 +66,16 @@ export default function DashboardPage() {
     .filter(trade => trade.sellPrice && trade.dateSell)
     .sort((newerTrade, olderTrade) => new Date(olderTrade.dateSell).getTime() - new Date(newerTrade.dateSell).getTime())
     .slice(0, 8);
+  const { sortConfig: recentSortConfig, sortedItems: sortedRecentTrades, requestSort: requestRecentSort } = useTableSort(recentTrades, {
+    initialKey: 'dateSell',
+    initialDirection: 'desc',
+    getValue: (trade: any, key: 'stockCode' | 'dateSell' | 'buyPrice' | 'sellPrice' | 'lots' | 'pnl' | 'pnlPercent') => {
+      if (key === 'pnl') return calculateTradePnL(trade).pnl;
+      if (key === 'pnlPercent') return calculateTradePnL(trade).pnlPercent;
+      return trade[key] || '';
+    },
+    tieBreaker: (a: any, b: any) => new Date(b.dateSell).getTime() - new Date(a.dateSell).getTime(),
+  });
 
   const now = useMemo(() => new Date(), []);
   const calendarDays = useMemo(() => {
@@ -392,17 +404,17 @@ export default function DashboardPage() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Kode</th>
-                      <th>Tanggal</th>
-                      <th>Buy</th>
-                      <th>Sell</th>
-                      <th>Qty</th>
-                      <th>P/L</th>
-                      <th>%</th>
+                      <th><SortableTableHeader label="Kode" sortKey="stockCode" sortConfig={recentSortConfig} onSort={requestRecentSort} /></th>
+                      <th><SortableTableHeader label="Tanggal" sortKey="dateSell" sortConfig={recentSortConfig} onSort={requestRecentSort} /></th>
+                      <th><SortableTableHeader label="Buy" sortKey="buyPrice" sortConfig={recentSortConfig} onSort={requestRecentSort} /></th>
+                      <th><SortableTableHeader label="Sell" sortKey="sellPrice" sortConfig={recentSortConfig} onSort={requestRecentSort} /></th>
+                      <th><SortableTableHeader label="Qty" sortKey="lots" sortConfig={recentSortConfig} onSort={requestRecentSort} /></th>
+                      <th><SortableTableHeader label="P/L" sortKey="pnl" sortConfig={recentSortConfig} onSort={requestRecentSort} /></th>
+                      <th><SortableTableHeader label="%" sortKey="pnlPercent" sortConfig={recentSortConfig} onSort={requestRecentSort} /></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentTrades.map(trade => {
+                    {sortedRecentTrades.map(trade => {
                       const tradePerformance = calculateTradePnL(trade);
                       return (
                         <tr key={trade.id}>

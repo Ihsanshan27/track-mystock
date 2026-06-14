@@ -11,6 +11,7 @@ const PAGE_TITLES = {
   '/trades': 'Daftar Transaksi',
   '/trades/new': 'Catat Transaksi',
   '/analytics': 'Analitik & Statistik',
+  '/history': 'History Trades',
   '/portfolio': 'Portfolio',
   '/reports': 'Reports',
   '/mentor/traders': 'Trader Share',

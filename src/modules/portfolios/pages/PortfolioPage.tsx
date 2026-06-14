@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import ReadOnlyNotice from '@/modules/shared/components/ReadOnlyNotice';
 import MarketTabBar from '@/modules/shared/components/MarketTabBar';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
 import { useData } from '@/modules/shared/context/DataContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { calculateUnrealizedPnL, calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
@@ -53,6 +55,13 @@ export default function PortfolioPage() {
   const tradingBalance = totalInvested + totalFloating;
   const pieData = openTrades.map((trade) => ({ name: trade.stockCode, value: trade.totalBuy }));
   const formatMoney = activeTab === 'US' ? formatUSD : formatRupiah;
+  const { sortConfig, sortedItems: sortedOpenTrades, requestSort } = useTableSort(openTrades, {
+    initialKey: 'stockCode',
+    getValue: (trade: any, key: 'stockCode' | 'buyPrice' | 'lots' | 'totalBuy' | 'currentPrice' | 'floatingPnL' | 'allocationPercent') => {
+      if (key === 'allocationPercent') return totalInvested > 0 ? (trade.totalBuy / totalInvested) * 100 : 0;
+      return trade[key] || 0;
+    },
+  });
 
   const blurStyle = usePrivacyStyle();
 
@@ -85,12 +94,18 @@ export default function PortfolioPage() {
           </h1>
           <p className="page-subtitle">{openTrades.length} posisi terbuka</p>
         </div>
-        {canWrite ? (
-          <Link to="/trades/new" className="btn btn-primary">
-            <Icons.Plus size={16} />
-            <span>Tambah Transaksi</span>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link to="/history" className="btn btn-secondary">
+            <Icons.History size={16} />
+            <span>History</span>
           </Link>
-        ) : null}
+          {canWrite ? (
+            <Link to="/trades/new" className="btn btn-primary">
+              <Icons.Plus size={16} />
+              <span>Tambah Transaksi</span>
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <MarketTabBar
@@ -164,17 +179,17 @@ export default function PortfolioPage() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Kode</th>
-                      <th>Harga Beli</th>
-                      <th>Qty</th>
-                      <th>Total Investasi</th>
-                      <th style={{ width: 140 }}>Harga Saat Ini</th>
-                      <th>Floating P/L</th>
+                      <th><SortableTableHeader label="Kode" sortKey="stockCode" sortConfig={sortConfig} onSort={requestSort} /></th>
+                      <th><SortableTableHeader label="Harga Beli" sortKey="buyPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
+                      <th><SortableTableHeader label="Qty" sortKey="lots" sortConfig={sortConfig} onSort={requestSort} /></th>
+                      <th><SortableTableHeader label="Total Investasi" sortKey="totalBuy" sortConfig={sortConfig} onSort={requestSort} /></th>
+                      <th style={{ width: 140 }}><SortableTableHeader label="Harga Saat Ini" sortKey="currentPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
+                      <th><SortableTableHeader label="Floating P/L" sortKey="floatingPnL" sortConfig={sortConfig} onSort={requestSort} /></th>
                       <th>Detail</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {openTrades.map((trade) => (
+                    {sortedOpenTrades.map((trade) => (
                       <tr key={trade.id}>
                         <td><strong>{trade.stockCode}</strong></td>
                         <td>

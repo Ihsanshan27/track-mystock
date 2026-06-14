@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { formatRupiah } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
@@ -48,6 +50,23 @@ export default function IpoSummaryPage() {
       };
     }).sort((a, b) => new Date(b.event.ipoDate).getTime() - new Date(a.event.ipoDate).getTime());
   }, [ipoEvents, ipoEntries]);
+  const { sortConfig, sortedItems: sortedEventSummaries, requestSort } = useTableSort(eventSummaries, {
+    initialKey: 'ipoDate',
+    initialDirection: 'desc',
+    getValue: (item: any, key: 'stockCode' | 'ipoDate' | 'totalCapital' | 'totalReturn' | 'avgReturnPct' | 'accountCount' | 'statusSummary') => {
+      switch (key) {
+        case 'stockCode':
+          return item.event.stockCode;
+        case 'ipoDate':
+          return item.event.ipoDate;
+        case 'statusSummary':
+          return `${item.sellCount}-${item.keepCount}`;
+        default:
+          return item[key] ?? 0;
+      }
+    },
+    tieBreaker: (a: any, b: any) => new Date(b.event.ipoDate).getTime() - new Date(a.event.ipoDate).getTime(),
+  });
 
   // Calculate global summary metrics
   const globalMetrics = useMemo(() => {
@@ -228,17 +247,17 @@ export default function IpoSummaryPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Kode Saham</th>
-                  <th>Tanggal IPO</th>
-                  <th>Modal Beli</th>
-                  <th>Realized PnL</th>
-                  <th>Rata-rata Return</th>
-                  <th>Partisipasi Akun</th>
-                  <th>Status Akun (Sell / Keep)</th>
+                  <th><SortableTableHeader label="Kode Saham" sortKey="stockCode" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Tanggal IPO" sortKey="ipoDate" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Modal Beli" sortKey="totalCapital" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Realized PnL" sortKey="totalReturn" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Rata-rata Return" sortKey="avgReturnPct" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Partisipasi Akun" sortKey="accountCount" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Status Akun (Sell / Keep)" sortKey="statusSummary" sortConfig={sortConfig} onSort={requestSort} /></th>
                 </tr>
               </thead>
               <tbody>
-                {eventSummaries.map((item) => {
+                {sortedEventSummaries.map((item) => {
                   const hasEntries = item.accountCount > 0;
                   const isProfit = item.totalReturn >= 0;
                   

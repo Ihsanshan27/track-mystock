@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
@@ -13,7 +14,12 @@ export default function TradesPage() {
   const [search, setSearch] = useState(() => sessionStorage.getItem('trades_filter_search') || '');
   const [filterStrategy, setFilterStrategy] = useState(() => sessionStorage.getItem('trades_filter_strategy') || '');
   const [filterStatus, setFilterStatus] = useState(() => sessionStorage.getItem('trades_filter_status') || '');
-  const [sortBy, setSortBy] = useState(() => sessionStorage.getItem('trades_sort_by') || 'date');
+  const [sortBy, setSortBy] = useState(() => {
+    const saved = sessionStorage.getItem('trades_sort_by') || 'dateBuy';
+    if (saved === 'date') return 'dateBuy';
+    if (saved === 'stock') return 'stockCode';
+    return saved;
+  });
   const [sortDir, setSortDir] = useState(() => sessionStorage.getItem('trades_sort_dir') || 'desc');
   const [page, setPage] = useState(() => parseInt(sessionStorage.getItem('trades_filter_page') || '1') || 1);
 
@@ -61,14 +67,32 @@ export default function TradesPage() {
 
     result.sort((a, b) => {
       let cmp = 0;
-      if (sortBy === 'date') {
+      if (sortBy === 'dateBuy') {
         cmp = new Date(a.dateBuy).getTime() - new Date(b.dateBuy).getTime();
-      } else if (sortBy === 'stock') {
+      } else if (sortBy === 'stockCode') {
         cmp = a.stockCode.localeCompare(b.stockCode);
+      } else if (sortBy === 'dateSell') {
+        cmp = new Date(a.dateSell || 0).getTime() - new Date(b.dateSell || 0).getTime();
+      } else if (sortBy === 'buyPrice') {
+        cmp = a.buyPrice - b.buyPrice;
+      } else if (sortBy === 'sellPrice') {
+        cmp = (a.sellPrice || 0) - (b.sellPrice || 0);
+      } else if (sortBy === 'lots') {
+        cmp = a.lots - b.lots;
       } else if (sortBy === 'pnl') {
         const pa = calculateTradePnL(a).pnl;
         const pb = calculateTradePnL(b).pnl;
         cmp = pa - pb;
+      } else if (sortBy === 'pnlPercent') {
+        const pa = calculateTradePnL(a).pnlPercent;
+        const pb = calculateTradePnL(b).pnlPercent;
+        cmp = pa - pb;
+      } else if (sortBy === 'strategy') {
+        cmp = (a.strategy || '').localeCompare(b.strategy || '');
+      } else if (sortBy === 'status') {
+        const sa = !a.sellPrice || !a.dateSell ? 'open' : 'closed';
+        const sb = !b.sellPrice || !b.dateSell ? 'open' : 'closed';
+        cmp = sa.localeCompare(sb);
       }
       return sortDir === 'desc' ? -cmp : cmp;
     });
@@ -78,6 +102,15 @@ export default function TradesPage() {
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
+  const requestSort = (key: string) => {
+    if (sortBy === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(key);
+      setSortDir(key === 'stockCode' || key === 'strategy' || key === 'status' ? 'asc' : 'desc');
+    }
+    setPage(1);
+  };
 
   const handleDelete = async (id, stockCode) => {
     const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus transaksi ${stockCode}?`, {
@@ -139,8 +172,8 @@ export default function TradesPage() {
           <option value="closed">Closed</option>
         </select>
         <select className="form-select" style={{ width: 140 }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
-          <option value="date">Sort: Tanggal</option>
-          <option value="stock">Sort: Kode</option>
+          <option value="dateBuy">Sort: Tanggal</option>
+          <option value="stockCode">Sort: Kode</option>
           <option value="pnl">Sort: P/L</option>
         </select>
         <button className="btn btn-ghost btn-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
@@ -162,16 +195,16 @@ export default function TradesPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Kode</th>
-                  <th>Tgl Beli</th>
-                  <th>Tgl Jual</th>
-                  <th>Buy</th>
-                  <th>Sell</th>
-                  <th>Qty</th>
-                  <th>P/L</th>
-                  <th>%</th>
-                  <th>Strategi</th>
-                  <th>Status</th>
+                  <th><SortableTableHeader label="Kode" sortKey="stockCode" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="Tgl Beli" sortKey="dateBuy" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="Tgl Jual" sortKey="dateSell" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="Buy" sortKey="buyPrice" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="Sell" sortKey="sellPrice" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="Qty" sortKey="lots" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="P/L" sortKey="pnl" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="%" sortKey="pnlPercent" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="Strategi" sortKey="strategy" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
+                  <th><SortableTableHeader label="Status" sortKey="status" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
                   <th>Aksi</th>
                 </tr>
               </thead>

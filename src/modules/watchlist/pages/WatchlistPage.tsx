@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { WATCHLIST_STATUS, WATCHLIST_PRIORITY } from '@/modules/shared/utils/constants';
 import { formatRupiah, formatDate, formatPercent } from '@/modules/shared/utils/formatters';
 import { Eye, Plus, X, Trash2, Save, TrendingUp, TrendingDown, Edit3 } from 'lucide-react';
@@ -236,6 +238,20 @@ export default function WatchlistPage() {
     }
     return watchlist.filter(item => item.categories?.includes(activeCategory));
   }, [watchlist, activeCategory]);
+  const { sortConfig, sortedItems: sortedWatchlist, requestSort } = useTableSort(filteredWatchlist, {
+    initialKey: 'createdAt',
+    initialDirection: 'desc',
+    getValue: (item: any, key: 'stockCode' | 'marketPrice' | 'trend' | 'targetPrice' | 'distanceToTarget' | 'reason' | 'priority' | 'status' | 'createdAt') => {
+      const quote = marketData[item.stockCode];
+      if (key === 'marketPrice') return quote?.price ?? -1;
+      if (key === 'trend') return quote?.changePct ?? -999;
+      if (key === 'distanceToTarget') {
+        if (!item.targetPrice || !quote?.price) return 999999;
+        return ((item.targetPrice - quote.price) / quote.price) * 100;
+      }
+      return item[key] || '';
+    },
+  });
 
   return (
     <div>
@@ -526,20 +542,20 @@ export default function WatchlistPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Kode</th>
-                    <th>Harga Pasar</th>
-                    <th>Tren (30 H)</th>
-                    <th>Target Beli</th>
-                    <th>Jarak ke Target</th>
-                    <th>Alasan</th>
-                    <th>Prioritas</th>
-                    <th>Status</th>
-                    <th>Tanggal</th>
+                    <th><SortableTableHeader label="Kode" sortKey="stockCode" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Harga Pasar" sortKey="marketPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Tren (30 H)" sortKey="trend" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Target Beli" sortKey="targetPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Jarak ke Target" sortKey="distanceToTarget" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Alasan" sortKey="reason" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Prioritas" sortKey="priority" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Status" sortKey="status" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Tanggal" sortKey="createdAt" sortConfig={sortConfig} onSort={requestSort} /></th>
                     <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredWatchlist.map(item => {
+                  {sortedWatchlist.map(item => {
                     const priority = WATCHLIST_PRIORITY.find(p => p.value === item.priority);
                     return (
                       <tr key={item.id}>

@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
 import { Coins, Plus, X, Trash2, Save, TrendingUp, Sparkles } from 'lucide-react';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
@@ -51,6 +53,15 @@ export default function DividendPage() {
   const filteredDividends = dividends.filter((d: any) => d.market === activeTab || (!d.market && activeTab === 'ID'));
   const totalDividendValue = filteredDividends.reduce((s: number, d: any) => s + (d.totalAmount || 0), 0);
   const formatMoney = isUS ? formatUSD : formatRupiah;
+  const { sortConfig, sortedItems: sortedDividends, requestSort } = useTableSort(filteredDividends, {
+    initialKey: 'payDate',
+    initialDirection: 'desc',
+    getValue: (div: any, key: 'stockCode' | 'shareCount' | 'dividendPerShare' | 'totalAmount' | 'cumDate' | 'payDate' | 'notes') => {
+      if (key === 'payDate') return div.payDate || div.createdAt || '';
+      return div[key] || '';
+    },
+    tieBreaker: (a: any, b: any) => new Date(b.payDate || b.createdAt).getTime() - new Date(a.payDate || a.createdAt).getTime(),
+  });
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -270,18 +281,18 @@ export default function DividendPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Kode Saham</th>
-                  <th>Lembar</th>
-                  <th>Nilai / Lembar</th>
-                  <th>Total Diterima</th>
-                  <th>Cum Date</th>
-                  <th>Pay Date</th>
-                  <th>Catatan</th>
+                  <th><SortableTableHeader label="Kode Saham" sortKey="stockCode" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Lembar" sortKey="shareCount" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Nilai / Lembar" sortKey="dividendPerShare" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Total Diterima" sortKey="totalAmount" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Cum Date" sortKey="cumDate" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Pay Date" sortKey="payDate" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Catatan" sortKey="notes" sortConfig={sortConfig} onSort={requestSort} /></th>
                   <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredDividends.sort((a: any, b: any) => new Date(b.payDate || b.createdAt).getTime() - new Date(a.payDate || a.createdAt).getTime()).map((div: any) => (
+                {sortedDividends.map((div: any) => (
                   <tr key={div.id}>
                     <td><strong>{div.stockCode}</strong></td>
                     <td>{div.shareCount.toLocaleString(isUS ? 'en-US' : 'id-ID')}</td>

@@ -14,6 +14,7 @@ import TradesPage from '@/modules/trades/pages/TradesPage';
 import NewTradePage from '@/modules/trades/pages/NewTradePage';
 import TradeDetailPage from '@/modules/trades/pages/TradeDetailPage';
 import AnalyticsPage from '@/modules/analytics/pages/AnalyticsPage';
+import HistoryPage from '@/modules/history/pages/HistoryPage';
 import PortfolioPage from '@/modules/portfolios/pages/PortfolioPage';
 import CalculatorPage from '@/modules/calculator/pages/CalculatorPage';
 import WatchlistPage from '@/modules/watchlist/pages/WatchlistPage';
@@ -132,6 +133,7 @@ function AppRoutes() {
         <Route path="/trades/new" element={<PermissionRoute permission="journal:write"><NewTradePage /></PermissionRoute>} />
         <Route path="/trades/:id" element={<PermissionRoute permission="journal:write"><TradeDetailPage /></PermissionRoute>} />
         <Route path="/analytics" element={<PermissionRoute permission="analytics:read"><AnalyticsPage /></PermissionRoute>} />
+        <Route path="/history" element={<PermissionRoute permission="portfolio:read"><HistoryPage /></PermissionRoute>} />
         <Route path="/portfolio" element={<PermissionRoute permission="portfolio:read"><PortfolioPage /></PermissionRoute>} />
         <Route path="/cashflow" element={<PermissionRoute permission="journal:write"><CashflowPage /></PermissionRoute>} />
         <Route path="/dividends" element={<PermissionRoute permission="journal:write"><DividendPage /></PermissionRoute>} />

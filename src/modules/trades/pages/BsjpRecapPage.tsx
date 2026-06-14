@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'; // React hooks
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
@@ -194,10 +195,26 @@ export default function BsjpRecapPage() {
         const pa = calculateTradePnL(a).pnl;
         const pb = calculateTradePnL(b).pnl;
         cmp = pa - pb;
+      } else if (sortBy === 'buyPrice') {
+        cmp = a.buyPrice - b.buyPrice;
+      } else if (sortBy === 'sellPrice') {
+        cmp = (a.sellPrice || 0) - (b.sellPrice || 0);
+      } else if (sortBy === 'pnlPercent') {
+        const pa = calculateTradePnL(a).pnlPercent;
+        const pb = calculateTradePnL(b).pnlPercent;
+        cmp = pa - pb;
       } else if (sortBy === 'totalKeluar') {
         const ca = calculateTradePnL(a).totalBuy;
         const cb = calculateTradePnL(b).totalBuy;
         cmp = ca - cb;
+      } else if (sortBy === 'totalMasuk') {
+        const calcA = calculateTradePnL(a);
+        const calcB = calculateTradePnL(b);
+        const ca = a.sellPrice ? calcA.totalSell - calcA.sellCommission : 0;
+        const cb = b.sellPrice ? calcB.totalSell - calcB.sellCommission : 0;
+        cmp = ca - cb;
+      } else if (sortBy === 'sekuritas') {
+        cmp = (a.sekuritas || '').localeCompare(b.sekuritas || '');
       }
       return sortDir === 'desc' ? -cmp : cmp;
     });
@@ -499,15 +516,15 @@ export default function BsjpRecapPage() {
                       <th onClick={() => handleSort('lots')} style={{ cursor: 'pointer' }}>
                         LOT {sortBy === 'lots' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
                       </th>
-                      <th>AVG BUY</th>
-                      <th>AVG SELL</th>
-                      <th>GAIN P/L</th>
+                      <th><SortableTableHeader label="AVG BUY" sortKey="buyPrice" sortConfig={{ key: sortBy as any, direction: sortDir }} onSort={handleSort as any} /></th>
+                      <th><SortableTableHeader label="AVG SELL" sortKey="sellPrice" sortConfig={{ key: sortBy as any, direction: sortDir }} onSort={handleSort as any} /></th>
+                      <th><SortableTableHeader label="GAIN P/L" sortKey="pnlPercent" sortConfig={{ key: sortBy as any, direction: sortDir }} onSort={handleSort as any} /></th>
                       <th onClick={() => handleSort('profit')} style={{ cursor: 'pointer' }}>
                         TOTAL PROFIT {sortBy === 'profit' ? (sortDir === 'desc' ? '↓' : '↑') : ''}
                       </th>
-                      <th>TOTAL MASUK</th>
-                      <th>TOTAL KELUAR</th>
-                      <th>SEKURITAS</th>
+                      <th><SortableTableHeader label="TOTAL MASUK" sortKey="totalMasuk" sortConfig={{ key: sortBy as any, direction: sortDir }} onSort={handleSort as any} /></th>
+                      <th><SortableTableHeader label="TOTAL KELUAR" sortKey="totalKeluar" sortConfig={{ key: sortBy as any, direction: sortDir }} onSort={handleSort as any} /></th>
+                      <th><SortableTableHeader label="SEKURITAS" sortKey="sekuritas" sortConfig={{ key: sortBy as any, direction: sortDir }} onSort={handleSort as any} /></th>
                       {canWrite && <th style={{ width: 100 }}>AKSI</th>}
                     </tr>
                   </thead>

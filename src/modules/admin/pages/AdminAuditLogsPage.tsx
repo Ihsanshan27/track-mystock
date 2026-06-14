@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
 import { listAuditLogs, cleanOldAuditLogs } from '@/modules/admin/services/auditLogService';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { formatDateTime } from '@/modules/shared/utils/formatters';
 
@@ -105,6 +107,17 @@ export default function AdminAuditLogsPage() {
       return haystack.includes(keyword);
     });
   }, [logs, profileById, search]);
+  const { sortConfig, sortedItems: sortedLogs, requestSort } = useTableSort(filteredLogs, {
+    initialKey: 'created_at',
+    initialDirection: 'desc',
+    getValue: (log: any, key: 'created_at' | 'actor' | 'action' | 'target' | 'detail') => {
+      const actor = profileById[log.actor_id];
+      if (key === 'actor') return actor?.displayName || actor?.email || log.actor_id || 'System';
+      if (key === 'target') return `${log.target_type || ''} ${log.target_id || ''}`;
+      if (key === 'detail') return JSON.stringify(log.metadata || {});
+      return log[key] || '';
+    },
+  });
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -173,15 +186,15 @@ export default function AdminAuditLogsPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Waktu</th>
-                <th>Actor</th>
-                <th>Aktivitas</th>
-                <th>Target</th>
-                <th>Detail</th>
+                <th><SortableTableHeader label="Waktu" sortKey="created_at" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Actor" sortKey="actor" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Aktivitas" sortKey="action" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Target" sortKey="target" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Detail" sortKey="detail" sortConfig={sortConfig} onSort={requestSort} /></th>
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.map(log => {
+              {sortedLogs.map(log => {
                 const actor = profileById[log.actor_id];
                 const metadataEntries = Object.entries(log.metadata || {});
                 return (

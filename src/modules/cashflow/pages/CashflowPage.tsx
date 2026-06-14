@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
 import { Coins, Plus, X, Trash2, Save, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
@@ -36,6 +38,12 @@ export default function CashflowPage() {
   const balance = calculatePortfolioBalance(trades, cashflows, dividends, initCap, activeTab);
 
   const filteredCashflows = cashflows.filter((cf: any) => cf.market === activeTab || (!cf.market && activeTab === 'ID'));
+  const { sortConfig, sortedItems: sortedCashflows, requestSort } = useTableSort(filteredCashflows, {
+    initialKey: 'date',
+    initialDirection: 'desc',
+    getValue: (item: any, key: 'date' | 'type' | 'amount' | 'notes') => item[key] || '',
+    tieBreaker: (a: any, b: any) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime(),
+  });
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -197,15 +205,15 @@ export default function CashflowPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Tanggal</th>
-                  <th>Jenis</th>
-                  <th>Jumlah</th>
-                  <th>Catatan</th>
+                  <th><SortableTableHeader label="Tanggal" sortKey="date" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Jenis" sortKey="type" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Jumlah" sortKey="amount" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Catatan" sortKey="notes" sortConfig={sortConfig} onSort={requestSort} /></th>
                   <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredCashflows.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((cf: any) => (
+                {sortedCashflows.map((cf: any) => (
                   <tr key={cf.id}>
                     <td>{formatDate(cf.date)}</td>
                     <td>

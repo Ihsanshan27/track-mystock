@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
 import { formatRupiah, formatUSD, formatPercent } from '@/modules/shared/utils/formatters';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import * as Icons from 'lucide-react';
 
 export default function TradingPlansPage() {
@@ -170,6 +172,10 @@ export default function TradingPlansPage() {
   };
 
   const blurStyle = usePrivacyStyle();
+  const { sortConfig, sortedItems: sortedTradingPlans, requestSort } = useTableSort(tradingPlans, {
+    initialKey: 'stockCode',
+    getValue: (plan: any, key: 'stockCode' | 'market' | 'entryPrice' | 'stopLoss' | 'targetProfit' | 'rrRatio' | 'lots' | 'requiredCapital' | 'reason') => plan[key] || '',
+  });
 
   return (
     <div>
@@ -338,20 +344,20 @@ export default function TradingPlansPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Kode</th>
-                <th>Pasar</th>
-                <th>Entry Price</th>
-                <th>Stop Loss</th>
-                <th>Target Profit</th>
-                <th>Risk:Reward</th>
-                <th>Lots/Shares</th>
-                <th>Kebutuhan Modal</th>
-                <th>Catatan</th>
+                <th><SortableTableHeader label="Kode" sortKey="stockCode" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Pasar" sortKey="market" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Entry Price" sortKey="entryPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Stop Loss" sortKey="stopLoss" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Target Profit" sortKey="targetProfit" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Risk:Reward" sortKey="rrRatio" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Lots/Shares" sortKey="lots" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Kebutuhan Modal" sortKey="requiredCapital" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Catatan" sortKey="reason" sortConfig={sortConfig} onSort={requestSort} /></th>
                 <th style={{ width: 140 }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {tradingPlans.map((plan: any) => {
+              {sortedTradingPlans.map((plan: any) => {
                 const planIsUS = plan.market === 'US';
                 const fMoney = planIsUS ? formatUSD : formatRupiah;
                 return (

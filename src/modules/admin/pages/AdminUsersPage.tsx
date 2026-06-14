@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/modules/auth/AuthContext';
 import { useData } from '@/modules/shared/context/DataContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { USER_ROLES, listProfiles, updateProfileRole } from '@/modules/shared/services/profileService';
 import { createAuditLog, createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { createUserAsAdmin } from '@/modules/admin/services/adminUserService';
@@ -75,6 +77,10 @@ export default function AdminUsersPage() {
       profile.role?.toLowerCase().includes(keyword)
     );
   }, [profiles, search]);
+  const { sortConfig, sortedItems: sortedProfiles, requestSort } = useTableSort(filteredProfiles, {
+    initialKey: 'displayName',
+    getValue: (profile: any, key: 'displayName' | 'email' | 'role' | 'createdAt') => profile[key] || '',
+  });
 
   const handleRoleChange = async (profile, role) => {
     if (profile.role === role) return;
@@ -212,15 +218,15 @@ export default function AdminUsersPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>User</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Dibuat</th>
+                <th><SortableTableHeader label="User" sortKey="displayName" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Email" sortKey="email" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Role" sortKey="role" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Dibuat" sortKey="createdAt" sortConfig={sortConfig} onSort={requestSort} /></th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {filteredProfiles.map(profile => (
+              {sortedProfiles.map(profile => (
                 <tr key={profile.id}>
                   <td>
                     <strong>{profile.displayName}</strong>

@@ -3,6 +3,8 @@ import { useAuth } from '@/modules/auth/AuthContext';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import { useWorkspace } from '@/modules/shared/context/WorkspaceContext';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { createAuditLog } from '@/modules/admin/services/auditLogService';
 import {
@@ -55,6 +57,15 @@ export default function AdminWorkspacesPage() {
     const currentWorkspaceMemberIds = new Set(workspaceMembers.map(member => member.user_id));
     return userProfiles.filter(profile => !currentWorkspaceMemberIds.has(profile.id));
   }, [workspaceMembers, userProfiles]);
+  const { sortConfig, sortedItems: sortedWorkspaceMembers, requestSort } = useTableSort(workspaceMembers, {
+    initialKey: 'displayName',
+    getValue: (member: any, key: 'displayName' | 'email' | 'role' | 'created_at') => {
+      const profile = profileById[member.user_id];
+      if (key === 'displayName') return profile?.displayName || member.user_id;
+      if (key === 'email') return profile?.email || '';
+      return member[key] || '';
+    },
+  });
 
   const loadWorkspaceMembers = useCallback(async (workspaceId) => {
     if (!workspaceId) {
@@ -330,15 +341,15 @@ export default function AdminWorkspacesPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Bergabung</th>
+                    <th><SortableTableHeader label="User" sortKey="displayName" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Email" sortKey="email" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Role" sortKey="role" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Bergabung" sortKey="created_at" sortConfig={sortConfig} onSort={requestSort} /></th>
                     <th>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {workspaceMembers.map(workspaceMember => {
+                  {sortedWorkspaceMembers.map(workspaceMember => {
                     const profile = profileById[workspaceMember.user_id];
                     return (
                       <tr key={workspaceMember.id}>

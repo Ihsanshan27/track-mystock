@@ -11,6 +11,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
+import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { formatCompactNumber, formatDateTime, formatPercent, formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 
 function resolveMoneyFormatter(currency) {
@@ -93,6 +95,11 @@ export default function ReportView({
   const equityCurve = report.equityCurve || [];
   const monthlyPerformance = report.monthlyPerformance || [];
   const positions = report.portfolioSummary || [];
+  const { sortConfig, sortedItems: sortedPositions, requestSort } = useTableSort(positions, {
+    initialKey: 'totalBuy',
+    initialDirection: 'desc',
+    getValue: (position: any, key: 'stockCode' | 'lots' | 'totalBuy' | 'currentPrice' | 'floatingPnL' | 'allocationPercent') => position[key] || 0,
+  });
 
   return (
     <div>
@@ -148,16 +155,16 @@ export default function ReportView({
             <table className="table">
               <thead>
                 <tr>
-                  <th>Kode</th>
-                  <th>Posisi</th>
-                  <th>Total Beli</th>
-                  <th>Current Price</th>
-                  <th>Floating P/L</th>
-                  <th>Alokasi</th>
+                  <th><SortableTableHeader label="Kode" sortKey="stockCode" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Posisi" sortKey="lots" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Total Beli" sortKey="totalBuy" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Current Price" sortKey="currentPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Floating P/L" sortKey="floatingPnL" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th><SortableTableHeader label="Alokasi" sortKey="allocationPercent" sortConfig={sortConfig} onSort={requestSort} /></th>
                 </tr>
               </thead>
               <tbody>
-                {positions.length > 0 ? positions.map((position) => (
+                {sortedPositions.length > 0 ? sortedPositions.map((position) => (
                   <tr key={position.id || position.stockCode}>
                     <td><strong>{position.stockCode}</strong></td>
                     <td>{position.lots} lot</td>
