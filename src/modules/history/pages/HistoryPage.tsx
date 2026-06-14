@@ -51,12 +51,12 @@ function formatDayLabel(dateKey: string) {
 }
 
 export default function HistoryPage() {
-  const { trades, settings, activePortfolioId } = useData();
+  const { trades, cashflows, dividends, settings, activePortfolioId } = useData();
   const [activeTab, setActiveTab] = useState<MarketTab>('ID');
   const [selectedRangeKey, setSelectedRangeKey] = useState<RangeKey>('mtd');
   const formatMoney = activeTab === 'US' ? formatUSD : formatRupiah;
   const now = useMemo(() => new Date(), []);
-  const baseEquity = activePortfolioId === 'default'
+  const initialCapitalForMarket = activePortfolioId === 'default'
     ? (activeTab === 'US' ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000))
     : 0;
 
@@ -119,28 +119,13 @@ export default function HistoryPage() {
     return closedTrades.filter((trade: any) => selectedRangeSummary.matches(trade.sellDateObj));
   }, [closedTrades, selectedRangeSummary]);
 
-  const trendData = useMemo(() => {
-    const grouped = new Map<string, {
-      key: string;
-      label: string;
-      realized: number;
-      sortValue: number;
-    }>();
+  const marketCashflows = useMemo(() => {
+    return cashflows.filter((cashflow: any) => cashflow.market === activeTab || (!cashflow.market && activeTab === 'ID'));
+  }, [activeTab, cashflows]);
 
-    selectedRangeTrades.forEach((trade: any) => {
-      const key = trade.dateSell || formatDateKey(trade.sellDateObj);
-      const label = formatDayLabel(key);
-      const sortValue = trade.sellDateObj.getTime();
-
-      if (!grouped.has(key)) {
-        grouped.set(key, { key, label, realized: 0, sortValue });
-      }
-
-      grouped.get(key)!.realized += trade.pnl;
-    });
-
-    return Array.from(grouped.values()).sort((a, b) => a.sortValue - b.sortValue);
-  }, [selectedRangeTrades]);
+  const marketDividends = useMemo(() => {
+    return dividends.filter((dividend: any) => dividend.market === activeTab || (!dividend.market && activeTab === 'ID'));
+  }, [activeTab, dividends]);
 
   const monthlyData = useMemo(() => {
     const grouped = new Map<string, {
@@ -182,17 +167,82 @@ export default function HistoryPage() {
   }, [selectedRangeTrades]);
 
   const cumulativeTrendData = useMemo(() => {
-    let runningRealized = 0;
-    return trendData
-      .map((item) => {
-        runningRealized += item.realized;
-        return {
-          ...item,
-          cumulativeRealized: runningRealized,
-          totalEquity: baseEquity + runningRealized,
-        };
+    if (selectedRangeTrades.length === 0) return [];
+
+    const rangeStart = selectedRangeTrades[selectedRangeTrades.length - 1]?.dateSell;
+    const rangeEnd = selectedRangeTrades[0]?.dateSell;
+    if (!rangeStart || !rangeEnd) return [];
+
+    const realizedByDate = new Map<string, number>();
+    const cashflowByDate = new Map<string, number>();
+    const dividendByDate = new Map<string, number>();
+
+    selectedRangeTrades.forEach((trade: any) => {
+      realizedByDate.set(trade.dateSell, (realizedByDate.get(trade.dateSell) || 0) + trade.pnl);
+    });
+
+    marketCashflows.forEach((cashflow: any) => {
+      if (cashflow.date >= rangeStart && cashflow.date <= rangeEnd) {
+        const delta = cashflow.type === 'deposit' ? cashflow.amount : -cashflow.amount;
+        cashflowByDate.set(cashflow.date, (cashflowByDate.get(cashflow.date) || 0) + delta);
+      }
+    });
+
+    marketDividends.forEach((dividend: any) => {
+      if (dividend.dateReceived >= rangeStart && dividend.dateReceived <= rangeEnd) {
+        dividendByDate.set(dividend.dateReceived, (dividendByDate.get(dividend.dateReceived) || 0) + (dividend.totalAmount || 0));
+      }
+    });
+
+    const openingRealized = closedTrades
+      .filter((trade: any) => trade.dateSell < rangeStart)
+      .reduce((sum: number, trade: any) => sum + trade.pnl, 0);
+
+    const openingCashflow = marketCashflows
+      .filter((cashflow: any) => cashflow.date < rangeStart)
+      .reduce((sum: number, cashflow: any) => sum + (cashflow.type === 'deposit' ? cashflow.amount : -cashflow.amount), 0);
+
+    const openingDividend = marketDividends
+      .filter((dividend: any) => dividend.dateReceived < rangeStart)
+      .reduce((sum: number, dividend: any) => sum + (dividend.totalAmount || 0), 0);
+
+    let runningRealized = openingRealized;
+    let runningEquity = initialCapitalForMarket + openingCashflow + openingDividend + openingRealized;
+
+    const series: Array<{
+      key: string;
+      label: string;
+      realized: number;
+      cumulativeRealized: number;
+      totalEquity: number;
+    }> = [];
+
+    const cursor = parseLocalDate(rangeStart);
+    const endDate = parseLocalDate(rangeEnd);
+    if (!cursor || !endDate) return [];
+
+    while (cursor.getTime() <= endDate.getTime()) {
+      const key = formatDateKey(cursor);
+      const realizedDelta = realizedByDate.get(key) || 0;
+      const cashflowDelta = cashflowByDate.get(key) || 0;
+      const dividendDelta = dividendByDate.get(key) || 0;
+
+      runningRealized += realizedDelta;
+      runningEquity += realizedDelta + cashflowDelta + dividendDelta;
+
+      series.push({
+        key,
+        label: formatDayLabel(key),
+        realized: realizedDelta,
+        cumulativeRealized: runningRealized,
+        totalEquity: runningEquity,
       });
-  }, [baseEquity, trendData]);
+
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return series;
+  }, [closedTrades, initialCapitalForMarket, marketCashflows, marketDividends, selectedRangeTrades]);
 
   const renderHistoryTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
