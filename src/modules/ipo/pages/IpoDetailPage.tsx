@@ -1,4 +1,4 @@
-import { useState, useMemo, type ReactNode } from 'react';
+import { Fragment, useState, useMemo, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
@@ -21,10 +21,27 @@ const EMPTY_FORM = {
   notes: '',
 };
 
+type SortKey =
+  | 'no'
+  | 'stockCode'
+  | 'buyPrice'
+  | 'lots'
+  | 'totalBuy'
+  | 'sellPrice'
+  | 'totalSell'
+  | 'profitRp'
+  | 'profitPct'
+  | 'accountName'
+  | 'email'
+  | 'slTl'
+  | 'action';
+
+type SortDirection = 'asc' | 'desc';
+
 function calcEntry(e: IpoEntry): IpoEntryCalc {
   const shares = e.lots * 100;
   const totalBuy = e.buyPrice * shares;
-  const totalSell = e.action === 'SELL' && e.sellPrice > 0 ? e.sellPrice * shares : 0;
+  const totalSell = e.sellPrice > 0 ? e.sellPrice * shares : 0;
   const profitRp = totalSell > 0 ? totalSell - totalBuy : 0;
   const profitPct = totalBuy > 0 && totalSell > 0 ? (profitRp / totalBuy) * 100 : 0;
   return { ...e, totalBuy, totalSell, profitRp, profitPct };
@@ -45,6 +62,10 @@ export default function IpoDetailPage() {
     () => sessionStorage.getItem(EDIT_KEY) || null
   );
   const [copySuccess, setCopySuccess] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({
+    key: 'no',
+    direction: 'asc',
+  });
 
   const [showForm, setShowFormState] = useState<boolean>(
     () => sessionStorage.getItem(OPEN_KEY) === 'true'
@@ -80,7 +101,6 @@ export default function IpoDetailPage() {
     const next = {
       ...prev,
       sellPrice: value,
-      action: parseFloat(value) > 0 ? 'SELL' : prev.action,
     };
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next));
     return next;
@@ -90,7 +110,6 @@ export default function IpoDetailPage() {
     const next = {
       ...prev,
       action: value,
-      sellPrice: value === 'KEEP' ? '' : prev.sellPrice,
     };
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next));
     return next;
@@ -151,6 +170,50 @@ export default function IpoDetailPage() {
       .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       .map((e: any, idx: number) => calcEntry({ ...e, no: idx + 1 }));
   }, [ipoEntries, id]);
+
+  const sortedEntries = useMemo(() => {
+    const stockCode = event?.stockCode || '';
+    const getSortValue = (entry: IpoEntryCalc, key: SortKey) => {
+      switch (key) {
+        case 'stockCode':
+          return stockCode;
+        case 'no':
+        case 'buyPrice':
+        case 'lots':
+        case 'totalBuy':
+        case 'sellPrice':
+        case 'totalSell':
+        case 'profitRp':
+        case 'profitPct':
+          return entry[key] ?? 0;
+        case 'accountName':
+        case 'email':
+        case 'slTl':
+        case 'action':
+          return (entry[key] || '').toString().toLowerCase();
+        default:
+          return '';
+      }
+    };
+
+    return [...entries].sort((a, b) => {
+      const aValue = getSortValue(a, sortConfig.key);
+      const bValue = getSortValue(b, sortConfig.key);
+
+      let comparison = 0;
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        comparison = aValue - bValue;
+      } else {
+        comparison = String(aValue).localeCompare(String(bValue), 'id', { numeric: true, sensitivity: 'base' });
+      }
+
+      if (comparison === 0) {
+        comparison = a.no - b.no;
+      }
+
+      return sortConfig.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [entries, event?.stockCode, sortConfig]);
 
   const summary = useMemo(() => {
     const sellEntries = entries.filter(e => e.action === 'SELL');
@@ -234,16 +297,16 @@ export default function IpoDetailPage() {
   const handleCopyTable = () => {
     const headers = [
       'No', 'Saham', 'Harga Beli', 'Total Lot', 'Total Harga (Rp)',
-      'Harga Jual AVG', 'Total Harga Jual (Rp)', 'Profit (Rp)', 'Profit (%)',
+      'Harga Sekarang / Jual AVG', 'Total Nilai (Rp)', 'Profit (Rp)', 'Profit (%)',
       'Akun', 'Email (Google)', 'SL/TL', 'SELL/KEEP', 'Catatan'
     ];
-    const rows = entries.map(e => [
+    const rows = sortedEntries.map(e => [
       e.no,
       event?.stockCode || '',
       e.buyPrice,
       e.lots,
       e.totalBuy,
-      e.action === 'SELL' && e.sellPrice > 0 ? e.sellPrice : '',
+      e.sellPrice > 0 ? e.sellPrice : '',
       e.totalSell > 0 ? e.totalSell : '',
       e.totalSell > 0 ? e.profitRp : '',
       e.totalSell > 0 ? `${e.profitPct.toFixed(2)}%` : '',
@@ -260,15 +323,58 @@ export default function IpoDetailPage() {
     });
   };
 
+  const handleSort = (key: SortKey) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
   const previewLots = parseFloat(form.lots) || 0;
   const previewBuy = parseFloat(form.buyPrice) || 0;
   const previewSell = parseFloat(form.sellPrice) || 0;
   const previewTotalBuy = previewBuy * previewLots * 100;
-  const previewTotalSell = form.action === 'SELL' && previewSell > 0 ? previewSell * previewLots * 100 : 0;
+  const previewTotalSell = previewSell > 0 ? previewSell * previewLots * 100 : 0;
   const previewProfit = previewTotalSell - previewTotalBuy;
   const previewPct = previewTotalBuy > 0 && previewTotalSell > 0 ? (previewProfit / previewTotalBuy) * 100 : 0;
   const compactCellStyle = { padding: '10px 8px', fontSize: '0.8rem', verticalAlign: 'middle' } as const;
   const compactHeaderStyle = { padding: '10px 8px', fontSize: '0.68rem' } as const;
+  const sortableHeaderButtonStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    width: '100%',
+    padding: 0,
+    border: 'none',
+    background: 'transparent',
+    color: 'inherit',
+    font: 'inherit',
+    fontWeight: 700,
+    cursor: 'pointer',
+    textAlign: 'left' as const,
+  };
+
+  const renderSortableHeader = (label: string, key: SortKey) => {
+    const isActive = sortConfig.key === key;
+    const SortIcon = isActive
+      ? (sortConfig.direction === 'asc' ? Icons.ChevronUp : Icons.ChevronDown)
+      : Icons.ChevronsUpDown;
+
+    return (
+      <button
+        type="button"
+        onClick={() => handleSort(key)}
+        style={{
+          ...sortableHeaderButtonStyle,
+          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+        }}
+        title={`Urutkan berdasarkan ${label}`}
+      >
+        <span>{label}</span>
+        <SortIcon size={12} />
+      </button>
+    );
+  };
 
   const renderEntryForm = (submitLabel: string, submitIcon: ReactNode, isInline = false) => (
     <form onSubmit={handleSubmit}>
@@ -292,8 +398,8 @@ export default function IpoDetailPage() {
           <input type="number" step="any" min="0" className="form-input" placeholder="1" value={form.lots} onChange={e => set('lots', e.target.value)} required />
         </div>
         <div className="form-group">
-          <label className="form-label">Harga Jual AVG (Rp)</label>
-          <input type="number" step="any" min="0" className="form-input" placeholder="0 jika KEEP" value={form.sellPrice} onChange={e => setSellPrice(e.target.value)} />
+          <label className="form-label">Harga Skrg / Jual AVG (Rp)</label>
+          <input type="number" step="any" min="0" className="form-input" placeholder="Isi harga sekarang untuk estimasi" value={form.sellPrice} onChange={e => setSellPrice(e.target.value)} />
         </div>
         <div className="form-group">
           <label className="form-label">SL / TL</label>
@@ -330,30 +436,36 @@ export default function IpoDetailPage() {
             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Total Harga Beli</div>
             <div className="font-mono" style={{ fontWeight: 700, ...blurStyle }}>{formatRupiah(previewTotalBuy)}</div>
           </div>
-          {form.action === 'SELL' && previewSell > 0 && (
+          {previewSell > 0 && (
             <>
               <div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Total Harga Jual</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                  {form.action === 'SELL' ? 'Total Harga Jual' : 'Estimasi Nilai Sekarang'}
+                </div>
                 <div className="font-mono" style={{ fontWeight: 700, ...blurStyle }}>{formatRupiah(previewTotalSell)}</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Profit (Rp)</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                  {form.action === 'SELL' ? 'Profit (Rp)' : 'Estimasi Profit (Rp)'}
+                </div>
                 <div className="font-mono" style={{ fontWeight: 700, color: previewProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', ...blurStyle }}>
                   {previewProfit >= 0 ? '+' : ''}{formatRupiah(previewProfit)}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Profit (%)</div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                  {form.action === 'SELL' ? 'Profit (%)' : 'Estimasi Profit (%)'}
+                </div>
                 <div className="font-mono" style={{ fontWeight: 700, color: previewPct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                   {previewPct >= 0 ? '+' : ''}{previewPct.toFixed(2)}%
                 </div>
               </div>
             </>
           )}
-          {form.action === 'KEEP' && (
+          {form.action === 'KEEP' && previewSell <= 0 && (
             <div>
               <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Status</div>
-              <div style={{ fontWeight: 700, color: 'var(--accent-yellow)' }}>KEEP - belum dijual</div>
+              <div style={{ fontWeight: 700, color: 'var(--accent-yellow)' }}>KEEP - isi harga sekarang untuk lihat estimasi</div>
             </div>
           )}
         </div>
@@ -530,32 +642,32 @@ export default function IpoDetailPage() {
             <table className="table" style={{ width: '100%', minWidth: 920, tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ ...compactHeaderStyle, width: 36 }}>No</th>
-                  <th style={{ ...compactHeaderStyle, width: 58 }}>Saham</th>
-                  <th style={{ ...compactHeaderStyle, width: 90 }}>Harga Beli</th>
-                  <th style={{ ...compactHeaderStyle, width: 64 }}>Lot</th>
-                  <th style={{ ...compactHeaderStyle, width: 96 }}>Total Beli</th>
-                  <th style={{ ...compactHeaderStyle, width: 88 }}>Jual AVG</th>
-                  <th style={{ ...compactHeaderStyle, width: 96 }}>Total Jual</th>
-                  <th style={{ ...compactHeaderStyle, width: 96 }}>Profit</th>
-                  <th style={{ ...compactHeaderStyle, width: 70 }}>Profit %</th>
-                  <th style={{ ...compactHeaderStyle, width: 110 }}>Akun</th>
-                  <th style={{ ...compactHeaderStyle, width: 140 }}>Email</th>
-                  <th style={{ ...compactHeaderStyle, width: 54 }}>SL/TL</th>
-                  <th style={{ ...compactHeaderStyle, width: 70 }}>Aksi</th>
+                  <th style={{ ...compactHeaderStyle, width: 36 }}>{renderSortableHeader('No', 'no')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 58 }}>{renderSortableHeader('Saham', 'stockCode')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 90 }}>{renderSortableHeader('Harga Beli', 'buyPrice')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 64 }}>{renderSortableHeader('Lot', 'lots')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 96 }}>{renderSortableHeader('Total Beli', 'totalBuy')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 88 }}>{renderSortableHeader('Harga Skrg', 'sellPrice')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 96 }}>{renderSortableHeader('Total Nilai', 'totalSell')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 96 }}>{renderSortableHeader('Profit', 'profitRp')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 70 }}>{renderSortableHeader('Profit %', 'profitPct')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 110 }}>{renderSortableHeader('Akun', 'accountName')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 140 }}>{renderSortableHeader('Email', 'email')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 54 }}>{renderSortableHeader('SL/TL', 'slTl')}</th>
+                  <th style={{ ...compactHeaderStyle, width: 88 }}>{renderSortableHeader('Status', 'action')}</th>
                   {canWrite && <th style={{ ...compactHeaderStyle, width: 72 }}>Tools</th>}
                 </tr>
               </thead>
               <tbody>
-                {entries.map(entry => {
+                {sortedEntries.map(entry => {
                   const isProfit = entry.profitRp > 0;
                   const isLoss = entry.profitRp < 0;
                   const isKeep = entry.action === 'KEEP';
                   const isEditingThisRow = editId === entry.id;
 
                   return (
-                    <>
-                      <tr key={entry.id} style={{
+                    <Fragment key={entry.id}>
+                      <tr style={{
                         background: isEditingThisRow
                           ? 'rgba(59, 130, 246, 0.08)'
                           : isKeep
@@ -573,13 +685,20 @@ export default function IpoDetailPage() {
                         <td className="font-mono" style={compactCellStyle}>{entry.lots} lot</td>
                         <td className="font-mono" style={{ ...compactCellStyle, ...blurStyle }}>{formatRupiah(entry.totalBuy)}</td>
                         <td className="font-mono" style={{ ...compactCellStyle, ...blurStyle }}>
-                          {entry.action === 'SELL' && entry.sellPrice > 0 ? formatRupiah(entry.sellPrice) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                          {entry.sellPrice > 0 ? formatRupiah(entry.sellPrice) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                         </td>
                         <td className="font-mono" style={{ ...compactCellStyle, ...blurStyle }}>
                           {entry.totalSell > 0 ? formatRupiah(entry.totalSell) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                         </td>
                         <td className={`font-mono ${isProfit ? 'text-profit' : isLoss ? 'text-loss' : ''}`} style={{ ...compactCellStyle, fontWeight: 600, ...blurStyle }}>
-                          {entry.totalSell > 0 ? `${isProfit ? '+' : ''}${formatRupiah(entry.profitRp)}` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                          {entry.totalSell > 0 ? (
+                            <>
+                              {`${isProfit ? '+' : ''}${formatRupiah(entry.profitRp)}`}
+                              {entry.action === 'KEEP' && entry.sellPrice > 0 && (
+                                <div style={{ fontSize: '0.68rem', color: 'var(--accent-yellow)' }}>estimasi</div>
+                              )}
+                            </>
+                          ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                         </td>
                         <td className={`font-mono ${isProfit ? 'text-profit' : isLoss ? 'text-loss' : ''}`} style={{ ...compactCellStyle, fontWeight: 600 }}>
                           {entry.totalSell > 0 ? `${isProfit ? '+' : ''}${entry.profitPct.toFixed(2)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
@@ -598,13 +717,20 @@ export default function IpoDetailPage() {
                           </span>
                         </td>
                         <td style={compactCellStyle}>
-                          <span style={{
-                            fontSize: '0.66rem', fontWeight: 700, padding: '2px 6px', borderRadius: 999,
-                            background: entry.action === 'SELL' ? 'var(--accent-blue-dim)' : 'rgba(234,179,8,0.15)',
-                            color: entry.action === 'SELL' ? 'var(--accent-blue-light)' : '#d97706',
-                          }}>
-                            {entry.action}
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                            <span style={{
+                              fontSize: '0.66rem', fontWeight: 700, padding: '2px 6px', borderRadius: 999,
+                              background: entry.action === 'SELL' ? 'var(--accent-blue-dim)' : 'rgba(234,179,8,0.15)',
+                              color: entry.action === 'SELL' ? 'var(--accent-blue-light)' : '#d97706',
+                            }}>
+                              {entry.action}
+                            </span>
+                            {entry.action === 'KEEP' && entry.sellPrice > 0 && (
+                              <span style={{ fontSize: '0.68rem', color: 'var(--accent-yellow)', lineHeight: 1.1 }}>
+                                estimasi aktif
+                              </span>
+                            )}
+                          </div>
                         </td>
                         {canWrite && (
                           <td style={compactCellStyle}>
@@ -648,7 +774,7 @@ export default function IpoDetailPage() {
                       </tr>
                       {isEditingThisRow && canWrite && (
                         <tr>
-                          <td colSpan={14} style={{ padding: 0, background: 'rgba(59, 130, 246, 0.04)' }}>
+                          <td colSpan={canWrite ? 14 : 13} style={{ padding: 0, background: 'rgba(59, 130, 246, 0.04)' }}>
                             <div style={{ padding: 16, borderTop: '1px solid var(--border-color)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: 'var(--accent-blue-light)' }}>
                                 <Icons.Edit3 size={15} />
@@ -659,7 +785,7 @@ export default function IpoDetailPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>
