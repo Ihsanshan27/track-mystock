@@ -19,7 +19,7 @@ import * as Icons from 'lucide-react';
 
 type MarketTab = 'ID' | 'US';
 
-type RangeKey = 'today' | 'mtd' | 'ytd' | 'last7d' | 'last30d' | 'last90d' | 'all';
+type RangeKey = 'today' | 'mtd' | 'ytd' | 'last7d' | 'last30d' | 'last90d' | 'custom' | 'all';
 
 function parseLocalDate(dateString?: string | null) {
   if (!dateString) return null;
@@ -50,12 +50,31 @@ function formatDayLabel(dateKey: string) {
   return formatDate(dateKey);
 }
 
+function buildRangeLabel(startDate?: string, endDate?: string) {
+  if (startDate && endDate) {
+    return startDate === endDate
+      ? formatDate(startDate)
+      : `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  }
+
+  if (startDate) return `Dari ${formatDate(startDate)}`;
+  if (endDate) return `Sampai ${formatDate(endDate)}`;
+  return 'Semua Tanggal';
+}
+
 export default function HistoryPage() {
   const { trades, cashflows, dividends, settings, activePortfolioId } = useData();
   const [activeTab, setActiveTab] = useState<MarketTab>('ID');
   const [selectedRangeKey, setSelectedRangeKey] = useState<RangeKey>('mtd');
   const formatMoney = activeTab === 'US' ? formatUSD : formatRupiah;
   const now = useMemo(() => new Date(), []);
+  const defaultCustomStartDate = useMemo(
+    () => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`,
+    [now],
+  );
+  const defaultCustomEndDate = useMemo(() => formatDateKey(now), [now]);
+  const [customStartDate, setCustomStartDate] = useState(defaultCustomStartDate);
+  const [customEndDate, setCustomEndDate] = useState(defaultCustomEndDate);
   const initialCapitalForMarket = activePortfolioId === 'default'
     ? (activeTab === 'US' ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000))
     : 0;
@@ -83,6 +102,14 @@ export default function HistoryPage() {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
     const ninetyDaysAgo = new Date(todayStart);
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 89);
+    const customStartObj = parseLocalDate(customStartDate);
+    const customEndObj = parseLocalDate(customEndDate);
+    const normalizedCustomStart = customStartObj && customEndObj && customStartObj > customEndObj
+      ? customEndObj
+      : customStartObj;
+    const normalizedCustomEnd = customStartObj && customEndObj && customStartObj > customEndObj
+      ? customStartObj
+      : customEndObj;
 
     const rangeMap: Array<{ key: RangeKey; label: string; matches: (sellDate: Date) => boolean }> = [
       { key: 'today', label: 'Today', matches: (sellDate) => isSameDay(sellDate, now) },
@@ -91,6 +118,15 @@ export default function HistoryPage() {
       { key: 'last7d', label: 'Last 7 Days', matches: (sellDate) => sellDate >= sevenDaysAgo && sellDate <= now },
       { key: 'last30d', label: 'Last 1 Month', matches: (sellDate) => sellDate >= thirtyDaysAgo && sellDate <= now },
       { key: 'last90d', label: 'Last 3 Months', matches: (sellDate) => sellDate >= ninetyDaysAgo && sellDate <= now },
+      {
+        key: 'custom',
+        label: `Custom Range (${buildRangeLabel(customStartDate, customEndDate)})`,
+        matches: (sellDate) => {
+          if (normalizedCustomStart && sellDate < normalizedCustomStart) return false;
+          if (normalizedCustomEnd && sellDate > normalizedCustomEnd) return false;
+          return true;
+        },
+      },
       { key: 'all', label: 'All Time', matches: () => true },
     ];
 
@@ -108,7 +144,7 @@ export default function HistoryPage() {
         winRate: items.length > 0 ? (wins / items.length) * 100 : 0,
       };
     });
-  }, [closedTrades, now]);
+  }, [closedTrades, customEndDate, customStartDate, now]);
 
   const selectedRangeSummary = useMemo(() => {
     return rangeSummaries.find((range) => range.key === selectedRangeKey) || rangeSummaries[0] || null;
@@ -281,6 +317,7 @@ export default function HistoryPage() {
   const totalRealized = closedTrades.reduce((sum: number, trade: any) => sum + trade.pnl, 0);
   const totalInvested = closedTrades.reduce((sum: number, trade: any) => sum + trade.totalBuy, 0);
   const totalWinRate = closedTrades.length > 0 ? (closedTrades.filter((trade: any) => trade.pnl > 0).length / closedTrades.length) * 100 : 0;
+  const isCustomRangeSelected = selectedRangeKey === 'custom';
 
   return (
     <div>
@@ -342,17 +379,48 @@ export default function HistoryPage() {
           <div className="card" style={{ marginBottom: 24 }}>
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <h3 className="card-title">Trade Summary</h3>
-              <select
-                className="form-select"
-                style={{ width: 220 }}
-                value={selectedRangeKey}
-                onChange={(event) => setSelectedRangeKey(event.target.value as RangeKey)}
-              >
-                {rangeSummaries.map((range) => (
-                  <option key={range.key} value={range.key}>{range.label}</option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select
+                  className="form-select"
+                  style={{ width: 260 }}
+                  value={selectedRangeKey}
+                  onChange={(event) => setSelectedRangeKey(event.target.value as RangeKey)}
+                >
+                  {rangeSummaries.map((range) => (
+                    <option key={range.key} value={range.key}>{range.label}</option>
+                  ))}
+                </select>
+                {isCustomRangeSelected && (
+                  <>
+                    <input
+                      type="date"
+                      className="form-input"
+                      style={{ width: 170 }}
+                      value={customStartDate}
+                      onChange={(event) => setCustomStartDate(event.target.value)}
+                    />
+                    <input
+                      type="date"
+                      className="form-input"
+                      style={{ width: 170 }}
+                      value={customEndDate}
+                      onChange={(event) => setCustomEndDate(event.target.value)}
+                    />
+                  </>
+                )}
+              </div>
             </div>
+            {isCustomRangeSelected && (
+              <div
+                style={{
+                  padding: '0 20px 16px',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                }}
+              >
+                Filter custom akan mengikuti tanggal awal dan akhir secara fleksibel. Jika tanggal awal lebih besar dari tanggal akhir, sistem otomatis membalik rentangnya.
+              </div>
+            )}
             <div className="table-container" style={{ border: 'none' }}>
               <table className="table">
                 <thead>
