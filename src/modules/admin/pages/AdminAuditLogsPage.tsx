@@ -160,7 +160,7 @@ export default function AdminAuditLogsPage() {
         <button className="btn btn-secondary" onClick={loadLogs} disabled={loading}>Refresh</button>
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card admin-card-spaced">
         <div className="card-body">
           <div className="search-bar">
             <span className="search-bar-icon">ðŸ”</span>
@@ -199,34 +199,34 @@ export default function AdminAuditLogsPage() {
                 const metadataEntries = Object.entries(log.metadata || {});
                 return (
                   <tr key={log.id}>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                    <td className="admin-audit-time-cell">
                       {formatDateTime(log.created_at)}
                     </td>
                     <td>
                       <strong>{actor?.displayName || 'System'}</strong>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                      <div className="admin-audit-subtext">
                         {actor?.email || log.actor_id || '-'}
                       </div>
                     </td>
                     <td>
                       <span className="badge badge-purple">{getActionLabel(log.action)}</span>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: 6 }}>
+                      <div className="admin-audit-action-code">
                         {log.action}
                       </div>
                     </td>
                     <td>
                       <div>{getTargetTypeLabel(log.target_type)}</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{log.target_id || '-'}</div>
+                      <div className="admin-audit-subtext">{log.target_id || '-'}</div>
                     </td>
                     <td>
                       {metadataEntries.length === 0 ? (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Tidak ada detail</span>
+                        <span className="admin-empty-note">Tidak ada detail</span>
                       ) : (
-                        <div style={{ display: 'grid', gap: 6, maxWidth: 420 }}>
+                        <div className="admin-audit-detail-grid">
                           {metadataEntries.map(([key, value]) => (
-                            <div key={key} style={{ fontSize: '0.78rem', lineHeight: 1.4 }}>
-                              <strong style={{ color: 'var(--text-primary)' }}>{formatMetadataKey(key)}:</strong>{' '}
-                              <span style={{ color: 'var(--text-secondary)' }}>{formatMetadataValue(value)}</span>
+                            <div key={key} className="admin-audit-detail-row">
+                              <strong>{formatMetadataKey(key)}:</strong>{' '}
+                              <span className="admin-table-secondary">{formatMetadataValue(value)}</span>
                             </div>
                           ))}
                         </div>

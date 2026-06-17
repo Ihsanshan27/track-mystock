@@ -283,19 +283,15 @@ export default function HistoryPage() {
   const renderHistoryTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div style={{
-        background: 'var(--bg-secondary)',
-        border: '1px solid var(--border-color)',
-        borderRadius: 'var(--radius-md)',
-        padding: '10px 14px',
-        fontSize: '0.8rem',
-      }}>
-        <div style={{ color: 'var(--text-secondary)', marginBottom: 6 }}>{label}</div>
+      <div className="chart-tooltip-card">
+        <div className="chart-tooltip-label">{label}</div>
         {payload.map((item: any) => (
-          <div key={item.dataKey} style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 999, background: item.color, display: 'inline-block' }} />
-            <span style={{ color: 'var(--text-secondary)' }}>{item.name}:</span>
-            <strong style={{ color: 'var(--text-primary)' }}>{formatMoney(Number(item.value))}</strong>
+          <div key={item.dataKey} className="chart-tooltip-row chart-tooltip-row-start">
+            <span
+              className={`chart-tooltip-dot ${item.dataKey === 'cumulativeRealized' ? 'chart-tooltip-dot-portfolio' : 'chart-tooltip-dot-equity'}`}
+            />
+            <span className="chart-tooltip-series-label">{item.name}:</span>
+            <strong className="chart-tooltip-value">{formatMoney(Number(item.value))}</strong>
           </div>
         ))}
       </div>
@@ -323,13 +319,13 @@ export default function HistoryPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Icons.History size={24} style={{ color: 'var(--accent-blue-light)' }} />
+          <h1 className="page-title history-page-title">
+            <Icons.History size={24} className="history-page-title-icon" />
             History Realized Trades
           </h1>
           <p className="page-subtitle">Rekap transaksi closed, profit realized per bulan, dan trade summary berdasarkan rentang waktu</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="history-page-actions">
           <Link to="/portfolio" className="btn btn-secondary">
             <Icons.Briefcase size={16} />
             Portfolio
@@ -351,7 +347,7 @@ export default function HistoryPage() {
         </div>
       ) : (
         <>
-          <div className="grid-stats" style={{ marginBottom: 24 }}>
+          <div className="grid-stats history-grid-stats">
             <div className="stat-card">
               <div className="stat-card-label">Total Realized</div>
               <div className={`stat-card-value ${totalRealized >= 0 ? 'text-profit' : 'text-loss'}`}>{formatMoney(totalRealized)}</div>
@@ -376,13 +372,16 @@ export default function HistoryPage() {
             </div>
           </div>
 
-          <div className="card" style={{ marginBottom: 24 }}>
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="card history-card-spaced">
+            <div className="card-header history-card-header">
               <h3 className="card-title">Trade Summary</h3>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="history-filter-row">
+                <label className="sr-only" htmlFor="history-range-select">Pilih periode trade summary</label>
                 <select
-                  className="form-select"
-                  style={{ width: 260 }}
+                  id="history-range-select"
+                  title="Pilih periode trade summary"
+                  aria-label="Pilih periode trade summary"
+                  className="form-select history-range-select"
                   value={selectedRangeKey}
                   onChange={(event) => setSelectedRangeKey(event.target.value as RangeKey)}
                 >
@@ -394,15 +393,17 @@ export default function HistoryPage() {
                   <>
                     <input
                       type="date"
-                      className="form-input"
-                      style={{ width: 170 }}
+                      title="Tanggal mulai custom trade summary"
+                      aria-label="Tanggal mulai custom trade summary"
+                      className="form-input history-date-input"
                       value={customStartDate}
                       onChange={(event) => setCustomStartDate(event.target.value)}
                     />
                     <input
                       type="date"
-                      className="form-input"
-                      style={{ width: 170 }}
+                      title="Tanggal akhir custom trade summary"
+                      aria-label="Tanggal akhir custom trade summary"
+                      className="form-input history-date-input"
                       value={customEndDate}
                       onChange={(event) => setCustomEndDate(event.target.value)}
                     />
@@ -411,17 +412,11 @@ export default function HistoryPage() {
               </div>
             </div>
             {isCustomRangeSelected && (
-              <div
-                style={{
-                  padding: '0 20px 16px',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.85rem',
-                }}
-              >
+              <div className="history-custom-note">
                 Filter custom akan mengikuti tanggal awal dan akhir secara fleksibel. Jika tanggal awal lebih besar dari tanggal akhir, sistem otomatis membalik rentangnya.
               </div>
             )}
-            <div className="table-container" style={{ border: 'none' }}>
+            <div className="table-container history-table-container">
               <table className="table">
                 <thead>
                   <tr>
@@ -449,7 +444,7 @@ export default function HistoryPage() {
                     </tr>
                   ) : (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>
+                      <td colSpan={6} className="history-empty-table-cell">
                         Belum ada data summary.
                       </td>
                     </tr>
@@ -459,10 +454,10 @@ export default function HistoryPage() {
             </div>
           </div>
 
-          <div className="grid-2" style={{ alignItems: 'start', marginBottom: 24 }}>
+          <div className="grid-2 history-grid-2">
             <div className="card">
               <div className="card-header"><h3 className="card-title">Realized Kumulatif: {selectedRangeSummary?.label || 'Semua Periode'}</h3></div>
-              <div className="card-body" style={{ height: 320 }}>
+              <div className="card-body history-chart-card-body">
                 {cumulativeTrendData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={cumulativeTrendData}>
@@ -482,7 +477,7 @@ export default function HistoryPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="empty-state" style={{ padding: 32 }}>
+                  <div className="empty-state history-chart-empty-state">
                     <div className="empty-state-desc">Tidak ada data grafik untuk periode ini.</div>
                   </div>
                 )}
@@ -491,7 +486,7 @@ export default function HistoryPage() {
 
             <div className="card">
               <div className="card-header"><h3 className="card-title">Total Equity: {selectedRangeSummary?.label || 'Semua Periode'}</h3></div>
-              <div className="card-body" style={{ height: 320 }}>
+              <div className="card-body history-chart-card-body">
                 {cumulativeTrendData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={cumulativeTrendData}>
@@ -511,7 +506,7 @@ export default function HistoryPage() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="empty-state" style={{ padding: 32 }}>
+                  <div className="empty-state history-chart-empty-state">
                     <div className="empty-state-desc">Tidak ada data grafik untuk periode ini.</div>
                   </div>
                 )}
@@ -519,9 +514,9 @@ export default function HistoryPage() {
             </div>
           </div>
 
-          <div className="card" style={{ marginBottom: 24 }}>
+          <div className="card history-card-spaced">
             <div className="card-header"><h3 className="card-title">Ringkasan Bulanan: {selectedRangeSummary?.label || 'Semua Periode'}</h3></div>
-              <div className="table-container" style={{ border: 'none' }}>
+              <div className="table-container history-table-container">
                 <table className="table">
                   <thead>
                     <tr>
@@ -543,7 +538,7 @@ export default function HistoryPage() {
                       </tr>
                     )) : (
                       <tr>
-                        <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>
+                        <td colSpan={5} className="history-empty-table-cell">
                           Tidak ada ringkasan bulanan untuk periode ini.
                         </td>
                       </tr>
@@ -557,7 +552,7 @@ export default function HistoryPage() {
             <div className="card-header">
               <h3 className="card-title">Realized Trades: {selectedRangeSummary?.label || 'Semua Periode'}</h3>
             </div>
-            <div className="table-container" style={{ border: 'none' }}>
+            <div className="table-container history-table-container">
               <table className="table">
                 <thead>
                   <tr>
@@ -585,7 +580,7 @@ export default function HistoryPage() {
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>
+                      <td colSpan={8} className="history-empty-table-cell">
                         Tidak ada realized trade untuk periode ini.
                       </td>
                     </tr>

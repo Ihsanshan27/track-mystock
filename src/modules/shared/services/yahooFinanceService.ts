@@ -79,11 +79,19 @@ async function proxyFetch(url) {
 
 const YF_CHART = 'https://query1.finance.yahoo.com/v8/finance/chart';
 
+function normalizeYahooSymbol(ticker) {
+    if (!ticker) return ticker;
+    if (ticker.startsWith('^') || ticker.includes('=') || ticker.includes('.')) {
+        return ticker;
+    }
+    return `${ticker}.JK`;
+}
+
 /**
  * Fetch OHLCV + meta (name) for a ticker (cached)
  */
 export async function fetchStockOHLCV(ticker, range = '60d') {
-    const symbol = ticker.endsWith('.JK') ? ticker : `${ticker}.JK`;
+    const symbol = normalizeYahooSymbol(ticker);
     const cacheKey = `ohlcv_${symbol}_${range}`;
 
     const cached = getCache(cacheKey);
@@ -117,7 +125,7 @@ export async function fetchStockOHLCV(ticker, range = '60d') {
  * Fetch latest quote (cached)
  */
 export async function fetchQuote(ticker) {
-    const symbol = ticker.endsWith('.JK') ? ticker : `${ticker}.JK`;
+    const symbol = normalizeYahooSymbol(ticker);
     const cacheKey = `quote_${symbol}`;
 
     const cached = getCache(cacheKey);
@@ -156,7 +164,7 @@ export async function fetchQuotesBatch(tickers, delayMs = 150) {
 
     // 1. Fill from cache first
     for (const ticker of tickers) {
-        const symbol = ticker.endsWith('.JK') ? ticker : `${ticker}.JK`;
+        const symbol = normalizeYahooSymbol(ticker);
         const cached = getCache(`quote_${symbol}`);
         if (cached) {
             results[ticker] = cached;

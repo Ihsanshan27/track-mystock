@@ -164,7 +164,7 @@ export default function AdminUsersPage() {
           <h1 className="page-title">User Management</h1>
           <p className="page-subtitle">Kelola user, role, dan akses registrasi publik</p>
         </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div className="admin-page-actions">
           <button className="btn btn-primary" onClick={() => setCreateOpen(true)}>
             Tambah User
           </button>
@@ -174,9 +174,9 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card admin-card-spaced">
         <div className="card-body">
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 1fr) auto', gap: 16, alignItems: 'center' }}>
+          <div className="admin-users-toolbar">
             <div className="search-bar">
               <span className="search-bar-icon">🔍</span>
               <input
@@ -198,8 +198,8 @@ export default function AdminUsersPage() {
       </div>
 
       {error && (
-        <div className="card" style={{ marginBottom: 20, borderColor: 'var(--accent-red)' }}>
-          <div className="card-body" style={{ color: 'var(--accent-red)' }}>
+        <div className="card admin-card-spaced admin-card-error">
+          <div className="card-body admin-error-text">
             {error}
           </div>
         </div>
@@ -231,22 +231,23 @@ export default function AdminUsersPage() {
                   <td>
                     <strong>{profile.displayName}</strong>
                     {profile.id === user?.id && (
-                      <span className="badge badge-blue" style={{ marginLeft: 8 }}>Anda</span>
+                      <span className="badge badge-blue admin-inline-badge">Anda</span>
                     )}
                   </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{profile.email || '-'}</td>
+                  <td className="admin-table-secondary">{profile.email || '-'}</td>
                   <td>
                     <span className={`badge ${getRoleBadgeClass(profile.role)}`}>
                       {ROLE_LABELS[profile.role] || profile.role}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                  <td className="admin-table-meta">
                     {profile.createdAt ? formatDate(profile.createdAt) : '-'}
                   </td>
                   <td>
                     <select
-                      className="form-select"
-                      style={{ minWidth: 140 }}
+                      className="form-select admin-role-select"
+                      title={`Ubah role untuk ${profile.displayName || profile.email || 'user'}`}
+                      aria-label={`Ubah role untuk ${profile.displayName || profile.email || 'user'}`}
                       value={profile.role}
                       disabled={savingId === profile.id}
                       onChange={e => handleRoleChange(profile, e.target.value)}
@@ -268,7 +269,15 @@ export default function AdminUsersPage() {
           <div className="modal">
             <div className="modal-header">
               <h3>Tambah User</h3>
-              <button className="btn btn-ghost btn-icon" onClick={() => setCreateOpen(false)}>x</button>
+              <button
+                className="btn btn-ghost btn-icon"
+                type="button"
+                aria-label="Tutup modal tambah user"
+                title="Tutup modal tambah user"
+                onClick={() => setCreateOpen(false)}
+              >
+                x
+              </button>
             </div>
             <form onSubmit={handleCreateUser}>
               <div className="modal-body">
@@ -306,6 +315,8 @@ export default function AdminUsersPage() {
                   <label className="form-label">Role</label>
                   <select
                     className="form-select"
+                    title="Pilih role user baru"
+                    aria-label="Pilih role user baru"
                     value={createForm.role}
                     onChange={e => setCreateForm(prev => ({ ...prev, role: e.target.value }))}
                   >
@@ -314,7 +325,7 @@ export default function AdminUsersPage() {
                     ))}
                   </select>
                 </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                <div className="admin-form-note">
                   User dibuat lewat Supabase Edge Function dan langsung dikonfirmasi, jadi bisa login tanpa email confirmation.
                 </div>
               </div>
