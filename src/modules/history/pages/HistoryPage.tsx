@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CartesianGrid,
@@ -20,6 +20,22 @@ import * as Icons from 'lucide-react';
 type MarketTab = 'ID' | 'US';
 
 type RangeKey = 'today' | 'mtd' | 'ytd' | 'last7d' | 'last30d' | 'last90d' | 'custom' | 'all';
+type TimelineFilter = 'all' | 'trade' | 'cashflow' | 'dividend' | 'ipo';
+
+type TimelineItem = {
+  id: string;
+  type: 'TRADE_CLOSED' | 'CASH_DEPOSIT' | 'CASH_WITHDRAW' | 'DIVIDEND_RECEIVED' | 'IPO_EVENT';
+  date: string;
+  market: 'ID' | 'US';
+  portfolioId: string;
+  title: string;
+  subtitle: string;
+  amount: number | null;
+  amountKind: 'positive' | 'negative' | 'neutral';
+  meta?: string;
+  sortTimestamp: number;
+  linkTo?: string;
+};
 
 function parseLocalDate(dateString?: string | null) {
   if (!dateString) return null;
@@ -62,10 +78,36 @@ function buildRangeLabel(startDate?: string, endDate?: string) {
   return 'Semua Tanggal';
 }
 
+function getTimelineEventTypeWeight(type: TimelineItem['type']) {
+  const weights = {
+    TRADE_CLOSED: 1,
+    DIVIDEND_RECEIVED: 2,
+    CASH_DEPOSIT: 3,
+    CASH_WITHDRAW: 4,
+    IPO_EVENT: 5,
+  };
+  return weights[type] || 99;
+}
+
+function normalizeTimelineDate(dateString?: string | null) {
+  if (!dateString) return null;
+  const parsed = parseLocalDate(dateString);
+  return parsed ? formatDateKey(parsed) : null;
+}
+
+function getTimelineTypeFilter(type: TimelineItem['type']): TimelineFilter {
+  if (type === 'TRADE_CLOSED') return 'trade';
+  if (type === 'CASH_DEPOSIT' || type === 'CASH_WITHDRAW') return 'cashflow';
+  if (type === 'DIVIDEND_RECEIVED') return 'dividend';
+  return 'ipo';
+}
+
 export default function HistoryPage() {
-  const { trades, cashflows, dividends, settings, activePortfolioId } = useData();
+  const { trades, cashflows, dividends, settings, activePortfolioId, ipoEvents, ipoEntries } = useData();
   const [activeTab, setActiveTab] = useState<MarketTab>('ID');
   const [selectedRangeKey, setSelectedRangeKey] = useState<RangeKey>('mtd');
+  const [timelineFilter, setTimelineFilter] = useState<TimelineFilter>('all');
+  const [visibleTimelineCount, setVisibleTimelineCount] = useState(5);
   const formatMoney = activeTab === 'US' ? formatUSD : formatRupiah;
   const now = useMemo(() => new Date(), []);
   const defaultCustomStartDate = useMemo(
@@ -315,15 +357,128 @@ export default function HistoryPage() {
   const totalWinRate = closedTrades.length > 0 ? (closedTrades.filter((trade: any) => trade.pnl > 0).length / closedTrades.length) * 100 : 0;
   const isCustomRangeSelected = selectedRangeKey === 'custom';
 
+  const allTimelineItems = useMemo<TimelineItem[]>(() => {
+    const items: TimelineItem[] = [];
+
+    closedTrades.forEach((trade: any) => {
+      items.push({
+        id: `trade-${trade.id}`,
+        type: 'TRADE_CLOSED',
+        date: trade.dateSell,
+        market: trade.market || 'ID',
+        portfolioId: trade.portfolioId || 'default',
+        title: `Trade closed ${trade.stockCode}`,
+        subtitle: `${trade.strategy || 'Tanpa strategi'} • ${trade.lots} ${trade.market === 'US' ? 'shares' : 'lot'}`,
+        amount: trade.pnl,
+        amountKind: trade.pnl >= 0 ? 'positive' : 'negative',
+        meta: `Close ${formatDate(trade.dateSell)}`,
+        sortTimestamp: parseLocalDate(trade.dateSell)?.getTime() || 0,
+        linkTo: `/trades/${trade.id}`,
+      });
+    });
+
+    marketCashflows.forEach((cashflow: any) => {
+      items.push({
+        id: `cashflow-${cashflow.id}`,
+        type: cashflow.type === 'withdraw' ? 'CASH_WITHDRAW' : 'CASH_DEPOSIT',
+        date: cashflow.date,
+        market: cashflow.market || 'ID',
+        portfolioId: cashflow.portfolioId || 'default',
+        title: cashflow.type === 'withdraw' ? 'Penarikan dana' : 'Deposit dana',
+        subtitle: cashflow.notes ? `Catatan: ${cashflow.notes}` : 'Aktivitas saldo kas',
+        amount: cashflow.type === 'withdraw' ? -Math.abs(cashflow.amount || 0) : Math.abs(cashflow.amount || 0),
+        amountKind: cashflow.type === 'withdraw' ? 'negative' : 'positive',
+        meta: formatDate(cashflow.date),
+        sortTimestamp: parseLocalDate(cashflow.date)?.getTime() || 0,
+      });
+    });
+
+    marketDividends.forEach((dividend: any) => {
+      const dividendDate = normalizeTimelineDate(dividend.payDate || dividend.dateReceived || dividend.createdAt?.split('T')[0]);
+      if (!dividendDate) return;
+      items.push({
+        id: `dividend-${dividend.id}`,
+        type: 'DIVIDEND_RECEIVED',
+        date: dividendDate,
+        market: dividend.market || 'ID',
+        portfolioId: dividend.portfolioId || 'default',
+        title: `Dividen ${dividend.stockCode} diterima`,
+        subtitle: `${Number(dividend.shareCount || 0).toLocaleString(activeTab === 'US' ? 'en-US' : 'id-ID')} lembar • ${formatMoney(dividend.dividendPerShare || 0)} per lembar`,
+        amount: dividend.totalAmount || 0,
+        amountKind: 'positive',
+        meta: `Pay date ${formatDate(dividendDate)}`,
+        sortTimestamp: parseLocalDate(dividendDate)?.getTime() || 0,
+      });
+    });
+
+    if (activeTab === 'ID' && activePortfolioId === 'default') {
+      ipoEvents.forEach((event: any) => {
+        const timelineDate = normalizeTimelineDate(event.offeringDate || event.ipoDate);
+        if (!timelineDate) return;
+
+        const relatedEntries = ipoEntries.filter((entry: any) => entry.ipoEventId === event.id);
+        const totalLots = relatedEntries.reduce((sum: number, entry: any) => sum + (Number(entry.lots) || 0), 0);
+        const participationBits = [];
+        if (event.offeringDate) participationBits.push(`Penawaran ${formatDate(event.offeringDate)}`);
+        participationBits.push(`IPO ${formatDate(event.ipoDate)}`);
+        if (relatedEntries.length > 0) participationBits.push(`${relatedEntries.length} akun ikut`);
+        if (totalLots > 0) participationBits.push(`${totalLots} lot allotment`);
+
+        items.push({
+          id: `ipo-${event.id}`,
+          type: 'IPO_EVENT',
+          date: timelineDate,
+          market: 'ID',
+          portfolioId: 'default',
+          title: `IPO ${event.stockCode} dibuka`,
+          subtitle: participationBits.join(' • '),
+          amount: event.offeringPrice || 0,
+          amountKind: 'neutral',
+          meta: `Harga penawaran ${formatRupiah(event.offeringPrice || 0)}`,
+          sortTimestamp: parseLocalDate(timelineDate)?.getTime() || 0,
+          linkTo: `/ipo/${event.id}`,
+        });
+      });
+    }
+
+    return items.sort((left, right) => {
+      if (right.sortTimestamp !== left.sortTimestamp) return right.sortTimestamp - left.sortTimestamp;
+      const weightDiff = getTimelineEventTypeWeight(left.type) - getTimelineEventTypeWeight(right.type);
+      if (weightDiff !== 0) return weightDiff;
+      return left.id.localeCompare(right.id);
+    });
+  }, [activePortfolioId, activeTab, closedTrades, formatMoney, ipoEntries, ipoEvents, marketCashflows, marketDividends]);
+
+  const filteredTimelineItems = useMemo(() => {
+    const rangeFiltered = selectedRangeSummary
+      ? allTimelineItems.filter((item) => {
+          const dateObj = parseLocalDate(item.date);
+          return dateObj ? selectedRangeSummary.matches(dateObj) : false;
+        })
+      : allTimelineItems;
+
+    if (timelineFilter === 'all') return rangeFiltered;
+    return rangeFiltered.filter((item) => getTimelineTypeFilter(item.type) === timelineFilter);
+  }, [allTimelineItems, selectedRangeSummary, timelineFilter]);
+
+  const visibleTimelineItems = useMemo(
+    () => filteredTimelineItems.slice(0, visibleTimelineCount),
+    [filteredTimelineItems, visibleTimelineCount],
+  );
+
+  useEffect(() => {
+    setVisibleTimelineCount(5);
+  }, [activeTab, selectedRangeKey, customStartDate, customEndDate, timelineFilter, activePortfolioId]);
+
   return (
     <div>
       <div className="page-header">
         <div>
           <h1 className="page-title history-page-title">
             <Icons.History size={24} className="history-page-title-icon" />
-            History Realized Trades
+            History & Portfolio Timeline
           </h1>
-          <p className="page-subtitle">Rekap transaksi closed, profit realized per bulan, dan trade summary berdasarkan rentang waktu</p>
+          <p className="page-subtitle">Lihat perjalanan portofolio Anda dari trade closed, cashflow, dividen, dan aktivitas IPO dalam satu alur waktu</p>
         </div>
         <div className="history-page-actions">
           <Link to="/portfolio" className="btn btn-secondary">
@@ -451,6 +606,183 @@ export default function HistoryPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <div className="card history-card-spaced">
+            <div className="card-header history-card-header">
+              <h3 className="card-title">Portfolio Timeline</h3>
+              <div className="history-filter-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+                {[
+                  { key: 'all', label: 'Semua' },
+                  { key: 'trade', label: 'Trade' },
+                  { key: 'cashflow', label: 'Cashflow' },
+                  { key: 'dividend', label: 'Dividend' },
+                  { key: 'ipo', label: 'IPO' },
+                ].map((filter) => (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    className={`btn btn-sm ${timelineFilter === filter.key ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setTimelineFilter(filter.key as TimelineFilter)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="card-body">
+              {visibleTimelineItems.length > 0 ? (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {visibleTimelineItems.map((item) => {
+                      const isPositive = item.amountKind === 'positive';
+                      const isNegative = item.amountKind === 'negative';
+                      const IconComponent =
+                        item.type === 'TRADE_CLOSED' ? Icons.Receipt
+                          : item.type === 'CASH_DEPOSIT' ? Icons.ArrowDownLeft
+                          : item.type === 'CASH_WITHDRAW' ? Icons.ArrowUpRight
+                          : item.type === 'DIVIDEND_RECEIVED' ? Icons.Coins
+                          : Icons.Rocket;
+                      const moneyFormatter = item.market === 'US' ? formatUSD : formatRupiah;
+
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '28px 1fr',
+                            gap: 14,
+                            alignItems: 'stretch',
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 999,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: isPositive
+                                  ? 'var(--accent-green-dim)'
+                                  : isNegative
+                                  ? 'var(--accent-red-dim)'
+                                  : 'var(--accent-blue-dim)',
+                                color: isPositive
+                                  ? 'var(--accent-green)'
+                                  : isNegative
+                                  ? 'var(--accent-red)'
+                                  : 'var(--accent-blue-light)',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <IconComponent size={15} />
+                            </div>
+                            <div style={{ width: 2, flex: 1, background: 'var(--border-color)', marginTop: 8 }} />
+                          </div>
+
+                          <div
+                            className="bento-card"
+                            style={{
+                              padding: '14px 16px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              gap: 12,
+                              alignItems: 'flex-start',
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                                <strong>{item.title}</strong>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  {formatDate(item.date)}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginBottom: 6 }}>
+                                {item.subtitle}
+                              </div>
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                                {item.meta ? <span>{item.meta}</span> : null}
+                                <span>{item.market}</span>
+                                {item.linkTo ? <Link to={item.linkTo}>Lihat detail</Link> : null}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div
+                                className={`font-mono ${isPositive ? 'text-profit' : isNegative ? 'text-loss' : ''}`}
+                                style={{ fontWeight: 800, fontSize: '0.98rem' }}
+                              >
+                                {item.amount == null
+                                  ? '—'
+                                  : item.type === 'IPO_EVENT'
+                                  ? moneyFormatter(item.amount)
+                                  : moneyFormatter(item.amount)}
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                                {item.type === 'TRADE_CLOSED'
+                                  ? 'Realized P/L'
+                                  : item.type === 'DIVIDEND_RECEIVED'
+                                  ? 'Dividen diterima'
+                                  : item.type === 'IPO_EVENT'
+                                  ? 'Harga penawaran'
+                                  : 'Perubahan kas'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {filteredTimelineItems.length > visibleTimelineItems.length && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setVisibleTimelineCount((prev) => prev + 5)}
+                        >
+                          Muat lebih banyak
+                        </button>
+                        {visibleTimelineCount > 5 && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => setVisibleTimelineCount(5)}
+                          >
+                            Collapse
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {filteredTimelineItems.length <= visibleTimelineItems.length && visibleTimelineCount > 5 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 18 }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => setVisibleTimelineCount(5)}
+                      >
+                        Collapse
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="empty-state" style={{ padding: '24px 8px' }}>
+                  <div className="empty-state-icon"><Icons.Clock3 size={40} /></div>
+                  <div className="empty-state-title">
+                    {allTimelineItems.length === 0 ? 'Belum ada aktivitas portofolio' : 'Tidak ada aktivitas pada filter ini'}
+                  </div>
+                  <div className="empty-state-desc">
+                    {allTimelineItems.length === 0
+                      ? 'Timeline akan muncul setelah ada aktivitas trade, cashflow, dividen, atau IPO.'
+                      : 'Coba ubah jenis event atau rentang waktu untuk melihat aktivitas lainnya.'}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

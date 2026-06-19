@@ -10,6 +10,12 @@ import * as Icons from 'lucide-react';
 const SLTL_OPTIONS = ['-', 'SL', 'TL'] as const;
 const ACTION_OPTIONS = ['SELL', 'KEEP'] as const;
 
+const formatLongDate = (date?: string) => (
+  date
+    ? new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '-'
+);
+
 const EMPTY_FORM = {
   accountName: '',
   email: '',
@@ -129,6 +135,7 @@ export default function IpoDetailPage() {
   const [showEditEventModal, setShowEditEventModal] = useState(false);
   const [eventForm, setEventForm] = useState({
     stockCode: '',
+    offeringDate: '',
     ipoDate: '',
     offeringPrice: '',
     notes: '',
@@ -138,6 +145,7 @@ export default function IpoDetailPage() {
     if (event) {
       setEventForm({
         stockCode: event.stockCode,
+        offeringDate: event.offeringDate || '',
         ipoDate: event.ipoDate,
         offeringPrice: String(event.offeringPrice),
         notes: event.notes || ''
@@ -157,6 +165,7 @@ export default function IpoDetailPage() {
     }
     updateIpoEvent(id, {
       stockCode: eventForm.stockCode.toUpperCase(),
+      offeringDate: eventForm.offeringDate || undefined,
       ipoDate: eventForm.ipoDate,
       offeringPrice: parseFloat(eventForm.offeringPrice) || 0,
       notes: eventForm.notes
@@ -535,8 +544,14 @@ export default function IpoDetailPage() {
             )}
           </h1>
           <p className="page-subtitle">
+            {event.offeringDate && (
+              <>
+                Tanggal Penawaran: <strong>{formatLongDate(event.offeringDate)}</strong>
+                &nbsp;·&nbsp;
+              </>
+            )}
             Harga Penawaran: <strong>{formatRupiah(event.offeringPrice)}</strong>
-            &nbsp;·&nbsp; Tanggal IPO: <strong>{new Date(event.ipoDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+            &nbsp;·&nbsp; Tanggal IPO: <strong>{formatLongDate(event.ipoDate)}</strong>
             {event.notes && <>&nbsp;·&nbsp; {event.notes}</>}
           </p>
         </div>
@@ -835,6 +850,15 @@ export default function IpoDetailPage() {
                 </div>
                 <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                   <div className="form-group">
+                    <label className="form-label">Tanggal Penawaran</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={eventForm.offeringDate}
+                      onChange={e => setEventForm(prev => ({ ...prev, offeringDate: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
                     <label className="form-label">Tanggal IPO *</label>
                     <input
                       type="date"
@@ -844,18 +868,18 @@ export default function IpoDetailPage() {
                       required
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Harga Penawaran (Rp) *</label>
-                    <input
-                      type="number"
-                      step="any"
-                      className="form-input"
-                      placeholder="Contoh: 100"
-                      value={eventForm.offeringPrice}
-                      onChange={e => setEventForm(prev => ({ ...prev, offeringPrice: e.target.value }))}
-                      required
-                    />
-                  </div>
+                </div>
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Harga Penawaran (Rp) *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="form-input"
+                    placeholder="Contoh: 100"
+                    value={eventForm.offeringPrice}
+                    onChange={e => setEventForm(prev => ({ ...prev, offeringPrice: e.target.value }))}
+                    required
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Catatan</label>

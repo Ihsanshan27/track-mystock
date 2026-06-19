@@ -11,7 +11,7 @@ const DRAFT_KEY = 'ipo_list_form_draft';
 const DRAFT_OPEN_KEY = 'ipo_list_form_open';
 const EDIT_EVENT_KEY = 'ipo_list_edit_event_id';
 
-const EMPTY_FORM = { stockCode: '', ipoDate: '', offeringPrice: '', notes: '' };
+const EMPTY_FORM = { stockCode: '', offeringDate: '', ipoDate: '', offeringPrice: '', notes: '' };
 
 export default function IpoListPage() {
   const { ipoEvents, ipoEntries, addIpoEvent, updateIpoEvent, addIpoEntry, batchAddIpoEntries, deleteIpoEvent, canWrite } = useData();
@@ -73,6 +73,7 @@ export default function IpoListPage() {
   const handleOpenEdit = (event: IpoEvent) => {
     const nextForm = {
       stockCode: event.stockCode,
+      offeringDate: event.offeringDate || '',
       ipoDate: event.ipoDate,
       offeringPrice: String(event.offeringPrice),
       notes: event.notes || '',
@@ -100,6 +101,7 @@ export default function IpoListPage() {
     }
     const payload = {
       stockCode: form.stockCode.toUpperCase(),
+      offeringDate: form.offeringDate || undefined,
       ipoDate: form.ipoDate,
       offeringPrice: parseFloat(form.offeringPrice) || 0,
       notes: form.notes,
@@ -121,6 +123,7 @@ export default function IpoListPage() {
   const handleDuplicateEvent = (event: IpoEvent) => {
     const newEvent = addIpoEvent({
       stockCode: `${event.stockCode}`,
+      offeringDate: event.offeringDate,
       ipoDate: event.ipoDate,
       offeringPrice: event.offeringPrice,
       notes: event.notes ? `${event.notes} (Kopi)` : '(Kopi)',
@@ -174,7 +177,7 @@ export default function IpoListPage() {
 
   const renderEventForm = (submitLabel: string, submitIcon: ReactNode) => (
     <form onSubmit={handleSubmit}>
-      <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+      <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
         <div className="form-group">
           <label className="form-label">Kode Saham *</label>
           <input
@@ -183,6 +186,15 @@ export default function IpoListPage() {
             value={form.stockCode}
             onChange={e => set('stockCode', e.target.value.toUpperCase())}
             required
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Tanggal Penawaran</label>
+          <input
+            type="date"
+            className="form-input"
+            value={form.offeringDate}
+            onChange={e => set('offeringDate', e.target.value)}
           />
         </div>
         <div className="form-group">
@@ -337,7 +349,8 @@ export default function IpoListPage() {
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>IPO</span>
                     </div>
                     <div style={{ marginTop: 6, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      📅 {formatDate(event.ipoDate)} &nbsp;·&nbsp; Penawaran: <strong>{formatRupiah(event.offeringPrice)}</strong>
+                      {event.offeringDate ? `Penawaran: ${formatDate(event.offeringDate)} · ` : ''}
+                      IPO: {formatDate(event.ipoDate)} &nbsp;·&nbsp; Harga: <strong>{formatRupiah(event.offeringPrice)}</strong>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>

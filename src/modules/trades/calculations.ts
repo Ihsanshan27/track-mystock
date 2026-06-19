@@ -311,6 +311,362 @@ export function calculateTopStocks(trades) {
     .sort((a, b) => b.totalPnL - a.totalPnL);
 }
 
+function formatInsightCurrency(value) {
+  const absoluteValue = Math.abs(Number(value) || 0);
+  const prefix = Number(value) < 0 ? '-' : '';
+  return `${prefix}Rp${absoluteValue.toLocaleString('id-ID')}`;
+}
+
+const MIN_INSIGHT_SAMPLE = 3;
+
+function getClosedTradesForInsights(trades) {
+  return trades.filter((trade) => trade?.dateSell && trade?.sellPrice != null);
+}
+
+function calculateHoldingDays(dateBuy, dateSell) {
+  if (!dateBuy || !dateSell) return null;
+  const buy = new Date(dateBuy);
+  const sell = new Date(dateSell);
+  if (Number.isNaN(buy.getTime()) || Number.isNaN(sell.getTime())) return null;
+  return Math.max(1, Math.ceil(Math.abs(sell.getTime() - buy.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+function buildResultSummary(trades) {
+  if (!trades.length) {
+    return {
+      count: 0,
+      wins: 0,
+      losses: 0,
+      totalPnL: 0,
+      winRate: 0,
+      avgWin: 0,
+      avgLoss: 0,
+      expectancy: 0,
+    };
+  }
+
+  const results = trades.map((trade) => ({
+    trade,
+    ...calculateTradePnL(trade),
+  }));
+  const wins = results.filter((result) => result.pnl > 0);
+  const losses = results.filter((result) => result.pnl <= 0);
+  const totalPnL = results.reduce((sum, result) => sum + result.pnl, 0);
+  const totalWin = wins.reduce((sum, result) => sum + result.pnl, 0);
+  const totalLoss = Math.abs(losses.reduce((sum, result) => sum + result.pnl, 0));
+  const winRate = results.length > 0 ? (wins.length / results.length) * 100 : 0;
+  const avgWin = wins.length > 0 ? totalWin / wins.length : 0;
+  const avgLoss = losses.length > 0 ? totalLoss / losses.length : 0;
+  const expectancy = (winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss;
+
+  return {
+    count: results.length,
+    wins: wins.length,
+    losses: losses.length,
+    totalPnL,
+    winRate,
+    avgWin,
+    avgLoss,
+    expectancy,
+  };
+}
+
+function buildCategorySummaries(trades, getKeys) {
+  const grouped = new Map();
+
+  trades.forEach((trade) => {
+    const keys = getKeys(trade).map((key) => String(key || '').trim()).filter(Boolean);
+    keys.forEach((key) => {
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(trade);
+    });
+  });
+
+  return Array.from(grouped.entries()).map(([name, items]) => ({
+    name,
+    ...buildResultSummary(items),
+  }));
+}
+
+function compareByStrategyInsight(left, right) {
+  return (
+    right.expectancy - left.expectancy ||
+    right.totalPnL - left.totalPnL ||
+    right.count - left.count ||
+    left.name.localeCompare(right.name, 'id')
+  );
+}
+
+function compareByEmotionInsight(left, right) {
+  return (
+    right.winRate - left.winRate ||
+    right.totalPnL - left.totalPnL ||
+    right.count - left.count ||
+    left.name.localeCompare(right.name, 'id')
+  );
+}
+
+function compareByTagInsight(left, right) {
+  return (
+    right.expectancy - left.expectancy ||
+    right.totalPnL - left.totalPnL ||
+    right.count - left.count ||
+    left.name.localeCompare(right.name, 'id')
+  );
+}
+
+export function calculateStrategyInsights(trades) {
+  return buildCategorySummaries(getClosedTradesForInsights(trades), (trade) => [trade.strategy])
+    .filter((item) => item.count >= MIN_INSIGHT_SAMPLE)
+    .sort(compareByStrategyInsight);
+}
+
+export function calculateEmotionInsights(trades) {
+  return buildCategorySummaries(getClosedTradesForInsights(trades), (trade) => [trade.emotion])
+    .filter((item) => item.count >= MIN_INSIGHT_SAMPLE)
+    .sort(compareByEmotionInsight);
+}
+
+export function calculateTagInsights(trades) {
+  return buildCategorySummaries(getClosedTradesForInsights(trades), (trade) => Array.isArray(trade.tags) ? trade.tags : [])
+    .filter((item) => item.count >= MIN_INSIGHT_SAMPLE)
+    .sort(compareByTagInsight);
+}
+
+export function calculateTimingInsights(trades) {
+  const closedTrades = getClosedTradesForInsights(trades);
+  const dayStats = calculateDayOfWeekPnL(closedTrades)
+    .filter((item) => item.count > 0)
+    .sort((a, b) => a.pnl - b.pnl);
+
+  const holdingRows = closedTrades
+    .map((trade) => {
+      const holdingDays = calculateHoldingDays(trade.dateBuy, trade.dateSell);
+      if (holdingDays == null) return null;
+      return {
+        trade,
+        holdingDays,
+      };
+    })
+    .filter(Boolean);
+
+  const averageHoldingDays = holdingRows.length > 0
+    ? holdingRows.reduce((sum, row) => sum + row.holdingDays, 0) / holdingRows.length
+    : 0;
+
+  const fasterTrades = holdingRows
+    .filter((row) => row.holdingDays <= averageHoldingDays)
+    .map((row) => row.trade);
+  const slowerTrades = holdingRows
+    .filter((row) => row.holdingDays > averageHoldingDays)
+    .map((row) => row.trade);
+
+  const fasterSummary = buildResultSummary(fasterTrades);
+  const slowerSummary = buildResultSummary(slowerTrades);
+  const healthierBucket = fasterSummary.expectancy >= slowerSummary.expectancy
+    ? { key: 'faster', label: 'Holding <= rata-rata', summary: fasterSummary }
+    : { key: 'slower', label: 'Holding > rata-rata', summary: slowerSummary };
+
+  return {
+    averageHoldingDays,
+    bestDay: dayStats[dayStats.length - 1] || null,
+    worstDay: dayStats[0] || null,
+    holdingPattern: holdingRows.length > 0
+      ? {
+          faster: fasterSummary,
+          slower: slowerSummary,
+          healthierBucket,
+        }
+      : null,
+  };
+}
+
+function buildInsightItem({
+  id,
+  title,
+  category,
+  tone,
+  summary,
+  metricLabel,
+  metricValue,
+  metricKind,
+  supportingValue,
+  priority,
+}) {
+  return {
+    id,
+    title,
+    category,
+    tone,
+    summary,
+    metricLabel,
+    metricValue,
+    metricKind,
+    supportingValue,
+    priority,
+  };
+}
+
+export function calculateAnalyticsInsights(trades) {
+  const closedTrades = getClosedTradesForInsights(trades);
+  if (closedTrades.length === 0) {
+    return {
+      items: [],
+      categoryStates: {
+        strategy: { hasEnoughData: false, count: 0, minSample: MIN_INSIGHT_SAMPLE },
+        emotion: { hasEnoughData: false, count: 0, minSample: MIN_INSIGHT_SAMPLE },
+        tag: { hasEnoughData: false, count: 0, minSample: MIN_INSIGHT_SAMPLE },
+      },
+    };
+  }
+
+  const strategyInsights = calculateStrategyInsights(closedTrades);
+  const emotionInsights = calculateEmotionInsights(closedTrades);
+  const tagInsights = calculateTagInsights(closedTrades);
+  const timingInsights = calculateTimingInsights(closedTrades);
+
+  const items = [];
+  const bestStrategy = strategyInsights[0];
+  const weakStrategy = strategyInsights.length > 0 ? [...strategyInsights].sort((a, b) => compareByStrategyInsight(a, b)).reverse()[0] : null;
+  const bestEmotion = emotionInsights[0];
+  const riskEmotion = emotionInsights.length > 0
+    ? [...emotionInsights].sort((a, b) => a.totalPnL - b.totalPnL || a.winRate - b.winRate || b.count - a.count)[0]
+    : null;
+  const bestTag = tagInsights[0];
+  const worstDay = timingInsights.worstDay;
+  const bestDay = timingInsights.bestDay;
+  const holdingPattern = timingInsights.holdingPattern;
+
+  if (bestStrategy) {
+    items.push(buildInsightItem({
+      id: 'best-strategy',
+      title: 'Best Strategy',
+      category: 'strategy',
+      tone: 'positive',
+      summary: `Strategi ${bestStrategy.name} saat ini paling sehat dengan expectancy ${formatInsightCurrency(bestStrategy.expectancy)} dari ${bestStrategy.count} trade.`,
+      metricLabel: 'Expectancy',
+      metricValue: bestStrategy.expectancy,
+      metricKind: 'currency',
+      supportingValue: `${bestStrategy.count} trade • Win rate ${bestStrategy.winRate.toFixed(1)}%`,
+      priority: 1,
+    }));
+  }
+
+  if (weakStrategy) {
+    items.push(buildInsightItem({
+      id: 'weak-strategy',
+      title: 'Weak Strategy',
+      category: 'strategy',
+      tone: 'warning',
+      summary: `Strategi ${weakStrategy.name} perlu dievaluasi karena expectancy ${formatInsightCurrency(weakStrategy.expectancy)} dari ${weakStrategy.count} trade.`,
+      metricLabel: 'Expectancy',
+      metricValue: weakStrategy.expectancy,
+      metricKind: 'currency',
+      supportingValue: `${weakStrategy.count} trade • Total P/L ${weakStrategy.totalPnL.toLocaleString('id-ID')}`,
+      priority: 2,
+    }));
+  }
+
+  if (bestEmotion) {
+    items.push(buildInsightItem({
+      id: 'best-emotion-context',
+      title: 'Best Emotion Context',
+      category: 'emotion',
+      tone: 'positive',
+      summary: `Kondisi emosi ${bestEmotion.name} paling konsisten dengan win rate ${bestEmotion.winRate.toFixed(1)}% dari ${bestEmotion.count} trade.`,
+      metricLabel: 'Win Rate',
+      metricValue: bestEmotion.winRate,
+      metricKind: 'percent',
+      supportingValue: `${bestEmotion.count} trade • Total P/L ${formatInsightCurrency(bestEmotion.totalPnL)}`,
+      priority: 3,
+    }));
+  }
+
+  if (riskEmotion) {
+    items.push(buildInsightItem({
+      id: 'risk-emotion',
+      title: 'Risk Emotion',
+      category: 'emotion',
+      tone: 'warning',
+      summary: `Emosi ${riskEmotion.name} paling sering merugikan dengan total P/L ${formatInsightCurrency(riskEmotion.totalPnL)} dari ${riskEmotion.count} trade.`,
+      metricLabel: 'Total P/L',
+      metricValue: riskEmotion.totalPnL,
+      metricKind: 'currency',
+      supportingValue: `${riskEmotion.count} trade • Win rate ${riskEmotion.winRate.toFixed(1)}%`,
+      priority: 4,
+    }));
+  }
+
+  if (bestTag) {
+    items.push(buildInsightItem({
+      id: 'best-tag',
+      title: 'Best Tag',
+      category: 'tag',
+      tone: 'positive',
+      summary: `Tag #${bestTag.name} saat ini paling sehat dengan expectancy ${formatInsightCurrency(bestTag.expectancy)} dari ${bestTag.count} trade.`,
+      metricLabel: 'Expectancy',
+      metricValue: bestTag.expectancy,
+      metricKind: 'currency',
+      supportingValue: `${bestTag.count} trade • Win rate ${bestTag.winRate.toFixed(1)}%`,
+      priority: 5,
+    }));
+  }
+
+  if (worstDay) {
+    items.push(buildInsightItem({
+      id: 'worst-trading-day',
+      title: 'Worst Trading Day',
+      category: 'timing',
+      tone: 'warning',
+      summary: `Hari ${worstDay.day} menjadi hari terberat sejauh ini dengan total P/L ${formatInsightCurrency(worstDay.pnl)}.`,
+      metricLabel: 'Total P/L',
+      metricValue: worstDay.pnl,
+      metricKind: 'currency',
+      supportingValue: `${worstDay.count} trade ditutup`,
+      priority: 6,
+    }));
+  }
+
+  if (bestDay) {
+    items.push(buildInsightItem({
+      id: 'best-trading-day',
+      title: 'Best Trading Day',
+      category: 'timing',
+      tone: 'neutral',
+      summary: `Hari ${bestDay.day} menghasilkan P/L terbaik sejauh ini sebesar ${formatInsightCurrency(bestDay.pnl)}.`,
+      metricLabel: 'Total P/L',
+      metricValue: bestDay.pnl,
+      metricKind: 'currency',
+      supportingValue: `${bestDay.count} trade ditutup`,
+      priority: 7,
+    }));
+  }
+
+  if (holdingPattern) {
+    items.push(buildInsightItem({
+      id: 'holding-pattern',
+      title: 'Holding Pattern',
+      category: 'timing',
+      tone: holdingPattern.healthierBucket.key === 'faster' ? 'positive' : 'neutral',
+      summary: `${holdingPattern.healthierBucket.label} terlihat lebih sehat dengan expectancy ${formatInsightCurrency(holdingPattern.healthierBucket.summary.expectancy)} dibanding rata-rata holding ${timingInsights.averageHoldingDays.toFixed(1)} hari.`,
+      metricLabel: 'Avg Holding',
+      metricValue: timingInsights.averageHoldingDays,
+      metricKind: 'days',
+      supportingValue: `<= avg: ${holdingPattern.faster.count} trade • > avg: ${holdingPattern.slower.count} trade`,
+      priority: 8,
+    }));
+  }
+
+  return {
+    items: items.sort((a, b) => a.priority - b.priority),
+    categoryStates: {
+      strategy: { hasEnoughData: strategyInsights.length > 0, count: strategyInsights.length, minSample: MIN_INSIGHT_SAMPLE },
+      emotion: { hasEnoughData: emotionInsights.length > 0, count: emotionInsights.length, minSample: MIN_INSIGHT_SAMPLE },
+      tag: { hasEnoughData: tagInsights.length > 0, count: tagInsights.length, minSample: MIN_INSIGHT_SAMPLE },
+    },
+  };
+}
+
 // === Calculator Functions ===
 
 export function calcProfitLoss({ buyPrice, sellPrice, lots, buyFee = 0.15, sellFee = 0.25, market = 'ID' }) {

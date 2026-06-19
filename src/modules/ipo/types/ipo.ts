@@ -1,6 +1,7 @@
 export interface IpoEvent {
   id: string;
   stockCode: string;       // e.g. "WBSA"
+  offeringDate?: string;   // ISO date string "2024-05-28"
   ipoDate: string;         // ISO date string "2024-06-01"
   offeringPrice: number;   // Harga penawaran resmi (Rp)
   notes?: string;
