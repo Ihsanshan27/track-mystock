@@ -102,6 +102,10 @@ function getTimelineTypeFilter(type: TimelineItem['type']): TimelineFilter {
   return 'ipo';
 }
 
+function isClosedTrade(trade: any) {
+  return trade?.dateSell && trade?.sellPrice != null;
+}
+
 export default function HistoryPage() {
   const { trades, cashflows, dividends, settings, activePortfolioId, ipoEvents, ipoEntries } = useData();
   const [activeTab, setActiveTab] = useState<MarketTab>('ID');
@@ -123,7 +127,7 @@ export default function HistoryPage() {
 
   const closedTrades = useMemo(() => {
     return trades
-      .filter((trade: any) => trade.sellPrice && trade.dateSell)
+      .filter((trade: any) => isClosedTrade(trade))
       .filter((trade: any) => trade.market === activeTab || (!trade.market && activeTab === 'ID'))
       .map((trade: any) => {
         const calc = calculateTradePnL(trade);
@@ -926,3 +930,5 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+

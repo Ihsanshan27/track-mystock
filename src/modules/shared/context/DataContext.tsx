@@ -5,6 +5,7 @@ import {
   migrateWorkspaceScopeToUserScope,
   getScopedItem,
   setScopedItem,
+  removeScopedItem,
 } from '@/modules/shared/utils/storage';
 import { useAuth } from '@/modules/auth/AuthContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
@@ -186,6 +187,9 @@ export function DataProvider({ children }) {
       setMarketPrices({});
       setPortfolios([DEFAULT_PORTFOLIO]);
       setTradingPlans([]);
+      setIpoEvents([]);
+      setIpoEntries([]);
+      setBsjpTrades([]);
       setDataLoading(false);
       return;
     }
@@ -400,6 +404,26 @@ export function DataProvider({ children }) {
       portfolioId: newCf.portfolioId || 'default',
     });
     showToast('Transaksi kas berhasil dicatat');
+  };
+
+  const updateCashflow = (id, updates) => {
+    if (!ensureWritable()) return;
+    const existingCashflow = allCashflows.find(c => c.id === id);
+    const updated = allCashflows.map(c =>
+      c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
+    );
+    setAllCashflows(updated);
+    persistData('cashflows', updated);
+    if (existingCashflow) {
+      logUserActivity('cashflow.updated', 'cashflow', id, {
+        type: updates.type || existingCashflow.type || null,
+        amount: updates.amount ?? existingCashflow.amount ?? null,
+        market: updates.market || existingCashflow.market || 'ID',
+        portfolioId: updates.portfolioId || existingCashflow.portfolioId || 'default',
+        fieldsUpdated: Object.keys(updates || {}),
+      });
+    }
+    showToast('Transaksi kas berhasil diperbarui');
   };
 
   const deleteCashflow = (id) => {
@@ -726,9 +750,12 @@ export function DataProvider({ children }) {
     settings,
     marketPrices,
     portfolios,
+    tradingPlans,
+    ipoEvents,
+    ipoEntries,
     bsjpTrades,
     exportDate: new Date().toISOString(),
-    version: '2.0',
+    version: '2.1',
     storage: isSupabaseConfigured ? 'supabase' : 'localStorage',
   });
 
@@ -744,10 +771,14 @@ export function DataProvider({ children }) {
       settings: normalizeSettings(data.settings || settings),
       marketPrices: data.marketPrices || {},
       portfolios: data.portfolios || [DEFAULT_PORTFOLIO],
+      tradingPlans: data.tradingPlans || [],
+      ipoEvents: data.ipoEvents || [],
+      ipoEntries: data.ipoEntries || [],
       bsjpTrades: data.bsjpTrades || [],
     };
 
     applyData(nextData);
+    cacheLocalData(userId, nextData);
 
     if (isSupabaseConfigured) {
       await replaceAllUserData(nextData, userId);
@@ -767,7 +798,13 @@ export function DataProvider({ children }) {
     setMarketPrices({});
     setPortfolios([DEFAULT_PORTFOLIO]);
     setActivePortfolioId('default');
+    setTradingPlans([]);
+    setIpoEvents([]);
+    setIpoEntries([]);
     setBsjpTrades([]);
+
+    LOCAL_DATA_KEYS.forEach((key) => removeScopedItem(key, userId));
+    removeScopedItem('active_portfolio', userId);
 
     if (isSupabaseConfigured) {
       await clearUserData(userId);
@@ -780,6 +817,9 @@ export function DataProvider({ children }) {
       setScopedItem('settings', userId, DEFAULT_SETTINGS);
       setScopedItem('marketPrices', userId, {});
       setScopedItem('portfolios', userId, [DEFAULT_PORTFOLIO]);
+      setScopedItem('tradingPlans', userId, []);
+      setScopedItem('ipoEvents', userId, []);
+      setScopedItem('ipoEntries', userId, []);
       setScopedItem('active_portfolio', userId, 'default');
       setScopedItem('bsjpTrades', userId, []);
     }
@@ -804,6 +844,7 @@ export function DataProvider({ children }) {
       cashflows: filteredCashflows,
       allCashflows,
       addCashflow,
+      updateCashflow,
       deleteCashflow,
       dividends: filteredDividends,
       allDividends,

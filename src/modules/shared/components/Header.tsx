@@ -68,11 +68,12 @@ export default function Header({ pageTitle, onMenuToggle }) {
 
   return (
     <header className="header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div className="header-left">
         <button
           className="btn btn-ghost btn-icon mobile-menu-btn"
           onClick={onMenuToggle}
-          style={{ display: 'none' }}
+          type="button"
+          aria-label="Buka menu navigasi"
         >
           <Icons.Menu size={20} />
         </button>
@@ -157,7 +158,7 @@ export default function Header({ pageTitle, onMenuToggle }) {
             <div className="header-avatar">
               {displayName?.charAt(0)?.toUpperCase() || 'U'}
             </div>
-            <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+            <span className="header-user-name">
               {displayName}
             </span>
             <Icons.ChevronDown size={14} className="profile-chevron" style={{ color: 'var(--text-muted)', marginLeft: '2px' }} />
@@ -196,9 +197,18 @@ export default function Header({ pageTitle, onMenuToggle }) {
         .profile-menu-wrap {
           position: relative;
         }
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          min-width: 0;
+          flex: 1 1 auto;
+        }
         /* Portfolio custom dropdown */
         .portfolio-switcher-wrap {
           position: relative;
+          flex: 0 1 auto;
+          min-width: 0;
         }
         .portfolio-switcher-btn {
           display: flex;
@@ -211,6 +221,7 @@ export default function Header({ pageTitle, onMenuToggle }) {
           cursor: pointer;
           text-align: left;
           min-width: 180px;
+          max-width: min(260px, 34vw);
           transition: border-color 0.15s;
         }
         .portfolio-switcher-btn:hover {
@@ -254,6 +265,7 @@ export default function Header({ pageTitle, onMenuToggle }) {
           top: calc(100% + 8px);
           right: 0;
           min-width: 240px;
+          max-height: 258px;
           background: var(--bg-secondary);
           border: 1px solid var(--border-color);
           border-radius: var(--radius-lg);
@@ -263,6 +275,8 @@ export default function Header({ pageTitle, onMenuToggle }) {
           display: flex;
           flex-direction: column;
           gap: 2px;
+          overflow-y: auto;
+          overscroll-behavior: contain;
         }
         .portfolio-dropdown-item {
           display: flex;
@@ -342,6 +356,15 @@ export default function Header({ pageTitle, onMenuToggle }) {
           justify-content: flex-end;
           padding-top: 12px;
         }
+        .header-user-name {
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 110px;
+        }
         .header-user {
           border: 1px solid var(--border-color);
         }
@@ -376,6 +399,20 @@ export default function Header({ pageTitle, onMenuToggle }) {
           .mobile-menu-btn {
             display: flex !important;
           }
+          .header-left {
+            gap: 10px;
+          }
+          .portfolio-switcher-btn {
+            min-width: 140px;
+            max-width: 42vw;
+            padding: 6px 10px;
+          }
+          .portfolio-switcher-name {
+            max-width: 72px;
+          }
+          .portfolio-switcher-bp {
+            font-size: 0.72rem;
+          }
           .workspace-switcher {
             flex: 1;
             min-width: 0;
@@ -387,12 +424,21 @@ export default function Header({ pageTitle, onMenuToggle }) {
           .header-right > .role-badge {
             display: none;
           }
+          .header-user-name,
+          .profile-chevron {
+            display: none;
+          }
           .profile-menu .role-badge {
             display: inline-flex;
           }
           .profile-menu {
             right: -8px;
             width: min(280px, calc(100vw - 24px));
+          }
+        }
+        @media (max-width: 560px) {
+          .portfolio-switcher-wrap {
+            display: none;
           }
         }
       `}</style>

@@ -5,6 +5,7 @@ import SortableTableHeader from '@/modules/shared/components/SortableTableHeader
 import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { listProfiles } from '@/modules/shared/services/profileService';
 import { formatDateTime } from '@/modules/shared/utils/formatters';
+import * as Icons from 'lucide-react';
 
 const ACTION_LABELS = {
   'auth.registered': 'User mendaftar',
@@ -18,6 +19,7 @@ const ACTION_LABELS = {
   'note.created': 'Membuat catatan',
   'note.deleted': 'Menghapus catatan',
   'cashflow.created': 'Mencatat cashflow',
+  'cashflow.updated': 'Mengubah cashflow',
   'cashflow.deleted': 'Menghapus cashflow',
   'dividend.created': 'Mencatat dividen',
   'dividend.deleted': 'Menghapus dividen',
@@ -27,8 +29,10 @@ const ACTION_LABELS = {
   'trading_plan.created': 'Membuat trading plan',
   'trading_plan.deleted': 'Menghapus trading plan',
   'ipo_event.created': 'Membuat event IPO',
+  'ipo_event.updated': 'Mengubah event IPO',
   'ipo_event.deleted': 'Menghapus event IPO',
   'ipo_entry.created': 'Menambah entry IPO',
+  'ipo_entry.updated': 'Mengubah entry IPO',
   'ipo_entry.deleted': 'Menghapus entry IPO',
   'bsjp_trade.created': 'Membuat transaksi BSJP',
   'bsjp_trade.updated': 'Mengubah transaksi BSJP',
@@ -163,7 +167,7 @@ export default function AdminAuditLogsPage() {
       <div className="card admin-card-spaced">
         <div className="card-body">
           <div className="search-bar">
-            <span className="search-bar-icon">ðŸ”</span>
+            <span className="search-bar-icon"><Icons.Search size={14} /></span>
             <input
               placeholder="Cari aktivitas, user, target, atau metadata..."
               value={search}
@@ -177,7 +181,7 @@ export default function AdminAuditLogsPage() {
         <div className="loading-spinner" />
       ) : filteredLogs.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">ðŸ§¾</div>
+          <div className="empty-state-icon"><Icons.ScrollText size={48} /></div>
           <div className="empty-state-title">Belum ada audit log</div>
           <div className="empty-state-desc">Aktivitas user dan admin akan muncul di sini.</div>
         </div>
@@ -267,3 +271,4 @@ function formatMetadataValue(value) {
   if (typeof value === 'boolean') return value ? 'Ya' : 'Tidak';
   return String(value);
 }
+

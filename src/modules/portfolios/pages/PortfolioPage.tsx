@@ -14,6 +14,10 @@ import * as Icons from 'lucide-react';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#F43F5E', '#06B6D4', '#EC4899', '#84CC16'];
 
+function isClosedTrade(trade: any) {
+  return trade?.dateSell && trade?.sellPrice != null;
+}
+
 export default function PortfolioPage() {
   const { trades, cashflows, dividends, settings, updateSettings, activePortfolioId, marketPrices, updateMarketPrice, canWrite } = useData();
   const { isViewer } = usePermissions();
@@ -31,7 +35,7 @@ export default function PortfolioPage() {
 
   const openTrades = useMemo(() => {
     return trades
-      .filter((trade) => (!trade.sellPrice || !trade.dateSell) && (trade.market === activeTab || (activeTab === 'ID' && !trade.market)))
+      .filter((trade) => !isClosedTrade(trade) && (trade.market === activeTab || (activeTab === 'ID' && !trade.market)))
       .map((trade) => {
         const isUS = activeTab === 'US';
         const shares = isUS ? trade.lots : trade.lots * 100;
@@ -53,7 +57,13 @@ export default function PortfolioPage() {
   const totalInvested = openTrades.reduce((sum, trade) => sum + trade.totalBuy, 0);
   const totalFloating = openTrades.reduce((sum, trade) => sum + trade.floatingPnL, 0);
   const tradingBalance = totalInvested + totalFloating;
-  const pieData = openTrades.map((trade) => ({ name: trade.stockCode, value: trade.totalBuy }));
+  const pieData = useMemo(() => {
+    const grouped = new Map<string, number>();
+    openTrades.forEach((trade) => {
+      grouped.set(trade.stockCode, (grouped.get(trade.stockCode) || 0) + trade.totalBuy);
+    });
+    return Array.from(grouped.entries()).map(([name, value]) => ({ name, value }));
+  }, [openTrades]);
   const formatMoney = activeTab === 'US' ? formatUSD : formatRupiah;
   const { sortConfig, sortedItems: sortedOpenTrades, requestSort } = useTableSort(openTrades, {
     initialKey: 'stockCode',

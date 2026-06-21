@@ -36,7 +36,7 @@ export function useOpenPositionMetrics(
 
   const openTrades = useMemo(() => {
     return trades.filter((t) => {
-      const isOpen = !t.sellPrice || !t.dateSell;
+      const isOpen = t.sellPrice == null || !t.dateSell;
       if (!isOpen) return false;
       if (market) {
         return market === 'US' ? t.market === 'US' : t.market !== 'US' || !t.market;

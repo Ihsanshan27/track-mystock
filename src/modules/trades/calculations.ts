@@ -3,15 +3,16 @@
 export function calculateTradePnL(trade) {
   const { buyPrice, sellPrice, lots, buyFee = 0.15, sellFee = 0.25, market = 'ID' } = trade;
   const shares = market === 'US' ? lots : lots * 100;
+  const hasSellPrice = sellPrice != null;
 
   const totalBuy = buyPrice * shares;
-  const totalSell = sellPrice ? sellPrice * shares : 0;
+  const totalSell = hasSellPrice ? sellPrice * shares : 0;
 
   const buyCommission = totalBuy * (buyFee / 100);
   const sellCommission = totalSell * (sellFee / 100);
   const totalFee = buyCommission + sellCommission;
 
-  const pnl = sellPrice ? totalSell - totalBuy - totalFee : 0;
+  const pnl = hasSellPrice ? totalSell - totalBuy - totalFee : 0;
   const pnlPercent = totalBuy > 0 ? (pnl / totalBuy) * 100 : 0;
 
   return {
@@ -24,6 +25,14 @@ export function calculateTradePnL(trade) {
     pnlPercent,
     shares,
   };
+}
+
+function isClosedTrade(trade) {
+  return trade?.dateSell && trade?.sellPrice != null;
+}
+
+function isOpenTrade(trade) {
+  return !isClosedTrade(trade);
 }
 
 export function calculateUnrealizedPnL(buyPrice, currentPrice, lots, buyFee = 0.15, market = 'ID') {
@@ -39,7 +48,7 @@ export function calculateUnrealizedPnL(buyPrice, currentPrice, lots, buyFee = 0.
 // === Portfolio/Stats ===
 
 export function calculateStats(trades) {
-  const closedTrades = trades.filter(t => t.sellPrice && t.dateSell);
+  const closedTrades = trades.filter(isClosedTrade);
 
   if (closedTrades.length === 0) {
     return {
@@ -112,7 +121,7 @@ export function calculateStats(trades) {
 
 export function calculateEquityCurve(trades, initialCapital = 10000000) {
   const closed = trades
-    .filter(t => t.sellPrice && t.dateSell)
+    .filter(isClosedTrade)
     .sort((a, b) => new Date(a.dateSell).getTime() - new Date(b.dateSell).getTime());
 
   let equity = initialCapital;
@@ -150,7 +159,7 @@ export function calculateEquityCurve(trades, initialCapital = 10000000) {
 // === Monthly P&L ===
 
 export function calculateMonthlyPnL(trades) {
-  const closed = trades.filter(t => t.sellPrice && t.dateSell);
+  const closed = trades.filter(isClosedTrade);
   const monthly: Record<string, number> = {};
 
   for (const t of closed) {
@@ -172,7 +181,7 @@ export function calculateMonthlyPnL(trades) {
 // === Strategy Stats ===
 
 export function calculateStrategyStats(trades) {
-  const closed = trades.filter(t => t.sellPrice && t.dateSell && t.strategy);
+  const closed = trades.filter(t => isClosedTrade(t) && t.strategy);
   const strategies: Record<string, { wins: number; losses: number; totalPnL: number; count: number }> = {};
 
   for (const t of closed) {
@@ -196,7 +205,7 @@ export function calculateStrategyStats(trades) {
 // === Day of Week ===
 
 export function calculateDayOfWeekPnL(trades) {
-  const closed = trades.filter(t => t.sellPrice && t.dateSell);
+  const closed = trades.filter(isClosedTrade);
   const days = {
     Senin: { pnl: 0, count: 0 },
     Selasa: { pnl: 0, count: 0 },
@@ -222,7 +231,7 @@ export function calculateDayOfWeekPnL(trades) {
 // === Emotion Stats ===
 
 export function calculateEmotionStats(trades) {
-  const closed = trades.filter(t => t.sellPrice && t.dateSell && t.emotion);
+  const closed = trades.filter(t => isClosedTrade(t) && t.emotion);
   const emotions: Record<string, { wins: number; losses: number; totalPnL: number; count: number }> = {};
 
   for (const t of closed) {
@@ -246,7 +255,7 @@ export function calculateEmotionStats(trades) {
 // === Tag Stats ===
 
 export function calculateTagStats(trades) {
-  const closed = trades.filter(t => t.sellPrice && t.dateSell && t.tags && t.tags.length > 0);
+  const closed = trades.filter(t => isClosedTrade(t) && t.tags && t.tags.length > 0);
   const tagsData: Record<string, { wins: number; losses: number; totalPnL: number; count: number }> = {};
 
   for (const t of closed) {
@@ -274,7 +283,7 @@ export function calculateTagStats(trades) {
 // === Calendar Heatmap Data ===
 
 export function calculateDailyPnL(trades) {
-  const closed = trades.filter(t => t.sellPrice && t.dateSell);
+  const closed = trades.filter(isClosedTrade);
   const daily: Record<string, number> = {};
 
   for (const t of closed) {
@@ -289,7 +298,7 @@ export function calculateDailyPnL(trades) {
 // === Top Stocks ===
 
 export function calculateTopStocks(trades) {
-  const closed = trades.filter(t => t.sellPrice && t.dateSell);
+  const closed = trades.filter(isClosedTrade);
   const stocks: Record<string, { trades: number; totalPnL: number; wins: number }> = {};
 
   for (const t of closed) {
@@ -762,7 +771,7 @@ export function calculatePortfolioBalance(trades, cashflows = [], dividends = []
   const totalCapital = initialCapital + netCashflow;
 
   let realizedPnL = 0;
-  const closedTrades = filteredTrades.filter(t => t.sellPrice && t.dateSell);
+  const closedTrades = filteredTrades.filter(isClosedTrade);
   for (const t of closedTrades) {
     const { pnl } = calculateTradePnL(t);
     realizedPnL += pnl;
@@ -773,7 +782,7 @@ export function calculatePortfolioBalance(trades, cashflows = [], dividends = []
   const realizedEquity = totalCapital + realizedPnL + totalDividend;
 
   let investedAmount = 0;
-  const openTrades = filteredTrades.filter(t => !t.sellPrice || !t.dateSell);
+  const openTrades = filteredTrades.filter(isOpenTrade);
   for (const t of openTrades) {
     const { totalBuy, buyCommission } = calculateTradePnL(t);
     investedAmount += (totalBuy + buyCommission);
@@ -829,7 +838,7 @@ export function calculatePortfolioAssetMetrics(
     ? trades.filter(t => (market === 'US' ? t.market === 'US' : t.market !== 'US' || !t.market))
     : trades;
 
-  const openTrades = filteredTrades.filter(t => !t.sellPrice || !t.dateSell);
+  const openTrades = filteredTrades.filter(isOpenTrade);
   const snapshots = openTrades.map((trade) => calculateOpenPositionSnapshot(trade, marketPrices));
   const displayInvestedAmount = snapshots.reduce((sum, snapshot) => sum + snapshot.totalBuy, 0);
   const totalFloatingPnL = snapshots.reduce((sum, snapshot) => {
@@ -857,7 +866,7 @@ export function calculatePortfolioAssetIdrEquivalent(idMetrics, usMetrics, usdTo
 // === Gamifikasi & Achievements ===
 
 export function calculateAchievements(trades, dividends = []) {
-  const closed = trades.filter(t => t.sellPrice && t.dateSell);
+  const closed = trades.filter(isClosedTrade);
   const achievements = [];
   
   // 1. First Blood

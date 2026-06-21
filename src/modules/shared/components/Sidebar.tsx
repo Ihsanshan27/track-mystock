@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { NAV_ITEMS } from '@/modules/shared/utils/constants';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
@@ -6,6 +7,19 @@ import * as Icons from 'lucide-react';
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const { role } = usePermissions();
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   const sections: Record<string, typeof NAV_ITEMS> = {};
   NAV_ITEMS
@@ -57,23 +71,6 @@ export default function Sidebar({ isOpen, onClose }) {
           </div>
         </div>
       </aside>
-      <style>{`
-        .sidebar-overlay {
-          display: none;
-        }
-        @media (max-width: 768px) {
-          .sidebar-overlay {
-            display: block;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 99;
-          }
-        }
-      `}</style>
     </>
   );
 }

@@ -1,4 +1,5 @@
 const PREFIX = 'jurnal_saham_';
+const USER_DATA_KEYS = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'bsjpTrades'];
 
 // --- Generic key helpers ---
 
@@ -76,8 +77,7 @@ export function migrateGlobalToUser(userId) {
   const migrationKey = getScopedKey('_migrated', userId);
   if (getItem(migrationKey)) return; // Already migrated
 
-  const dataKeys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
-  for (const key of dataKeys) {
+  for (const key of USER_DATA_KEYS) {
     const globalData = getItem(key); // read from old global key
     if (globalData != null) {
       // Only write scoped if the user doesn't already have data there
@@ -89,7 +89,7 @@ export function migrateGlobalToUser(userId) {
   }
 
   // Clear global keys so they don't bleed into other users
-  for (const key of dataKeys) {
+  for (const key of USER_DATA_KEYS) {
     removeItem(key);
   }
 
@@ -101,8 +101,7 @@ export function migrateUserScopeToWorkspaceScope(userId) {
   const migrationKey = getScopedKey('_workspace_migrated', userId);
   if (getItem(migrationKey)) return;
 
-  const dataKeys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
-  for (const key of dataKeys) {
+  for (const key of USER_DATA_KEYS) {
     const existingWorkspaceValue = getWorkspaceScopedItem(key, userId, null);
     if (existingWorkspaceValue != null) continue;
 
@@ -119,8 +118,7 @@ export function migrateWorkspaceScopeToUserScope(userId) {
   const migrationKey = getScopedKey('_workspace_to_user_migrated', userId);
   if (getItem(migrationKey)) return;
 
-  const dataKeys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
-  for (const key of dataKeys) {
+  for (const key of USER_DATA_KEYS) {
     const existingUserValue = getScopedItem(key, userId);
     if (existingUserValue != null) continue;
 
@@ -137,26 +135,24 @@ export function migrateWorkspaceScopeToUserScope(userId) {
 
 export function exportAllData(userId) {
   const data: any = {};
-  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
   if (userId) {
-    for (const key of keys) {
+    for (const key of USER_DATA_KEYS) {
       data[key] = getScopedItem(key, userId);
     }
   } else {
     // Fallback: export from global keys (legacy)
-    for (const key of keys) {
+    for (const key of USER_DATA_KEYS) {
       data[key] = getItem(key);
     }
   }
   data.exportDate = new Date().toISOString();
-  data.version = '1.0';
+  data.version = '2.1';
   return data;
 }
 
 export function importAllData(data, userId) {
   if (!data || !data.version) throw new Error('Format data tidak valid');
-  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
-  for (const key of keys) {
+  for (const key of USER_DATA_KEYS) {
     if (data[key] != null) {
       if (userId) {
         setScopedItem(key, userId, data[key]);
@@ -168,13 +164,12 @@ export function importAllData(data, userId) {
 }
 
 export function clearAllData(userId) {
-  const keys = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices'];
   if (userId) {
-    for (const key of keys) {
+    for (const key of USER_DATA_KEYS) {
       removeScopedItem(key, userId);
     }
   } else {
-    for (const key of keys) {
+    for (const key of USER_DATA_KEYS) {
       removeItem(key);
     }
   }

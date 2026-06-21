@@ -16,6 +16,7 @@ import {
   upsertWorkspaceMember,
 } from '@/modules/admin/services/workspaceService';
 import { formatDate } from '@/modules/shared/utils/formatters';
+import * as Icons from 'lucide-react';
 
 const ROLE_LABELS = {
   admin: 'Admin',
@@ -324,7 +325,7 @@ export default function AdminWorkspacesPage() {
             <div className="loading-spinner" />
           ) : workspaceList.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">ðŸ¢</div>
+              <div className="empty-state-icon"><Icons.Building2 size={48} /></div>
               <div className="empty-state-title">Belum ada workspace</div>
               <div className="empty-state-desc">Buat workspace pertama untuk mulai mengelola komunitas.</div>
             </div>
@@ -332,7 +333,7 @@ export default function AdminWorkspacesPage() {
             <div className="loading-spinner" />
           ) : workspaceMembers.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-state-icon">ðŸ‘¥</div>
+              <div className="empty-state-icon"><Icons.Users size={48} /></div>
               <div className="empty-state-title">Belum ada member</div>
               <div className="empty-state-desc">Tambahkan user ke workspace ini.</div>
             </div>
@@ -376,3 +377,4 @@ export default function AdminWorkspacesPage() {
     </div>
   );
 }
+

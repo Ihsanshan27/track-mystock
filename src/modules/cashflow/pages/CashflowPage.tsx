@@ -5,12 +5,28 @@ import SortableTableHeader from '@/modules/shared/components/SortableTableHeader
 import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
-import { Coins, Plus, X, Trash2, Save, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Coins, Plus, X, Trash2, Save, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
 
 export default function CashflowPage() {
-  const { trades, cashflows, dividends, addCashflow, deleteCashflow, settings, cashflowFormDraft, setCashflowFormDraft } = useData();
+  const {
+    trades,
+    cashflows,
+    dividends,
+    addCashflow,
+    updateCashflow,
+    deleteCashflow,
+    settings,
+    cashflowFormDraft,
+    setCashflowFormDraft
+  } = useData();
   const { confirm } = useDialog();
+  const createInitialForm = () => ({
+    type: 'deposit',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
 
   const [activeTab, setActiveTab] = useState(() => {
     if (cashflowFormDraft && cashflowFormDraft.activeTab) return cashflowFormDraft.activeTab;
@@ -24,12 +40,14 @@ export default function CashflowPage() {
 
   const [form, setForm] = useState(() => {
     if (cashflowFormDraft) return cashflowFormDraft.form;
-    return { type: 'deposit', amount: '', date: new Date().toISOString().split('T')[0], notes: '' };
+    return createInitialForm();
   });
 
+  const [editingId, setEditingId] = useState<string | null>(() => cashflowFormDraft?.editingId || null);
+
   useEffect(() => {
-    setCashflowFormDraft({ form, showForm, activeTab });
-  }, [form, showForm, activeTab, setCashflowFormDraft]);
+    setCashflowFormDraft({ form, showForm, activeTab, editingId });
+  }, [form, showForm, activeTab, editingId, setCashflowFormDraft]);
 
   const isUS = activeTab === 'US';
   const formatMoney = isUS ? formatUSD : formatRupiah;
@@ -46,13 +64,19 @@ export default function CashflowPage() {
   });
 
   const set = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+  const resetForm = () => {
+    setForm(createInitialForm());
+    setEditingId(null);
+    setShowForm(false);
+    setCashflowFormDraft(null);
+  };
 
   const handleCancelOrToggle = () => {
     if (showForm) {
-      setShowForm(false);
-      setForm({ type: 'deposit', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
-      setCashflowFormDraft(null);
+      resetForm();
     } else {
+      setEditingId(null);
+      setForm(createInitialForm());
       setShowForm(true);
     }
   };
@@ -60,14 +84,31 @@ export default function CashflowPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.amount || !form.date) return;
-    addCashflow({
+    const payload = {
       ...form,
       market: activeTab,
       amount: parseFloat(form.amount),
+    };
+
+    if (editingId) {
+      updateCashflow(editingId, payload);
+    } else {
+      addCashflow(payload);
+    }
+
+    resetForm();
+  };
+
+  const handleEdit = (cashflow: any) => {
+    setEditingId(cashflow.id);
+    setShowForm(true);
+    setForm({
+      type: cashflow.type || 'deposit',
+      amount: String(cashflow.amount ?? ''),
+      date: cashflow.date || new Date().toISOString().split('T')[0],
+      notes: cashflow.notes || '',
     });
-    setForm({ type: 'deposit', amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
-    setShowForm(false);
-    setCashflowFormDraft(null);
+    setActiveTab(cashflow.market || 'ID');
   };
 
   const handleDelete = async (id: string) => {
@@ -151,6 +192,16 @@ export default function CashflowPage() {
         <div className="card" style={{ marginBottom: 24, animation: 'fadeInUp 0.3s ease' }}>
           <div className="card-body">
             <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: 16 }}>
+                <h3 className="card-title" style={{ marginBottom: 4 }}>
+                  {editingId ? 'Edit Cashflow' : 'Tambah Cashflow'}
+                </h3>
+                <p className="analytics-secondary-text">
+                  {editingId
+                    ? 'Perbarui detail transaksi kas yang sudah tercatat.'
+                    : 'Catat deposit atau withdraw untuk menjaga saldo kas tetap akurat.'}
+                </p>
+              </div>
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Jenis Transaksi</label>
@@ -179,12 +230,17 @@ export default function CashflowPage() {
                   <input className="form-input" placeholder="Bonus tahunan, tarik profit, dll..." value={form.notes} onChange={e => set('notes', e.target.value)} />
                 </div>
               </div>
-              <button type="submit" className="btn btn-primary">
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Save size={16} />
-                  Simpan Cashflow
-                </span>
-              </button>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button type="submit" className="btn btn-primary">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Save size={16} />
+                    {editingId ? 'Update Cashflow' : 'Simpan Cashflow'}
+                  </span>
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={resetForm}>
+                  Batal
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -227,9 +283,18 @@ export default function CashflowPage() {
                     </td>
                     <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{cf.notes || '-'}</td>
                     <td>
-                      <button className="btn btn-ghost btn-sm text-loss" onClick={() => handleDelete(cf.id)} aria-label="Hapus cashflow">
-                        <Trash2 size={14} />
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleEdit(cf)}
+                          aria-label="Edit cashflow"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button className="btn btn-ghost btn-sm text-loss" onClick={() => handleDelete(cf.id)} aria-label="Hapus cashflow">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

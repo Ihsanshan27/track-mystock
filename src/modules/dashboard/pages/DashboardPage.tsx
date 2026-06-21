@@ -119,6 +119,10 @@ function buildDailyDateRange(startDate: Date, endDate: Date) {
    return dates;
 }
 
+function isClosedTrade(trade: any) {
+   return trade?.dateSell && trade?.sellPrice != null;
+}
+
 export default function DashboardPage() {
    const { trades, cashflows, dividends, settings, marketPrices } = useData();
    const [activeMarketTab, setActiveMarketTab] = useState<"ID" | "US">("ID");
@@ -271,10 +275,11 @@ export default function DashboardPage() {
    );
 
    const recentTrades = filteredTrades
-      .filter((trade) => trade.sellPrice && trade.dateSell)
+      .filter(isClosedTrade)
       .sort(
          (newerTrade, olderTrade) =>
-            new Date(olderTrade.dateSell).getTime() - new Date(newerTrade.dateSell).getTime(),
+            (parseLocalDate(olderTrade.dateSell)?.getTime() || 0) -
+            (parseLocalDate(newerTrade.dateSell)?.getTime() || 0),
       )
       .slice(0, 8);
    const {
@@ -293,7 +298,8 @@ export default function DashboardPage() {
          return trade[key] || "";
       },
       tieBreaker: (a: any, b: any) =>
-         new Date(b.dateSell).getTime() - new Date(a.dateSell).getTime(),
+         (parseLocalDate(b.dateSell)?.getTime() || 0) -
+         (parseLocalDate(a.dateSell)?.getTime() || 0),
    });
 
    const calendarDays = useMemo(() => {
@@ -319,7 +325,7 @@ export default function DashboardPage() {
    const closedTrades = useMemo(
       () =>
          filteredTrades
-            .filter((trade) => trade.sellPrice && trade.dateSell)
+            .filter(isClosedTrade)
             .map((trade) => {
                const tradePnL = calculateTradePnL(trade);
                return {

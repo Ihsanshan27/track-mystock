@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useData } from "@/modules/shared/context/DataContext";
 import {
    calculateAnalyticsInsights,
@@ -172,6 +172,21 @@ function getInsightToneStyles(tone: string) {
 
 export default function AnalyticsPage() {
    const { trades, settings } = useData();
+   const [isCompactViewport, setIsCompactViewport] = useState(() =>
+      typeof window !== "undefined" ? window.innerWidth < 640 : false,
+   );
+
+   useEffect(() => {
+      if (typeof window === "undefined") return undefined;
+
+      const handleResize = () => {
+         setIsCompactViewport(window.innerWidth < 640);
+      };
+
+      handleResize();
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+   }, []);
 
    const stats = useMemo(() => calculateStats(trades), [trades]);
    const strategyStats = useMemo(() => calculateStrategyStats(trades), [trades]);
@@ -194,6 +209,10 @@ export default function AnalyticsPage() {
       () => [...lossDays].sort((left, right) => left.pnl - right.pnl)[0] || null,
       [lossDays],
    );
+   const strategyAxisWidth = isCompactViewport ? 72 : 100;
+   const chartTickFontSize = isCompactViewport ? 10 : 11;
+   const chartHorizontalMargin = isCompactViewport ? 4 : 8;
+   const chartVerticalMargin = isCompactViewport ? 0 : 8;
 
    const closedTrades = trades.filter((trade) => trade.dateSell && trade.sellPrice != null);
    const highlightInsights = analyticsInsights.items.slice(0, 6);
@@ -230,10 +249,10 @@ export default function AnalyticsPage() {
    }
 
    return (
-      <div>
+      <div className="analytics-page">
          <div className="page-header">
             <div>
-               <h1 className="page-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+               <h1 className="page-title analytics-page-title">
                   <Icons.BarChart3 size={26} style={{ color: "var(--accent-green)" }} />
                   Analitik & Statistik
                </h1>
@@ -294,11 +313,7 @@ export default function AnalyticsPage() {
                {highlightInsights.length > 0 ? (
                   <>
                      <div
-                        style={{
-                           display: "grid",
-                           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                           gap: 16,
-                        }}
+                        className="analytics-insights-grid"
                      >
                         {highlightInsights.map((insight) => {
                            const toneStyles = getInsightToneStyles(insight.tone);
@@ -404,19 +419,29 @@ export default function AnalyticsPage() {
                <div className="card-body analytics-chart-body">
                   {strategyStats.length > 0 ? (
                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={strategyStats} layout="vertical">
+                        <BarChart
+                           data={strategyStats}
+                           layout="vertical"
+                           margin={{
+                              top: chartVerticalMargin,
+                              right: chartHorizontalMargin,
+                              left: chartHorizontalMargin,
+                              bottom: chartVerticalMargin,
+                           }}
+                        >
                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
                            <XAxis
                               type="number"
                               domain={[0, 100]}
-                              tick={{ fill: "#94A3B8", fontSize: 11 }}
+                              tick={{ fill: "#94A3B8", fontSize: chartTickFontSize }}
                               tickFormatter={(value) => `${value}%`}
                            />
                            <YAxis
                               type="category"
                               dataKey="name"
-                              tick={{ fill: "#94A3B8", fontSize: 11 }}
-                              width={100}
+                              tick={{ fill: "#94A3B8", fontSize: chartTickFontSize }}
+                              width={strategyAxisWidth}
+                              interval={0}
                            />
                            <Tooltip content={<PercentTooltip />} />
                            <Bar dataKey="winRate" radius={[0, 4, 4, 0]}>
@@ -437,25 +462,28 @@ export default function AnalyticsPage() {
                   <h3 className="card-title">P/L per Hari</h3>
                </div>
                <div className="card-body analytics-chart-body">
-                  <div
-                     style={{
-                        marginBottom: 12,
-                        fontSize: "0.82rem",
-                        color: "var(--text-secondary)",
-                     }}
-                  >
+                  <div className="analytics-chart-caption">
                      {lossDays.length > 0
                         ? `Profit tampil ke atas dan loss ke bawah garis nol. Hari loss terdalam saat ini: ${worstLossDay?.day} (${formatRupiah(worstLossDay?.pnl || 0)}).`
                         : "Semua hari yang tercatat masih positif atau impas. Jika nanti ada loss, batang merah akan turun ke bawah garis nol."}
                   </div>
                   <ResponsiveContainer width="100%" height="100%">
-                     <BarChart data={dayOfWeek}>
+                     <BarChart
+                        data={dayOfWeek}
+                        margin={{
+                           top: chartVerticalMargin,
+                           right: chartHorizontalMargin,
+                           left: chartHorizontalMargin,
+                           bottom: chartVerticalMargin,
+                        }}
+                     >
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
-                        <XAxis dataKey="day" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                        <XAxis dataKey="day" tick={{ fill: "#94A3B8", fontSize: chartTickFontSize }} />
                         <YAxis
                            domain={symmetricDayPnLDomain}
-                           tick={{ fill: "#94A3B8", fontSize: 11 }}
+                           tick={{ fill: "#94A3B8", fontSize: chartTickFontSize }}
                            tickFormatter={(value) => formatCompactCurrency(Number(value))}
+                           width={isCompactViewport ? 44 : 60}
                         />
                         <ReferenceLine y={0} stroke="rgba(148,163,184,0.65)" strokeDasharray="4 4" />
                         <Tooltip content={<DayPnLTooltip />} />
@@ -594,12 +622,21 @@ export default function AnalyticsPage() {
                </div>
                <div className="card-body analytics-chart-body">
                   <ResponsiveContainer width="100%" height="100%">
-                     <BarChart data={monthlyPnL}>
+                     <BarChart
+                        data={monthlyPnL}
+                        margin={{
+                           top: chartVerticalMargin,
+                           right: chartHorizontalMargin,
+                           left: chartHorizontalMargin,
+                           bottom: chartVerticalMargin,
+                        }}
+                     >
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
-                        <XAxis dataKey="month" tick={{ fill: "#94A3B8", fontSize: 11 }} />
+                        <XAxis dataKey="month" tick={{ fill: "#94A3B8", fontSize: chartTickFontSize }} />
                         <YAxis
-                           tick={{ fill: "#94A3B8", fontSize: 11 }}
+                           tick={{ fill: "#94A3B8", fontSize: chartTickFontSize }}
                            tickFormatter={(value) => `${(value / 1000000).toFixed(1)}Jt`}
+                           width={isCompactViewport ? 44 : 60}
                         />
                         <Tooltip content={<CurrencyTooltip />} />
                         <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
