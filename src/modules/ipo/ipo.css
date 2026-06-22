@@ -393,6 +393,10 @@
   width: 90%;
 }
 
+.ipo-modal-wide {
+  max-width: 760px;
+}
+
 .ipo-modal-header,
 .ipo-modal-footer {
   display: flex;

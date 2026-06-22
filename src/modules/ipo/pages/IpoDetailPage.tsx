@@ -56,7 +56,7 @@ function calcEntry(e: IpoEntry): IpoEntryCalc {
 export default function IpoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { ipoEvents, ipoEntries, addIpoEntry, updateIpoEntry, deleteIpoEntry, updateIpoEvent, canWrite } = useData();
+  const { ipoEvents, ipoEntries, ipoAccounts, addIpoEntry, updateIpoEntry, deleteIpoEntry, updateIpoEvent, canWrite } = useData();
   const { alert, confirm } = useDialog();
   const blurStyle = usePrivacyStyle();
 
@@ -99,6 +99,32 @@ export default function IpoDetailPage() {
 
   const set = (k: string, v: string) => setFormState((prev: typeof EMPTY_FORM) => {
     const next = { ...prev, [k]: v };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+    return next;
+  });
+  const knownIpoAccounts = useMemo(() => {
+    return [...ipoAccounts].sort((a: any, b: any) => a.name.localeCompare(b.name));
+  }, [ipoAccounts]);
+  const ipoAccountByName = useMemo(() => {
+    return new Map(
+      knownIpoAccounts.map((account: any) => [account.name.trim().toLowerCase(), account])
+    );
+  }, [knownIpoAccounts]);
+  const setAccountName = (value: string) => setFormState((prev: typeof EMPTY_FORM) => {
+    const matchedAccount = ipoAccountByName.get(value.trim().toLowerCase());
+    const next = {
+      ...prev,
+      accountName: value,
+      email: matchedAccount?.email || prev.email,
+    };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+    return next;
+  });
+  const setAccountEmail = (value: string) => setFormState((prev: typeof EMPTY_FORM) => {
+    const next = {
+      ...prev,
+      email: value,
+    };
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next));
     return next;
   });
@@ -371,13 +397,42 @@ export default function IpoDetailPage() {
       <div className="form-row">
         <div className="form-group">
           <label className="form-label" htmlFor={`ipo-account-name-${isInline ? 'inline' : 'main'}`}>Nama Akun *</label>
-          <input id={`ipo-account-name-${isInline ? 'inline' : 'main'}`} className="form-input" placeholder="Akun Pribadi / Istri / dll" value={form.accountName} onChange={e => set('accountName', e.target.value)} required />
+          <input
+            id={`ipo-account-name-${isInline ? 'inline' : 'main'}`}
+            className="form-input"
+            placeholder="Akun Pribadi / Istri / dll"
+            value={form.accountName}
+            onChange={e => setAccountName(e.target.value)}
+            list="ipo-account-suggestions"
+            required
+          />
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor={`ipo-account-email-${isInline ? 'inline' : 'main'}`}>Email (Google)</label>
-          <input id={`ipo-account-email-${isInline ? 'inline' : 'main'}`} type="email" className="form-input" placeholder="email@gmail.com" value={form.email} onChange={e => set('email', e.target.value)} />
+          <input
+            id={`ipo-account-email-${isInline ? 'inline' : 'main'}`}
+            type="email"
+            className="form-input"
+            placeholder="email@gmail.com"
+            value={form.email}
+            onChange={e => setAccountEmail(e.target.value)}
+          />
         </div>
       </div>
+      {knownIpoAccounts.length > 0 && (
+        <>
+          <datalist id="ipo-account-suggestions">
+            {knownIpoAccounts.map((account: any) => (
+              <option key={account.id} value={account.name}>
+                {account.email ? `${account.name} (${account.email})` : account.name}
+              </option>
+            ))}
+          </datalist>
+          <div className="ipo-form-hint ipo-margin-b16">
+            Pilih akun yang sudah pernah dipakai agar ringkasan modal IPO tetap tergroup rapi.
+          </div>
+        </>
+      )}
       <div className="form-row ipo-grid-4">
         <div className="form-group">
           <label className="form-label" htmlFor={`ipo-buy-price-${isInline ? 'inline' : 'main'}`}>Harga Beli (Rp)</label>

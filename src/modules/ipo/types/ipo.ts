@@ -11,6 +11,7 @@ export interface IpoEvent {
 export interface IpoEntry {
   id: string;
   ipoEventId: string;      // FK to IpoEvent.id
+  ipoAccountId?: string;   // FK to IpoAccount.id
   no: number;              // row number (auto-assigned)
   accountName: string;     // nama akun broker
   email: string;           // google/email akun
@@ -21,6 +22,15 @@ export interface IpoEntry {
   action: 'SELL' | 'KEEP';
   notes?: string;
   createdAt: string;
+}
+
+export interface IpoAccount {
+  id: string;
+  name: string;
+  email: string;
+  normalizedKey: string;
+  createdAt: string;
+  lastUsedAt: string;
 }
 
 export interface IpoEntryCalc extends IpoEntry {

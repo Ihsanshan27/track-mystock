@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
@@ -10,10 +10,34 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import type { IpoEvent } from '@/modules/ipo/types/ipo';
 import '@/modules/ipo/ipo.css';
 
+type IpoStatusFilter = 'active' | 'completed' | 'all';
+type AllotmentPreset = 0.25 | 0.5 | 0.75 | 1;
+
+const formatLotValue = (value: number) => {
+  if (Number.isInteger(value)) return String(value);
+  return value.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+};
+
 export default function IpoSummaryPage() {
-  const { ipoEvents, ipoEntries } = useData();
+  const { ipoEvents, ipoEntries, ipoAccounts, showToast } = useData();
   const navigate = useNavigate();
   const blurStyle = usePrivacyStyle();
+  const [statusFilter, setStatusFilter] = useState<IpoStatusFilter>('active');
+  const [allotmentRatio, setAllotmentRatio] = useState<AllotmentPreset>(1);
+
+  const getEventStatus = (event: IpoEvent) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const offeringDate = event.offeringDate ? new Date(event.offeringDate) : null;
+    const ipoDate = new Date(event.ipoDate);
+    if (offeringDate) offeringDate.setHours(0, 0, 0, 0);
+    ipoDate.setHours(0, 0, 0, 0);
+
+    if (offeringDate && today < offeringDate) return 'upcoming';
+    if (today <= ipoDate) return 'active';
+    return 'completed';
+  };
 
   // Helper to calculate summary for a specific event
   const getEventSummary = (eventId: string) => {
@@ -49,10 +73,20 @@ export default function IpoSummaryPage() {
       const summary = getEventSummary(event.id);
       return {
         event,
+        status: getEventStatus(event),
         ...summary,
       };
     }).sort((a, b) => new Date(b.event.ipoDate).getTime() - new Date(a.event.ipoDate).getTime());
   }, [ipoEvents, ipoEntries]);
+  const filteredEventSummaries = useMemo(() => {
+    if (statusFilter === 'all') return eventSummaries;
+    return eventSummaries.filter((item) => {
+      if (statusFilter === 'active') {
+        return item.status === 'active' || item.status === 'upcoming';
+      }
+      return item.status === statusFilter;
+    });
+  }, [eventSummaries, statusFilter]);
   const { sortConfig, sortedItems: sortedEventSummaries, requestSort } = useTableSort(eventSummaries, {
     initialKey: 'ipoDate',
     initialDirection: 'desc',
@@ -70,34 +104,51 @@ export default function IpoSummaryPage() {
     },
     tieBreaker: (a: any, b: any) => new Date(b.event.ipoDate).getTime() - new Date(a.event.ipoDate).getTime(),
   });
+  const sortedFilteredEventSummaries = useMemo(() => {
+    const idSet = new Set(filteredEventSummaries.map((item) => item.event.id));
+    return sortedEventSummaries.filter((item) => idSet.has(item.event.id));
+  }, [filteredEventSummaries, sortedEventSummaries]);
 
   const accountCapitalSummaries = useMemo(() => {
+    const filteredEventIds = new Set(filteredEventSummaries.map((item) => item.event.id));
     const eventMap = new Map(ipoEvents.map((event: IpoEvent) => [event.id, event]));
+    const accountMap = new Map((ipoAccounts || []).map((account: any) => [account.id, account]));
     const groupedAccounts = new Map<string, {
+      ipoAccountId: string;
       accountName: string;
       email: string;
       joinedEvents: Set<string>;
       totalLots: number;
-      totalCapital: number;
+      totalCapitalBase: number;
+      simulatedLots: number;
+      simulatedCapital: number;
       breakdown: string[];
     }>();
 
     ipoEntries.forEach((entry: any) => {
+      if (!filteredEventIds.has(entry.ipoEventId)) return;
       const event = eventMap.get(entry.ipoEventId);
       if (!event) return;
 
-      const accountKey = `${(entry.accountName || '').trim().toLowerCase()}::${(entry.email || '').trim().toLowerCase()}`;
+      const linkedAccount = entry.ipoAccountId ? accountMap.get(entry.ipoAccountId) : null;
+      const normalizedNameKey = (entry.accountName || linkedAccount?.name || '').trim().toLowerCase();
+      const accountKey = entry.ipoAccountId || normalizedNameKey;
       const lots = Number(entry.lots) || 0;
-      const totalCapital = (event.offeringPrice || entry.buyPrice || 0) * lots * 100;
-      const breakdownLabel = `${event.stockCode} (${lots} lot)`;
+      const simulatedLots = lots * allotmentRatio;
+      const totalCapitalBase = (event.offeringPrice || entry.buyPrice || 0) * lots * 100;
+      const simulatedCapital = (event.offeringPrice || entry.buyPrice || 0) * simulatedLots * 100;
+      const breakdownLabel = `${event.stockCode} (${formatLotValue(simulatedLots)} lot simulasi)`;
 
       if (!groupedAccounts.has(accountKey)) {
         groupedAccounts.set(accountKey, {
-          accountName: entry.accountName || 'Tanpa nama akun',
-          email: entry.email || '-',
+          ipoAccountId: linkedAccount?.id || entry.ipoAccountId || accountKey,
+          accountName: linkedAccount?.name || entry.accountName || 'Tanpa nama akun',
+          email: linkedAccount?.email || entry.email || '-',
           joinedEvents: new Set(),
           totalLots: 0,
-          totalCapital: 0,
+          totalCapitalBase: 0,
+          simulatedLots: 0,
+          simulatedCapital: 0,
           breakdown: [],
         });
       }
@@ -105,7 +156,9 @@ export default function IpoSummaryPage() {
       const current = groupedAccounts.get(accountKey)!;
       current.joinedEvents.add(event.id);
       current.totalLots += lots;
-      current.totalCapital += totalCapital;
+      current.totalCapitalBase += totalCapitalBase;
+      current.simulatedLots += simulatedLots;
+      current.simulatedCapital += simulatedCapital;
       current.breakdown.push(breakdownLabel);
     });
 
@@ -115,21 +168,84 @@ export default function IpoSummaryPage() {
         eventCount: account.joinedEvents.size,
         breakdown: account.breakdown.join(', '),
       }))
-      .sort((a, b) => b.totalCapital - a.totalCapital || a.accountName.localeCompare(b.accountName));
-  }, [ipoEntries, ipoEvents]);
+      .sort((a, b) => b.simulatedCapital - a.simulatedCapital || a.accountName.localeCompare(b.accountName));
+  }, [allotmentRatio, filteredEventSummaries, ipoAccounts, ipoEntries, ipoEvents]);
   const {
     sortConfig: accountSortConfig,
     sortedItems: sortedAccountCapitalSummaries,
     requestSort: requestAccountSort,
   } = useTableSort(accountCapitalSummaries, {
-    initialKey: 'totalCapital',
+    initialKey: 'simulatedCapital',
     initialDirection: 'desc',
     getValue: (
       item: any,
-      key: 'accountName' | 'email' | 'eventCount' | 'totalLots' | 'breakdown' | 'totalCapital'
+      key: 'accountName' | 'email' | 'eventCount' | 'totalLots' | 'simulatedLots' | 'breakdown' | 'simulatedCapital'
     ) => item[key] ?? '',
-    tieBreaker: (a: any, b: any) => b.totalCapital - a.totalCapital || a.accountName.localeCompare(b.accountName),
+    tieBreaker: (a: any, b: any) => b.simulatedCapital - a.simulatedCapital || a.accountName.localeCompare(b.accountName),
   });
+  const accountCapitalGrandTotal = useMemo(
+    () => accountCapitalSummaries.reduce((sum, account) => sum + account.simulatedCapital, 0),
+    [accountCapitalSummaries]
+  );
+  const highestCapitalAccountKey = useMemo(() => {
+    if (sortedAccountCapitalSummaries.length === 0) return null;
+    const highest = sortedAccountCapitalSummaries[0];
+    return highest.ipoAccountId || `${highest.accountName}-${highest.email}`;
+  }, [sortedAccountCapitalSummaries]);
+  const exportSummaryCsv = () => {
+    const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const metaRows = [
+      ['Filter Status', statusFilter],
+      ['Simulasi Allotment', `${Math.round(allotmentRatio * 100)}%`],
+      ['Diekspor Pada', new Date().toLocaleString('id-ID')],
+    ];
+    const accountHeaders = ['Nama Akun', 'Email', 'Total IPO', 'Total Lot Awal', 'Lot Simulasi', 'Rincian IPO', 'Modal Simulasi'];
+    const accountRows = sortedAccountCapitalSummaries.map((account: any) => ([
+      account.accountName,
+      account.email || '-',
+      account.eventCount,
+      formatLotValue(account.totalLots),
+      formatLotValue(account.simulatedLots),
+      account.breakdown,
+      account.simulatedCapital,
+    ]));
+    const eventHeaders = ['Kode Saham', 'Status', 'Tanggal IPO', 'Modal Aktual', 'PnL Realized', 'Rata-rata Return', 'Partisipasi Akun'];
+    const eventRows = sortedFilteredEventSummaries.map((item: any) => ([
+      item.event.stockCode,
+      item.status,
+      item.event.ipoDate,
+      item.totalCapital,
+      item.totalReturn,
+      item.avgReturnPct.toFixed(2),
+      item.accountCount,
+    ]));
+
+    const csvRows = [
+      ['IPO Summary Export'],
+      ...metaRows,
+      [],
+      ['Tabel Modal Per Akun'],
+      accountHeaders,
+      ...accountRows,
+      [],
+      ['Rincian Performa IPO'],
+      eventHeaders,
+      ...eventRows,
+    ];
+
+    const csv = csvRows
+      .map((row) => row.map(escapeCsv).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ipo-summary-${statusFilter}-${Math.round(allotmentRatio * 100)}pct-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('Ringkasan IPO berhasil diexport ke CSV');
+  };
 
   // Calculate global summary metrics
   const globalMetrics = useMemo(() => {
@@ -139,7 +255,7 @@ export default function IpoSummaryPage() {
     let profitEventsCount = 0;
     let lossEventsCount = 0;
 
-    eventSummaries.forEach((item) => {
+    filteredEventSummaries.forEach((item) => {
       totalCapital += item.totalCapital;
       totalReturn += item.totalReturn;
       totalAccounts += item.accountCount;
@@ -159,13 +275,13 @@ export default function IpoSummaryPage() {
       totalAccounts,
       winRate,
       avgReturnPct,
-      totalEvents: ipoEvents.length,
+      totalEvents: filteredEventSummaries.length,
     };
-  }, [eventSummaries, ipoEvents.length]);
+  }, [filteredEventSummaries]);
 
   // Chart data (only for events that have accounts/entries)
   const chartData = useMemo(() => {
-    return eventSummaries
+    return filteredEventSummaries
       .filter((item) => item.accountCount > 0)
       .map((item) => ({
         name: item.event.stockCode,
@@ -173,7 +289,7 @@ export default function IpoSummaryPage() {
       }))
       // Reverse to show chronologically from left to right (oldest to newest)
       .reverse();
-  }, [eventSummaries]);
+  }, [filteredEventSummaries]);
 
   // Custom tool-tip to avoid typescript issues and fit styling
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -216,7 +332,78 @@ export default function IpoSummaryPage() {
             <Icons.BarChart3 size={26} style={{ color: 'var(--accent-green)' }} />
             Ringkasan Portofolio IPO
           </h1>
-          <p className="page-subtitle">Rangkuman performa dan profitabilitas seluruh partisipasi IPO Anda</p>
+          <p className="page-subtitle">Rangkuman performa, status IPO, dan kebutuhan modal seluruh partisipasi Anda</p>
+        </div>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={exportSummaryCsv}>
+            <Icons.Download size={16} />
+            Export Ringkasan
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div className="card-body" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 8 }}>
+              Filter Status IPO
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {[
+                { key: 'active', label: 'Aktif & Upcoming' },
+                { key: 'completed', label: 'Sudah IPO' },
+                { key: 'all', label: 'Semua' },
+              ].map((option) => {
+                const isActive = statusFilter === option.key;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                    onClick={() => setStatusFilter(option.key as IpoStatusFilter)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 8 }}>
+              Simulasi Allotment
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {[
+                { value: 0.25, label: '25%' },
+                { value: 0.5, label: '50%' },
+                { value: 0.75, label: '75%' },
+                { value: 1, label: '100%' },
+              ].map((option) => {
+                const isActive = allotmentRatio === option.value;
+                return (
+                  <button
+                    key={option.label}
+                    type="button"
+                    className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                    onClick={() => setAllotmentRatio(option.value as AllotmentPreset)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+              Cakupan Ringkasan
+            </div>
+            <div style={{ fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+              Menampilkan <strong style={{ color: 'var(--text-primary)' }}>{filteredEventSummaries.length}</strong> IPO sesuai filter
+            </div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 6 }}>
+              Simulasi modal memakai allotment <strong>{Math.round(allotmentRatio * 100)}%</strong>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -224,7 +411,7 @@ export default function IpoSummaryPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 28 }}>
         {[
           {
-            label: 'Total Emiten IPO', value: String(globalMetrics.totalEvents),
+            label: statusFilter === 'all' ? 'Total Emiten IPO' : 'Emiten Sesuai Filter', value: String(globalMetrics.totalEvents),
             icon: Icons.Rocket, color: 'var(--accent-purple)', dim: 'var(--accent-purple-dim)'
           },
           {
@@ -305,6 +492,29 @@ export default function IpoSummaryPage() {
         <div className="card-header">
           <h3 className="card-title">💼 Estimasi Modal Total Per Akun IPO</h3>
         </div>
+        <div className="card-body" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+            <div className="bento-card" style={{ padding: '16px 18px' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 10 }}>
+                Grand Total Modal Simulasi
+              </div>
+              <div className="font-mono" style={{ fontSize: '1.45rem', fontWeight: 800, ...blurStyle }}>
+                {formatRupiah(accountCapitalGrandTotal)}
+              </div>
+            </div>
+            <div className="bento-card" style={{ padding: '16px 18px' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, marginBottom: 10 }}>
+                Akun Dengan Modal Terbesar
+              </div>
+              <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
+                {sortedAccountCapitalSummaries[0]?.accountName || 'Belum ada data'}
+              </div>
+              <div className="font-mono" style={{ fontWeight: 700, color: 'var(--accent-yellow)', ...(sortedAccountCapitalSummaries[0] ? blurStyle : {}) }}>
+                {sortedAccountCapitalSummaries[0] ? formatRupiah(sortedAccountCapitalSummaries[0].simulatedCapital) : 'Rp 0'}
+              </div>
+            </div>
+          </div>
+        </div>
         <div className="card-body" style={{ padding: 0 }}>
           <div className="table-container" style={{ border: 'none', margin: 0 }}>
             <table className="table">
@@ -313,35 +523,72 @@ export default function IpoSummaryPage() {
                   <th><SortableTableHeader label="Nama Akun" sortKey="accountName" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
                   <th><SortableTableHeader label="Email" sortKey="email" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
                   <th><SortableTableHeader label="Total IPO" sortKey="eventCount" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
-                  <th><SortableTableHeader label="Total Lot" sortKey="totalLots" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
+                  <th><SortableTableHeader label="Lot Awal" sortKey="totalLots" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
+                  <th><SortableTableHeader label="Lot Simulasi" sortKey="simulatedLots" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
                   <th><SortableTableHeader label="Rincian IPO" sortKey="breakdown" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
-                  <th><SortableTableHeader label="Total Modal Dibutuhkan" sortKey="totalCapital" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
+                  <th><SortableTableHeader label="Modal Simulasi" sortKey="simulatedCapital" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
                 </tr>
               </thead>
               <tbody>
                 {sortedAccountCapitalSummaries.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 16px' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 16px' }}>
                       Belum ada partisipasi akun IPO yang bisa dihitung.
                     </td>
                   </tr>
                 ) : (
                   sortedAccountCapitalSummaries.map((account) => (
-                    <tr key={`${account.accountName}-${account.email}`}>
-                      <td style={{ fontWeight: 700 }}>{account.accountName}</td>
+                    <tr
+                      key={`${account.accountName}-${account.email}`}
+                      style={highestCapitalAccountKey === (account.ipoAccountId || `${account.accountName}-${account.email}`)
+                        ? { background: 'rgba(234, 179, 8, 0.08)' }
+                        : undefined}
+                    >
+                      <td style={{ fontWeight: 700 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <span>{account.accountName}</span>
+                          {highestCapitalAccountKey === (account.ipoAccountId || `${account.accountName}-${account.email}`) && (
+                            <span style={{
+                              background: 'var(--accent-yellow-dim)',
+                              color: 'var(--accent-yellow)',
+                              padding: '3px 8px',
+                              borderRadius: 999,
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              letterSpacing: '0.03em',
+                              textTransform: 'uppercase',
+                            }}>
+                              Modal Terbesar
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>{account.email || '-'}</td>
                       <td style={{ fontWeight: 600 }}>{account.eventCount} IPO</td>
-                      <td style={{ fontWeight: 600 }}>{account.totalLots} lot</td>
+                      <td style={{ fontWeight: 600 }}>{formatLotValue(account.totalLots)} lot</td>
+                      <td style={{ fontWeight: 600, color: 'var(--accent-blue-light)' }}>{formatLotValue(account.simulatedLots)} lot</td>
                       <td style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: 320 }}>
                         {account.breakdown}
                       </td>
                       <td className="font-mono" style={{ fontWeight: 800, ...blurStyle }}>
-                        {formatRupiah(account.totalCapital)}
+                        {formatRupiah(account.simulatedCapital)}
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
+              {sortedAccountCapitalSummaries.length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td colSpan={6} style={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Total Kebutuhan Modal Simulasi
+                    </td>
+                    <td className="font-mono" style={{ fontWeight: 900, ...blurStyle }}>
+                      {formatRupiah(accountCapitalGrandTotal)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
@@ -366,9 +613,14 @@ export default function IpoSummaryPage() {
                 </tr>
               </thead>
               <tbody>
-                {sortedEventSummaries.map((item) => {
+                {sortedFilteredEventSummaries.map((item) => {
                   const hasEntries = item.accountCount > 0;
                   const isProfit = item.totalReturn >= 0;
+                  const statusTone = item.status === 'completed'
+                    ? { bg: 'rgba(148, 163, 184, 0.14)', color: 'var(--text-secondary)', label: 'Sudah IPO' }
+                    : item.status === 'upcoming'
+                      ? { bg: 'var(--accent-blue-dim)', color: 'var(--accent-blue-light)', label: 'Upcoming' }
+                      : { bg: 'var(--accent-green-dim)', color: 'var(--accent-green)', label: 'Aktif' };
                   
                   return (
                     <tr 
@@ -377,17 +629,29 @@ export default function IpoSummaryPage() {
                       onClick={() => navigate(`/ipo/${item.event.id}`)}
                     >
                       <td>
-                        <span style={{
-                          background: 'var(--accent-green-dim)',
-                          color: 'var(--accent-green)',
-                          padding: '3px 10px',
-                          borderRadius: 999,
-                          fontWeight: 800,
-                          fontSize: '0.85rem',
-                          letterSpacing: '0.05em',
-                        }}>
-                          {item.event.stockCode}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{
+                            background: 'var(--accent-green-dim)',
+                            color: 'var(--accent-green)',
+                            padding: '3px 10px',
+                            borderRadius: 999,
+                            fontWeight: 800,
+                            fontSize: '0.85rem',
+                            letterSpacing: '0.05em',
+                          }}>
+                            {item.event.stockCode}
+                          </span>
+                          <span style={{
+                            background: statusTone.bg,
+                            color: statusTone.color,
+                            padding: '3px 8px',
+                            borderRadius: 999,
+                            fontWeight: 700,
+                            fontSize: '0.72rem',
+                          }}>
+                            {statusTone.label}
+                          </span>
+                        </div>
                       </td>
                       <td style={{ fontSize: '0.88rem' }}>
                         {new Date(item.event.ipoDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}

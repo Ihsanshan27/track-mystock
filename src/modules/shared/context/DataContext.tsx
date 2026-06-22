@@ -63,7 +63,7 @@ const DEFAULT_SETTINGS = {
   behaviorDoubleConfirmExit: true,
   profileIncludedFinanceAccountIds: [],
 };
-const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'bsjpTrades', 'financeAccounts', 'financeTransactions'];
+const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'ipoAccounts', 'bsjpTrades', 'financeAccounts', 'financeTransactions'];
 
 const DEFAULT_PORTFOLIO = {
   id: 'default',
@@ -89,6 +89,7 @@ export function DataProvider({ children }) {
   const [tradingPlans, setTradingPlans] = useState([]);
   const [ipoEvents, setIpoEvents] = useState<any[]>([]);
   const [ipoEntries, setIpoEntries] = useState<any[]>([]);
+  const [ipoAccounts, setIpoAccounts] = useState<any[]>([]);
   const [bsjpTrades, setBsjpTrades] = useState<any[]>([]);
   const [financeAccounts, setFinanceAccounts] = useState<any[]>([]);
   const [financeTransactions, setFinanceTransactions] = useState<any[]>([]);
@@ -117,6 +118,7 @@ export function DataProvider({ children }) {
   const [databaseSetupError, setDatabaseSetupError] = useState('');
 
   const applyData = useCallback((data) => {
+    const normalizedIpo = normalizeIpoCollections(data.ipoEntries || [], data.ipoAccounts || []);
     setAllTrades(data.trades || []);
     setWatchlist(data.watchlist || []);
     setNotes(data.notes || []);
@@ -127,7 +129,8 @@ export function DataProvider({ children }) {
     setPortfolios(data.portfolios && data.portfolios.length > 0 ? data.portfolios : [DEFAULT_PORTFOLIO]);
     setTradingPlans(data.tradingPlans || []);
     setIpoEvents(data.ipoEvents || []);
-    setIpoEntries(data.ipoEntries || []);
+    setIpoEntries(normalizedIpo.entries);
+    setIpoAccounts(normalizedIpo.accounts);
     setBsjpTrades(data.bsjpTrades || []);
     setFinanceAccounts(data.financeAccounts || []);
     setFinanceTransactions(data.financeTransactions || []);
@@ -195,6 +198,7 @@ export function DataProvider({ children }) {
       setTradingPlans([]);
       setIpoEvents([]);
       setIpoEntries([]);
+      setIpoAccounts([]);
       setBsjpTrades([]);
       setFinanceAccounts([]);
       setFinanceTransactions([]);
@@ -1078,6 +1082,15 @@ export function DataProvider({ children }) {
     return event?.offeringPrice;
   };
 
+  const syncIpoCollections = useCallback((nextEntries: any[], nextAccounts = ipoAccounts) => {
+    const normalizedIpo = normalizeIpoCollections(nextEntries, nextAccounts);
+    setIpoEntries(normalizedIpo.entries);
+    setIpoAccounts(normalizedIpo.accounts);
+    persistData('ipoEntries', normalizedIpo.entries);
+    persistData('ipoAccounts', normalizedIpo.accounts);
+    return normalizedIpo;
+  }, [ipoAccounts, persistData]);
+
   const normalizeIpoEntryBuyPrice = (entry: any) => {
     const offeringPrice = getIpoOfferingPrice(entry.ipoEventId);
     if (typeof offeringPrice !== 'number' || Number.isNaN(offeringPrice)) {
@@ -1126,8 +1139,7 @@ export function DataProvider({ children }) {
     persistData('ipoEvents', updatedEvents);
     // Also delete all entries for this event
     const updatedEntries = ipoEntries.filter((e: any) => e.ipoEventId !== id);
-    setIpoEntries(updatedEntries);
-    persistData('ipoEntries', updatedEntries);
+    syncIpoCollections(updatedEntries);
     if (existingEvent) {
       logUserActivity('ipo_event.deleted', 'ipo_event', id, {
         name: existingEvent.name || null,
@@ -1142,14 +1154,15 @@ export function DataProvider({ children }) {
     if (!ensureWritable()) return;
     const newEntry = normalizeIpoEntryBuyPrice({ ...entry, id: generateId(), createdAt: new Date().toISOString() });
     const updated = [...ipoEntries, newEntry];
-    setIpoEntries(updated);
-    persistData('ipoEntries', updated);
-    logUserActivity('ipo_entry.created', 'ipo_entry', newEntry.id, {
-      ipoEventId: newEntry.ipoEventId || null,
-      accountName: newEntry.accountName || null,
+    const normalizedIpo = syncIpoCollections(updated);
+    const finalEntry = normalizedIpo.entries.find((item: any) => item.id === newEntry.id) || newEntry;
+    logUserActivity('ipo_entry.created', 'ipo_entry', finalEntry.id, {
+      ipoEventId: finalEntry.ipoEventId || null,
+      accountName: finalEntry.accountName || null,
+      ipoAccountId: finalEntry.ipoAccountId || null,
     });
     showToast('Entry akun ditambahkan');
-    return newEntry;
+    return finalEntry;
   };
 
   const updateIpoEntry = (id: string, updates: any) => {
@@ -1159,8 +1172,7 @@ export function DataProvider({ children }) {
         ? normalizeIpoEntryBuyPrice({ ...e, ...updates })
         : e
     ));
-    setIpoEntries(updated);
-    persistData('ipoEntries', updated);
+    syncIpoCollections(updated);
     showToast('Entry diperbarui');
   };
 
@@ -1168,8 +1180,7 @@ export function DataProvider({ children }) {
     if (!ensureWritable()) return;
     const existingEntry = ipoEntries.find((entry: any) => entry.id === id);
     const updated = ipoEntries.filter((e: any) => e.id !== id);
-    setIpoEntries(updated);
-    persistData('ipoEntries', updated);
+    syncIpoCollections(updated);
     if (existingEntry) {
       logUserActivity('ipo_entry.deleted', 'ipo_entry', id, {
         ipoEventId: existingEntry.ipoEventId || null,
@@ -1188,8 +1199,7 @@ export function DataProvider({ children }) {
       createdAt: new Date().toISOString(),
     }));
     const updated = [...ipoEntries, ...newEntries];
-    setIpoEntries(updated);
-    persistData('ipoEntries', updated);
+    syncIpoCollections(updated);
     showToast(`${newEntries.length} entry berhasil disalin`);
   };
 
@@ -1272,6 +1282,7 @@ export function DataProvider({ children }) {
     tradingPlans,
     ipoEvents,
     ipoEntries,
+    ipoAccounts,
     bsjpTrades,
     financeAccounts,
     financeTransactions,
@@ -1295,6 +1306,7 @@ export function DataProvider({ children }) {
       tradingPlans: data.tradingPlans || [],
       ipoEvents: data.ipoEvents || [],
       ipoEntries: data.ipoEntries || [],
+      ipoAccounts: data.ipoAccounts || [],
       bsjpTrades: data.bsjpTrades || [],
       financeAccounts: data.financeAccounts || [],
       financeTransactions: data.financeTransactions || [],
@@ -1324,6 +1336,7 @@ export function DataProvider({ children }) {
     setTradingPlans([]);
     setIpoEvents([]);
     setIpoEntries([]);
+    setIpoAccounts([]);
     setBsjpTrades([]);
     setFinanceAccounts([]);
     setFinanceTransactions([]);
@@ -1345,6 +1358,7 @@ export function DataProvider({ children }) {
       setScopedItem('tradingPlans', userId, []);
       setScopedItem('ipoEvents', userId, []);
       setScopedItem('ipoEntries', userId, []);
+      setScopedItem('ipoAccounts', userId, []);
       setScopedItem('active_portfolio', userId, 'default');
       setScopedItem('bsjpTrades', userId, []);
       setScopedItem('financeAccounts', userId, []);
@@ -1393,6 +1407,7 @@ export function DataProvider({ children }) {
       deleteTradingPlan,
       ipoEvents,
       ipoEntries,
+      ipoAccounts,
       addIpoEvent,
       updateIpoEvent,
       deleteIpoEvent,
@@ -1451,6 +1466,85 @@ export function DataProvider({ children }) {
   );
 }
 
+function normalizeIpoText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function normalizeIpoEmail(value) {
+  return normalizeIpoText(value).toLowerCase();
+}
+
+function buildIpoAccountKey(accountName) {
+  const normalizedName = normalizeIpoText(accountName).toLowerCase();
+  return normalizedName;
+}
+
+function normalizeIpoCollections(entries = [], accounts = []) {
+  const accountMap = new Map();
+
+  (accounts || []).forEach((account) => {
+    const normalizedName = normalizeIpoText(account.name);
+    const normalizedEmail = normalizeIpoEmail(account.email);
+    const normalizedKey = account.normalizedKey || buildIpoAccountKey(normalizedName);
+    if (!normalizedKey) return;
+    accountMap.set(normalizedKey, {
+      id: account.id || generateId(),
+      name: normalizedName || account.name || 'Tanpa nama akun',
+      email: normalizedEmail,
+      normalizedKey,
+      createdAt: account.createdAt || new Date().toISOString(),
+      lastUsedAt: account.lastUsedAt || account.createdAt || new Date().toISOString(),
+    });
+  });
+
+  const normalizedEntries = (entries || []).map((entry) => {
+    const normalizedName = normalizeIpoText(entry.accountName);
+    const normalizedEmail = normalizeIpoEmail(entry.email);
+    const normalizedKey = buildIpoAccountKey(normalizedName);
+
+    if (!normalizedKey) {
+      return {
+        ...entry,
+        accountName: normalizedName || entry.accountName || 'Tanpa nama akun',
+        email: normalizedEmail,
+      };
+    }
+
+    let account = accountMap.get(normalizedKey);
+    if (!account) {
+      account = {
+        id: entry.ipoAccountId || generateId(),
+        name: normalizedName || entry.accountName || 'Tanpa nama akun',
+        email: normalizedEmail,
+        normalizedKey,
+        createdAt: entry.createdAt || new Date().toISOString(),
+        lastUsedAt: entry.createdAt || new Date().toISOString(),
+      };
+      accountMap.set(normalizedKey, account);
+    } else {
+      account.lastUsedAt = entry.createdAt || account.lastUsedAt || new Date().toISOString();
+      if (normalizedName) {
+        account.name = normalizedName;
+      }
+    }
+
+    return {
+      ...entry,
+      ipoAccountId: account.id,
+      accountName: account.name,
+      email: normalizedEmail,
+    };
+  });
+
+  const normalizedAccounts = Array.from(accountMap.values())
+    .sort((a, b) => new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime());
+
+  return {
+    entries: normalizedEntries,
+    accounts: normalizedAccounts,
+  };
+}
+
 function normalizeSettings(settings) {
   return { ...DEFAULT_SETTINGS, ...(settings || {}) };
 }
@@ -1468,6 +1562,7 @@ function loadLocalData(userId) {
     tradingPlans: getScopedItem('tradingPlans', userId) || [],
     ipoEvents: getScopedItem('ipoEvents', userId) || [],
     ipoEntries: getScopedItem('ipoEntries', userId) || [],
+    ipoAccounts: getScopedItem('ipoAccounts', userId) || [],
     bsjpTrades: getScopedItem('bsjpTrades', userId) || [],
     financeAccounts: getScopedItem('financeAccounts', userId) || [],
     financeTransactions: getScopedItem('financeTransactions', userId) || [],

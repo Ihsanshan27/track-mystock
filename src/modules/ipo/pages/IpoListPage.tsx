@@ -192,9 +192,9 @@ export default function IpoListPage() {
          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
    );
 
-   const renderEventForm = (submitLabel: string, submitIcon: ReactNode) => (
+   const renderEventForm = (submitLabel: string, submitIcon: ReactNode, mode: "inline" | "modal" = "inline") => (
       <form onSubmit={handleSubmit}>
-         <div className="form-row ipo-grid-4">
+         <div className={`form-row ${mode === "modal" ? "ipo-grid-2" : "ipo-grid-4"}`}>
             <div className="form-group">
                <label className="form-label" htmlFor="ipo-list-stock-code">Kode Saham *</label>
                <input
@@ -241,14 +241,16 @@ export default function IpoListPage() {
                />
             </div>
          </div>
-         <div className="form-group">
+         <div className="form-group" style={{ marginTop: mode === "modal" ? 4 : 0 }}>
              <label className="form-label" htmlFor="ipo-list-notes">Catatan</label>
-             <input
+             <textarea
                 id="ipo-list-notes"
                 className="form-input"
                placeholder="Catatan singkat tentang IPO ini..."
                value={form.notes}
                onChange={(e) => set("notes", e.target.value)}
+               rows={mode === "modal" ? 4 : 1}
+               style={{ resize: "vertical", minHeight: mode === "modal" ? 108 : undefined }}
             />
          </div>
          <div className="ipo-flex-wrap">
@@ -343,12 +345,10 @@ export default function IpoListPage() {
                   const summary = getSummary(event.id);
                   const isProfit = summary.totalReturn >= 0;
                   const hasEntries = summary.accountCount > 0;
-                  const isEditingThisCard = editingEvent?.id === event.id;
-
                   return (
                      <div
                         key={event.id}
-                        className={`bento-card ipo-list-card ${isEditingThisCard ? "editing" : ""}`}
+                        className="bento-card ipo-list-card"
                         style={{
                            borderLeft: hasEntries
                               ? `4px solid ${isProfit ? "var(--accent-green)" : "var(--accent-red)"}`
@@ -546,35 +546,37 @@ export default function IpoListPage() {
                            </div>
                         )}
 
-                        {isEditingThisCard && canWrite && (
-                           <div
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                 marginTop: 14,
-                                 paddingTop: 14,
-                                 borderTop: "1px solid var(--border-color)",
-                              }}
-                           >
-                              <div
-                                 style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 8,
-                                    marginBottom: 12,
-                                 }}
-                              >
-                                 <Icons.Edit3
-                                    size={15}
-                                    style={{ color: "var(--accent-blue-light)" }}
-                                 />
-                                 <strong>Edit IPO Langsung Dari List</strong>
-                              </div>
-                              {renderEventForm(" Simpan Perubahan", <Icons.Save size={15} />)}
-                           </div>
-                        )}
                      </div>
                   );
                })}
+            </div>
+         )}
+
+         {editingEvent && canWrite && (
+            <div className="modal-overlay ipo-modal-overlay" onClick={handleCancel}>
+               <div className="modal ipo-modal ipo-modal-wide" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header ipo-modal-header">
+                     <div>
+                        <h3 style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                           <Icons.Edit3 size={17} style={{ color: "var(--accent-blue-light)" }} />
+                           Edit IPO Event
+                        </h3>
+                        <p style={{ margin: 0, fontSize: "0.84rem", color: "var(--text-secondary)" }}>
+                           Rapikan detail kode saham, tanggal, harga penawaran, dan catatan IPO tanpa mengganggu card di belakang.
+                        </p>
+                     </div>
+                     <button
+                        className="btn btn-ghost btn-icon ipo-btn-close"
+                        onClick={handleCancel}
+                        aria-label="Tutup modal edit IPO"
+                     >
+                        <Icons.X size={18} />
+                     </button>
+                  </div>
+                  <div className="modal-body ipo-modal-body">
+                     {renderEventForm(" Simpan Perubahan", <Icons.Save size={15} />, "modal")}
+                  </div>
+               </div>
             </div>
          )}
       </div>
