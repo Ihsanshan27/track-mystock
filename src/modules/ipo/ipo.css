@@ -1,0 +1,654 @@
+.ipo-flex-wrap {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ipo-actions-row {
+  display: flex;
+  gap: 12px;
+}
+
+.ipo-inline-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipo-page-header {
+  margin-bottom: 24px;
+}
+
+.ipo-grid-4 {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+.ipo-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ipo-preview-grid {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.ipo-kicker {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.ipo-preview-value {
+  font-weight: 700;
+}
+
+.ipo-preview-value.positive,
+.ipo-stat-value.positive {
+  color: var(--accent-green);
+}
+
+.ipo-preview-value.negative,
+.ipo-stat-value.negative {
+  color: var(--accent-red);
+}
+
+.ipo-preview-value.keep {
+  color: var(--accent-yellow);
+}
+
+.ipo-form-hint {
+  align-self: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ipo-empty-top {
+  margin-top: 32px;
+}
+
+.ipo-empty-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.ipo-empty-cta {
+  margin-top: 12px;
+}
+
+.ipo-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ipo-summary-grid-wide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.ipo-stat-card {
+  padding: 14px 18px;
+}
+
+.ipo-stat-card-wide {
+  padding: 16px 20px;
+}
+
+.ipo-stat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.ipo-stat-head-wide {
+  margin-bottom: 12px;
+}
+
+.ipo-stat-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ipo-stat-label-wide {
+  font-size: 0.72rem;
+}
+
+.ipo-stat-icon-box {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ipo-stat-icon-box-wide {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+}
+
+.ipo-stat-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ipo-stat-value-wide {
+  font-size: 1.4rem;
+}
+
+.ipo-card-accent {
+  margin-bottom: 24px;
+  border-left: 4px solid var(--accent-green);
+}
+
+.ipo-card-accent-wide {
+  margin-bottom: 28px;
+}
+
+.ipo-card-header-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ipo-card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ipo-muted-small {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ipo-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  font-size: 0.78rem;
+}
+
+.ipo-table-wrap {
+  border: none;
+  overflow-x: auto;
+}
+
+.ipo-table-wrap-tight {
+  border: none;
+  margin: 0;
+}
+
+.ipo-table-fixed {
+  width: 100%;
+  min-width: 920px;
+  table-layout: fixed;
+}
+
+.ipo-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ipo-sort-button.inactive {
+  color: var(--text-secondary);
+}
+
+.ipo-sort-button.active {
+  color: var(--text-primary);
+}
+
+.ipo-row-editing {
+  background: rgba(59, 130, 246, 0.08);
+  box-shadow: inset 3px 0 0 var(--accent-blue-light);
+}
+
+.ipo-row-keep {
+  background: rgba(234, 179, 8, 0.04);
+}
+
+.ipo-row-profit {
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.ipo-row-loss {
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.ipo-cell-muted {
+  color: var(--text-muted);
+}
+
+.ipo-cell-secondary {
+  color: var(--text-secondary);
+}
+
+.ipo-dash {
+  color: var(--text-muted);
+}
+
+.ipo-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.ipo-badge-stock {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+  padding: 2px 14px;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.ipo-badge-stock-sm {
+  padding: 2px 10px;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}
+
+.ipo-badge-stock-xs {
+  padding: 3px 10px;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+.ipo-badge-status,
+.ipo-badge-sltl {
+  font-size: 0.66rem;
+  padding: 2px 6px;
+}
+
+.ipo-badge-sltl.neutral {
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.ipo-badge-sltl.sl {
+  background: var(--accent-red-dim);
+  color: var(--accent-red);
+}
+
+.ipo-badge-sltl.tl {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+}
+
+.ipo-badge-status.sell {
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue-light);
+}
+
+.ipo-badge-status.keep {
+  background: rgba(234, 179, 8, 0.15);
+  color: #d97706;
+}
+
+.ipo-status-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.ipo-estimate-note {
+  font-size: 0.68rem;
+  color: var(--accent-yellow);
+  line-height: 1.1;
+}
+
+.ipo-tools-row {
+  display: flex;
+  gap: 4px;
+}
+
+.ipo-btn-tool {
+  padding: 2px 5px;
+  height: 24px;
+}
+
+.ipo-btn-tool-copy {
+  color: var(--accent-blue-light);
+}
+
+.ipo-inline-editor-cell {
+  padding: 0;
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.ipo-inline-editor {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.ipo-inline-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--accent-blue-light);
+}
+
+.ipo-row-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.ipo-table-footer-row {
+  border-top: 2px solid var(--border-color);
+  background: var(--bg-input);
+}
+
+.ipo-table-footer-label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding: 10px 12px;
+}
+
+.ipo-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ipo-modal {
+  max-width: 500px;
+  width: 90%;
+}
+
+.ipo-modal-header,
+.ipo-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+}
+
+.ipo-modal-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ipo-modal-footer {
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.ipo-modal-body {
+  padding: 20px;
+}
+
+.ipo-margin-b16 {
+  margin-bottom: 16px;
+}
+
+.ipo-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ipo-title-row-nowrap {
+  flex-wrap: nowrap;
+}
+
+.ipo-subtitle {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.ipo-btn-back {
+  padding: 4px 8px;
+}
+
+.ipo-btn-close {
+  color: var(--accent-red);
+}
+
+.ipo-btn-inline {
+  padding: 6px 10px;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.ipo-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.ipo-list-card {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ipo-list-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.ipo-list-card.editing {
+  box-shadow: 0 0 0 1px var(--accent-blue-light), 0 12px 30px rgba(59, 130, 246, 0.12);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), transparent 28%);
+}
+
+.ipo-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.ipo-list-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.ipo-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ipo-small-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ipo-list-date {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.ipo-profit-block {
+  margin-bottom: 16px;
+}
+
+.ipo-profit-title {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.ipo-profit-value {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.ipo-profit-avg {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ipo-profit-empty {
+  margin-bottom: 16px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.ipo-profit-title {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.ipo-list-submeta {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.ipo-list-summary {
+  display: flex;
+  gap: 12px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.ipo-list-summary-item {
+  text-align: center;
+  flex: 1;
+}
+
+.ipo-list-summary-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.ipo-list-summary-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ipo-list-note {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
+.ipo-card-editor {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.ipo-card-editor-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ipo-chart-wrap {
+  width: 100%;
+  height: 300px;
+}
+
+.ipo-table-clickable-row {
+  cursor: pointer;
+}
+
+.ipo-status-badges {
+  display: flex;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.ipo-status-badge-sell,
+.ipo-status-badge-keep {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.ipo-status-badge-sell {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+}
+
+.ipo-status-badge-keep {
+  background: rgba(234, 179, 8, 0.15);
+  color: #d97706;
+}
+
+.ipo-empty-text {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.ipo-form-value-readonly {
+  background: var(--bg-input);
+}
+
+@media (max-width: 900px) {
+  .ipo-actions-row,
+  .ipo-card-header-between,
+  .ipo-card-header-actions {
+    flex-wrap: wrap;
+  }
+
+  .ipo-grid-4,
+  .ipo-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .ipo-title-row-nowrap {
+    flex-wrap: wrap;
+  }
+}

@@ -4,6 +4,7 @@ import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 import { formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
+import { getTradeQuantityLabel } from '@/modules/trades/calculations';
 
 export default function NewTradePage() {
   const { addTrade, allTrades, settings, portfolios, activePortfolioId, tradeFormDraft, setTradeFormDraft, deleteTradingPlan } = useData();
@@ -15,6 +16,7 @@ export default function NewTradePage() {
     if (tradeFormDraft) return tradeFormDraft;
     const plan = location.state?.plan;
     return {
+      assetType: 'stock',
       market: plan?.market || 'ID',
       stockCode: plan?.stockCode || '',
       dateBuy: plan?.createdAt ? plan.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
@@ -42,6 +44,7 @@ export default function NewTradePage() {
   const isFormDirty = () => {
     const plan = location.state?.plan;
     const initialForm = {
+      assetType: 'stock',
       market: plan?.market || 'ID',
       stockCode: plan?.stockCode || '',
       buyPrice: plan?.entryPrice != null ? String(plan.entryPrice) : '',
@@ -59,6 +62,7 @@ export default function NewTradePage() {
 
     return (
       form.market !== initialForm.market ||
+      form.assetType !== initialForm.assetType ||
       form.stockCode !== initialForm.stockCode ||
       form.buyPrice !== initialForm.buyPrice ||
       form.sellPrice !== initialForm.sellPrice ||
@@ -148,8 +152,9 @@ export default function NewTradePage() {
 
     addTrade({
       ...form,
+      assetType: form.assetType || 'stock',
       market: form.market,
-      stockCode: form.stockCode.toUpperCase(),
+      stockCode: isMutualFund ? form.stockCode.trim() : form.stockCode.toUpperCase(),
       buyPrice: parseFloat(form.buyPrice),
       sellPrice: form.sellPrice ? parseFloat(form.sellPrice) : null,
       lots: parseFloat(form.lots),
@@ -169,10 +174,11 @@ export default function NewTradePage() {
   };
 
   const isUS = form.market === 'US';
+  const isMutualFund = form.assetType === 'mutual_fund';
   const lots = parseFloat(form.lots) || 0;
   const buyPrice = parseFloat(form.buyPrice) || 0;
   const sellPrice = parseFloat(form.sellPrice) || 0;
-  const shares = isUS ? lots : lots * 100;
+  const shares = isMutualFund ? lots : (isUS ? lots : lots * 100);
   const totalBuy = buyPrice * shares;
   const totalSell = sellPrice * shares;
   const buyComm = totalBuy * (parseFloat(form.buyFee) / 100);
@@ -187,6 +193,7 @@ export default function NewTradePage() {
   const strategiesList = settings.customStrategies || STRATEGIES;
   const emotionsList = settings.customEmotions || EMOTIONS;
   const saveLabel = `Simpan Transaksi${dailyLimitReached ? ' (Diblokir)' : ''}`;
+  const quantityLabel = getTradeQuantityLabel({ assetType: form.assetType, market: form.market });
 
   return (
     <div>
@@ -229,6 +236,46 @@ export default function NewTradePage() {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Jenis Aset</label>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="assetType"
+                        checked={form.assetType !== 'mutual_fund'}
+                        onChange={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            assetType: 'stock',
+                            market: prev.market === 'US' ? 'US' : 'ID',
+                            buyFee: prev.market === 'US' ? (settings.defaultBuyFeeUS || 0) : (settings.defaultBuyFee || 0.15),
+                            sellFee: prev.market === 'US' ? (settings.defaultSellFeeUS || 0) : (settings.defaultSellFee || 0.25),
+                          }));
+                        }}
+                      />
+                      Saham
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="assetType"
+                        checked={form.assetType === 'mutual_fund'}
+                        onChange={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            assetType: 'mutual_fund',
+                            market: 'ID',
+                            buyFee: 0,
+                            sellFee: 0,
+                          }));
+                        }}
+                      />
+                      Reksadana
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 16 }}>
                   <label className="form-label">Pilih Pasar</label>
                   <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -236,6 +283,7 @@ export default function NewTradePage() {
                         type="radio"
                         name="market"
                         checked={form.market === 'ID'}
+                        disabled={isMutualFund}
                         onChange={() => {
                           setForm((prev) => ({
                             ...prev,
@@ -252,6 +300,7 @@ export default function NewTradePage() {
                         type="radio"
                         name="market"
                         checked={form.market === 'US'}
+                        disabled={isMutualFund}
                         onChange={() => {
                           setForm((prev) => ({
                             ...prev,
@@ -264,29 +313,36 @@ export default function NewTradePage() {
                       Amerika (USD)
                     </label>
                   </div>
+                  {isMutualFund ? (
+                    <div style={{ fontSize: '0.75rem', marginTop: 6, color: 'var(--text-muted)' }}>
+                      Reksadana saat ini dicatat sebagai instrumen IDR dengan jumlah unit.
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Kode Saham *</label>
+                    <label className="form-label">{isMutualFund ? 'Nama / Kode Reksadana *' : 'Kode Saham *'}</label>
                     <input
                       className="form-input"
-                      placeholder={isUS ? 'Contoh: AAPL' : 'Contoh: BBCA'}
+                      placeholder={isMutualFund ? 'Contoh: Sucorinvest Money Market Fund' : isUS ? 'Contoh: AAPL' : 'Contoh: BBCA'}
                       value={form.stockCode}
-                      onChange={e => set('stockCode', e.target.value.toUpperCase())}
-                      style={{ textTransform: 'uppercase' }}
+                      onChange={e => set('stockCode', isMutualFund ? e.target.value : e.target.value.toUpperCase())}
+                      style={isMutualFund ? undefined : { textTransform: 'uppercase' }}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">{isUS ? 'Jumlah Lembar (Shares) *' : 'Jumlah Lot *'}</label>
+                    <label className="form-label">
+                      {isMutualFund ? 'Jumlah Unit *' : isUS ? 'Jumlah Lembar (Shares) *' : 'Jumlah Lot *'}
+                    </label>
                     <input
                       type="number"
-                      step={isUS ? 'any' : '1'}
+                      step={isMutualFund || isUS ? 'any' : '1'}
                       className="form-input"
-                      placeholder={isUS ? 'Contoh: 1.5' : 'Contoh: 10'}
+                      placeholder={isMutualFund ? 'Contoh: 1250.45' : isUS ? 'Contoh: 1.5' : 'Contoh: 10'}
                       value={form.lots}
                       onChange={e => set('lots', e.target.value)}
-                      min={isUS ? '0.0001' : '1'}
+                      min={isMutualFund || isUS ? '0.0001' : '1'}
                     />
                   </div>
                 </div>
@@ -304,11 +360,11 @@ export default function NewTradePage() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Harga Beli (per lembar) *</label>
-                    <input type="number" step="any" className="form-input" placeholder={isUS ? 'Contoh: 150.5' : 'Contoh: 8500'} value={form.buyPrice} onChange={e => set('buyPrice', e.target.value)} />
+                    <label className="form-label">{isMutualFund ? 'NAB Beli per Unit *' : 'Harga Beli (per lembar) *'}</label>
+                    <input type="number" step="any" className="form-input" placeholder={isMutualFund ? 'Contoh: 1287.35' : isUS ? 'Contoh: 150.5' : 'Contoh: 8500'} value={form.buyPrice} onChange={e => set('buyPrice', e.target.value)} />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Harga Jual (per lembar)</label>
+                    <label className="form-label">{isMutualFund ? 'NAB Jual per Unit' : 'Harga Jual (per lembar)'}</label>
                     <input type="number" step="any" className="form-input" placeholder="Kosongkan jika masih hold" value={form.sellPrice} onChange={e => set('sellPrice', e.target.value)} />
                   </div>
                 </div>
@@ -412,12 +468,18 @@ export default function NewTradePage() {
               <div className="card-body">
                 <div className="calc-result" style={{ marginTop: 0, background: 'transparent', border: 'none', padding: 0 }}>
                   <div className="calc-result-row">
-                    <span className="calc-result-label">Kode Saham</span>
+                    <span className="calc-result-label">{isMutualFund ? 'Produk' : 'Kode Saham'}</span>
                     <span className="calc-result-value">{form.stockCode || '-'}</span>
                   </div>
                   <div className="calc-result-row">
-                    <span className="calc-result-label">Jumlah Lembar</span>
-                    <span className="calc-result-value">{shares.toLocaleString('en-US', { maximumFractionDigits: 4 })}</span>
+                    <span className="calc-result-label">Jenis Aset</span>
+                    <span className="calc-result-value">{isMutualFund ? 'Reksadana' : 'Saham'}</span>
+                  </div>
+                  <div className="calc-result-row">
+                    <span className="calc-result-label">Jumlah {quantityLabel}</span>
+                    <span className="calc-result-value">
+                      {shares.toLocaleString(isMutualFund ? 'id-ID' : 'en-US', { maximumFractionDigits: 4 })}
+                    </span>
                   </div>
                   <div className="calc-result-row">
                     <span className="calc-result-label">Total Beli</span>

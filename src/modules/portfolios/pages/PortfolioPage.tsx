@@ -45,7 +45,7 @@ export default function PortfolioPage() {
         let floatingPnL = 0;
         let floatingPnLPercent = 0;
         if (currentPrice > 0) {
-          const unrealized = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID');
+          const unrealized = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID', trade.assetType || 'stock');
           floatingPnL = unrealized.pnl;
           floatingPnLPercent = unrealized.pnlPercent;
         }

@@ -13,6 +13,7 @@ import { isSupabaseConfigured } from '@/modules/shared/services/supabaseClient';
 import { clearUserData, loadUserData, replaceAllUserData, saveUserData } from '@/modules/shared/services/supabaseDataService';
 import { isMissingDatabaseSetupError } from '@/modules/shared/utils/errorMessages';
 import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
+import { buildFinanceOverview, getFinanceAccountBalance, getFinanceTransactionDelta, isTransferTransaction } from '@/modules/finance/utils/finance';
 
 const DataContext = createContext(null);
 const DEFAULT_SETTINGS = {
@@ -60,8 +61,9 @@ const DEFAULT_SETTINGS = {
   behaviorMaxPositionSizeWarning: true,
   behaviorMaxPositionSizePercent: 20,
   behaviorDoubleConfirmExit: true,
+  profileIncludedFinanceAccountIds: [],
 };
-const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'bsjpTrades'];
+const LOCAL_DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'bsjpTrades', 'financeAccounts', 'financeTransactions'];
 
 const DEFAULT_PORTFOLIO = {
   id: 'default',
@@ -88,6 +90,8 @@ export function DataProvider({ children }) {
   const [ipoEvents, setIpoEvents] = useState<any[]>([]);
   const [ipoEntries, setIpoEntries] = useState<any[]>([]);
   const [bsjpTrades, setBsjpTrades] = useState<any[]>([]);
+  const [financeAccounts, setFinanceAccounts] = useState<any[]>([]);
+  const [financeTransactions, setFinanceTransactions] = useState<any[]>([]);
   const [toasts, setToasts] = useState([]);
   const [tradeFormDraft, setTradeFormDraft] = useState<any>(null);
   const [tradeEditDraft, setTradeEditDraft] = useState<any>(null);
@@ -125,6 +129,8 @@ export function DataProvider({ children }) {
     setIpoEvents(data.ipoEvents || []);
     setIpoEntries(data.ipoEntries || []);
     setBsjpTrades(data.bsjpTrades || []);
+    setFinanceAccounts(data.financeAccounts || []);
+    setFinanceTransactions(data.financeTransactions || []);
   }, []);
 
   // Toast helper
@@ -190,6 +196,8 @@ export function DataProvider({ children }) {
       setIpoEvents([]);
       setIpoEntries([]);
       setBsjpTrades([]);
+      setFinanceAccounts([]);
+      setFinanceTransactions([]);
       setDataLoading(false);
       return;
     }
@@ -385,61 +393,528 @@ export function DataProvider({ children }) {
     showToast('Catatan dihapus');
   };
 
-  // === CASHFLOW CRUD ===
-  const addCashflow = (cf) => {
-    if (!ensureWritable()) return;
-    const newCf = { 
-      ...cf, 
-      id: generateId(), 
+  const createCashflowRecord = useCallback((cf, options: any = {}) => {
+    const {
+      portfolioId = activePortfolioId,
+      silent = false,
+      action = 'cashflow.created',
+      logMetadata = {},
+    } = options;
+
+    const newCf = {
+      ...cf,
+      id: generateId(),
       createdAt: new Date().toISOString(),
-      portfolioId: activePortfolioId
+      portfolioId,
     };
     const updated = [newCf, ...allCashflows];
     setAllCashflows(updated);
     persistData('cashflows', updated);
-    logUserActivity('cashflow.created', 'cashflow', newCf.id, {
+    logUserActivity(action, 'cashflow', newCf.id, {
       type: newCf.type || null,
       amount: newCf.amount || null,
       market: newCf.market || 'ID',
       portfolioId: newCf.portfolioId || 'default',
+      ...logMetadata,
     });
-    showToast('Transaksi kas berhasil dicatat');
-  };
+    if (!silent) {
+      showToast('Transaksi kas berhasil dicatat');
+    }
+    return newCf;
+  }, [activePortfolioId, allCashflows, logUserActivity, persistData, showToast]);
 
-  const updateCashflow = (id, updates) => {
-    if (!ensureWritable()) return;
+  const updateCashflowRecord = useCallback((id, updates, options: any = {}) => {
+    const {
+      silent = false,
+      action = 'cashflow.updated',
+      logMetadata = {},
+    } = options;
     const existingCashflow = allCashflows.find(c => c.id === id);
+    if (!existingCashflow) return null;
+
     const updated = allCashflows.map(c =>
       c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
     );
+    const updatedItem = updated.find(c => c.id === id) || null;
     setAllCashflows(updated);
     persistData('cashflows', updated);
-    if (existingCashflow) {
-      logUserActivity('cashflow.updated', 'cashflow', id, {
-        type: updates.type || existingCashflow.type || null,
-        amount: updates.amount ?? existingCashflow.amount ?? null,
-        market: updates.market || existingCashflow.market || 'ID',
-        portfolioId: updates.portfolioId || existingCashflow.portfolioId || 'default',
-        fieldsUpdated: Object.keys(updates || {}),
-      });
+    logUserActivity(action, 'cashflow', id, {
+      type: updates.type || existingCashflow.type || null,
+      amount: updates.amount ?? existingCashflow.amount ?? null,
+      market: updates.market || existingCashflow.market || 'ID',
+      portfolioId: updates.portfolioId || existingCashflow.portfolioId || 'default',
+      fieldsUpdated: Object.keys(updates || {}),
+      ...logMetadata,
+    });
+    if (!silent) {
+      showToast('Transaksi kas berhasil diperbarui');
     }
-    showToast('Transaksi kas berhasil diperbarui');
-  };
+    return updatedItem;
+  }, [allCashflows, logUserActivity, persistData, showToast]);
 
-  const deleteCashflow = (id) => {
-    if (!ensureWritable()) return;
+  const deleteCashflowRecord = useCallback((id, options: any = {}) => {
+    const {
+      silent = false,
+      action = 'cashflow.deleted',
+      logMetadata = {},
+    } = options;
     const existingCashflow = allCashflows.find(c => c.id === id);
+    if (!existingCashflow) return null;
+
     const updated = allCashflows.filter(c => c.id !== id);
     setAllCashflows(updated);
     persistData('cashflows', updated);
-    if (existingCashflow) {
-      logUserActivity('cashflow.deleted', 'cashflow', id, {
-        type: existingCashflow.type || null,
-        amount: existingCashflow.amount || null,
-        market: existingCashflow.market || 'ID',
+    logUserActivity(action, 'cashflow', id, {
+      type: existingCashflow.type || null,
+      amount: existingCashflow.amount || null,
+      market: existingCashflow.market || 'ID',
+      portfolioId: existingCashflow.portfolioId || 'default',
+      ...logMetadata,
+    });
+    if (!silent) {
+      showToast('Transaksi kas dibatalkan');
+    }
+    return existingCashflow;
+  }, [allCashflows, logUserActivity, persistData, showToast]);
+
+  // === CASHFLOW CRUD ===
+  const addCashflow = (cf) => {
+    if (!ensureWritable()) return null;
+    return createCashflowRecord(cf);
+  };
+
+  const updateCashflow = (id, updates) => {
+    if (!ensureWritable()) return null;
+    return updateCashflowRecord(id, updates);
+  };
+
+  const deleteCashflow = (id) => {
+    if (!ensureWritable()) return null;
+    return deleteCashflowRecord(id);
+  };
+
+  const saveFinanceAccounts = useCallback((nextAccounts) => {
+    setFinanceAccounts(nextAccounts);
+    persistData('financeAccounts', nextAccounts);
+    return nextAccounts;
+  }, [persistData]);
+
+  const saveFinanceTransactions = useCallback((nextTransactions) => {
+    setFinanceTransactions(nextTransactions);
+    persistData('financeTransactions', nextTransactions);
+    return nextTransactions;
+  }, [persistData]);
+
+  const buildCashflowPayloadFromFinanceTransaction = useCallback((transaction) => {
+    const delta = getFinanceTransactionDelta(transaction);
+    const syncMode = transaction.cashflowSyncMode || 'mirror';
+    const normalizedAmount = Math.abs(Number(transaction.amount) || 0);
+
+    if (syncMode === 'transfer_to_portfolio') {
+      return {
+        type: 'deposit',
+        amount: normalizedAmount,
+        date: transaction.date,
+        notes: transaction.description || 'Transfer dari finance tracker ke dompet trading',
+        market: 'ID',
+        linkedFinanceTransactionId: transaction.id,
+      };
+    }
+
+    if (syncMode === 'transfer_from_portfolio') {
+      return {
+        type: 'withdraw',
+        amount: normalizedAmount,
+        date: transaction.date,
+        notes: transaction.description || 'Transfer dari dompet trading ke finance tracker',
+        market: 'ID',
+        linkedFinanceTransactionId: transaction.id,
+      };
+    }
+
+    return {
+      type: delta >= 0 ? 'deposit' : 'withdraw',
+      amount: Math.abs(delta),
+      date: transaction.date,
+      notes: transaction.description || 'Finance tracker linkage',
+      market: 'ID',
+      linkedFinanceTransactionId: transaction.id,
+    };
+  }, []);
+
+  const upsertLinkedCashflowForFinanceTransaction = useCallback((transaction) => {
+    if (!transaction.linkedPortfolioId) return transaction;
+
+    const payload = buildCashflowPayloadFromFinanceTransaction(transaction);
+    if (transaction.linkedCashflowId) {
+      updateCashflowRecord(transaction.linkedCashflowId, payload, {
+        silent: true,
+        action: 'cashflow.synced_from_finance',
+        logMetadata: { source: 'finance_tracker' },
+      });
+      return transaction;
+    }
+
+    const linkedCashflow = createCashflowRecord(payload, {
+      portfolioId: transaction.linkedPortfolioId,
+      silent: true,
+      action: 'cashflow.synced_from_finance',
+      logMetadata: { source: 'finance_tracker' },
+    });
+    return linkedCashflow
+      ? { ...transaction, linkedCashflowId: linkedCashflow.id }
+      : transaction;
+  }, [buildCashflowPayloadFromFinanceTransaction, createCashflowRecord, updateCashflowRecord]);
+
+  const removeLinkedCashflowForFinanceTransaction = useCallback((transaction) => {
+    if (!transaction?.linkedCashflowId) return;
+    deleteCashflowRecord(transaction.linkedCashflowId, {
+      silent: true,
+      action: 'cashflow.deleted_from_finance',
+      logMetadata: { source: 'finance_tracker' },
+    });
+  }, [deleteCashflowRecord]);
+
+  const getFinanceTransactionsByAccount = useCallback((accountId: string) => {
+    return financeTransactions.filter((item: any) => item.accountId === accountId);
+  }, [financeTransactions]);
+
+  const getFinanceAccountCurrentBalance = useCallback((accountId: string) => {
+    const account = financeAccounts.find((item: any) => item.id === accountId);
+    if (!account) return 0;
+    return getFinanceAccountBalance(account, financeTransactions);
+  }, [financeAccounts, financeTransactions]);
+
+  const getFinanceSummary = useCallback(() => {
+    return buildFinanceOverview(financeAccounts, financeTransactions);
+  }, [financeAccounts, financeTransactions]);
+
+  // === FINANCE ACCOUNTS CRUD ===
+  const addFinanceAccount = (account) => {
+    if (!ensureWritable()) return null;
+    const newAccount = {
+      ...account,
+      id: generateId(),
+      currency: 'IDR',
+      openingBalance: Number(account.openingBalance) || 0,
+      isActive: account.isActive ?? true,
+      createdAt: new Date().toISOString(),
+    };
+    saveFinanceAccounts([newAccount, ...financeAccounts]);
+    logUserActivity('finance_account.created', 'finance_account', newAccount.id, {
+      type: newAccount.type,
+      institutionName: newAccount.institutionName || null,
+    });
+    showToast('Rekening berhasil ditambahkan');
+    return newAccount;
+  };
+
+  const updateFinanceAccount = (id, updates) => {
+    if (!ensureWritable()) return null;
+    const existingAccount = financeAccounts.find((item: any) => item.id === id);
+    if (!existingAccount) return null;
+
+    const updatedAccounts = financeAccounts.map((item: any) => (
+      item.id === id
+        ? {
+            ...item,
+            ...updates,
+            openingBalance: updates.openingBalance != null ? Number(updates.openingBalance) || 0 : item.openingBalance,
+            updatedAt: new Date().toISOString(),
+          }
+        : item
+    ));
+    const updatedAccount = updatedAccounts.find((item: any) => item.id === id) || null;
+    saveFinanceAccounts(updatedAccounts);
+    logUserActivity('finance_account.updated', 'finance_account', id, {
+      fieldsUpdated: Object.keys(updates || {}),
+      type: updatedAccount?.type || existingAccount.type,
+    });
+    showToast('Rekening berhasil diperbarui');
+    return updatedAccount;
+  };
+
+  const toggleFinanceAccountActive = (id) => {
+    if (!ensureWritable()) return null;
+    const account = financeAccounts.find((item: any) => item.id === id);
+    if (!account) return null;
+    return updateFinanceAccount(id, { isActive: !account.isActive });
+  };
+
+  const reorderFinanceAccounts = (orderedIds: string[]) => {
+    if (!ensureWritable()) return null;
+    const orderMap = new Map(orderedIds.map((itemId, index) => [itemId, index]));
+    const updatedAccounts = [...financeAccounts].sort((left: any, right: any) => {
+      const leftIndex = orderMap.get(left.id);
+      const rightIndex = orderMap.get(right.id);
+      if (leftIndex == null && rightIndex == null) return 0;
+      if (leftIndex == null) return 1;
+      if (rightIndex == null) return -1;
+      return leftIndex - rightIndex;
+    });
+    saveFinanceAccounts(updatedAccounts);
+    showToast('Urutan rekening berhasil diperbarui');
+    return updatedAccounts;
+  };
+
+  const deleteFinanceAccount = (id) => {
+    if (!ensureWritable()) return null;
+    const existingAccount = financeAccounts.find((item: any) => item.id === id);
+    if (!existingAccount) return null;
+
+    const directTransactions = financeTransactions.filter((item: any) => item.accountId === id);
+    const transferGroupIds = Array.from(
+      new Set(
+        directTransactions
+          .map((item: any) => item.transferGroupId)
+          .filter(Boolean)
+      )
+    );
+    const transactionIdsToDelete = new Set(
+      financeTransactions
+        .filter((item: any) => item.accountId === id || (item.transferGroupId && transferGroupIds.includes(item.transferGroupId)))
+        .map((item: any) => item.id)
+    );
+
+    financeTransactions
+      .filter((item: any) => transactionIdsToDelete.has(item.id))
+      .forEach((item: any) => removeLinkedCashflowForFinanceTransaction(item));
+
+    const updatedTransactions = financeTransactions.filter((item: any) => !transactionIdsToDelete.has(item.id));
+    saveFinanceTransactions(updatedTransactions);
+
+    const updatedAccounts = financeAccounts.filter((item: any) => item.id !== id);
+    saveFinanceAccounts(updatedAccounts);
+
+    const linkedPortfolioCount = portfolios.filter((portfolio: any) => portfolio.financeAccountId === id).length;
+    if (linkedPortfolioCount > 0) {
+      const updatedPortfolios = portfolios.map((portfolio: any) => (
+        portfolio.financeAccountId === id
+          ? { ...portfolio, financeAccountId: '' }
+          : portfolio
+      ));
+      setPortfolios(updatedPortfolios);
+      persistData('portfolios', updatedPortfolios);
+    }
+
+    logUserActivity('finance_account.deleted', 'finance_account', id, {
+      type: existingAccount.type,
+      institutionName: existingAccount.institutionName || null,
+      deletedTransactionCount: transactionIdsToDelete.size,
+      unlinkedPortfolioCount: linkedPortfolioCount,
+    });
+    showToast('Rekening finance berhasil dihapus permanen');
+    return existingAccount;
+  };
+
+  // === FINANCE TRANSACTIONS CRUD ===
+  const addFinanceTransaction = (transaction) => {
+    if (!ensureWritable()) return null;
+    const normalizedAmount = transaction.type === 'adjustment'
+      ? Number(transaction.amount) || 0
+      : Math.abs(Number(transaction.amount) || 0);
+    const baseTransaction = {
+      ...transaction,
+      id: generateId(),
+      amount: normalizedAmount,
+      cashflowSyncMode: transaction.linkToCashflow ? (transaction.cashflowSyncMode || 'mirror') : undefined,
+      linkedPortfolioId: transaction.linkToCashflow ? transaction.linkedPortfolioId || activePortfolioId : undefined,
+      linkedCashflowId: undefined,
+      createdAt: new Date().toISOString(),
+    };
+    const finalTransaction = transaction.linkToCashflow
+      ? upsertLinkedCashflowForFinanceTransaction(baseTransaction)
+      : baseTransaction;
+
+    saveFinanceTransactions([finalTransaction, ...financeTransactions]);
+    logUserActivity('finance_transaction.created', 'finance_transaction', finalTransaction.id, {
+      accountId: finalTransaction.accountId,
+      type: finalTransaction.type,
+      amount: finalTransaction.amount,
+      linkedCashflowId: finalTransaction.linkedCashflowId || null,
+    });
+    showToast('Transaksi finance berhasil dicatat');
+    return finalTransaction;
+  };
+
+  const updateFinanceTransaction = (id, updates) => {
+    if (!ensureWritable()) return null;
+    const existingTransaction = financeTransactions.find((item: any) => item.id === id);
+    if (!existingTransaction) return null;
+
+    if (isTransferTransaction(existingTransaction.type)) {
+      showToast('Transfer internal belum bisa diedit. Hapus lalu buat ulang jika perlu perubahan.', 'error');
+      return null;
+    }
+
+    const nextType = updates.type || existingTransaction.type;
+    const normalizedAmount = updates.amount != null
+      ? (nextType === 'adjustment' ? Number(updates.amount) || 0 : Math.abs(Number(updates.amount) || 0))
+      : existingTransaction.amount;
+    const wantsLink = updates.linkToCashflow != null
+      ? updates.linkToCashflow
+      : Boolean(existingTransaction.linkedCashflowId);
+    const linkedPortfolioId = wantsLink
+      ? (updates.linkedPortfolioId || existingTransaction.linkedPortfolioId || activePortfolioId)
+      : undefined;
+    const cashflowSyncMode = wantsLink
+      ? (updates.cashflowSyncMode || existingTransaction.cashflowSyncMode || 'mirror')
+      : undefined;
+
+    let updatedTransaction = {
+      ...existingTransaction,
+      ...updates,
+      amount: normalizedAmount,
+      linkedPortfolioId,
+      cashflowSyncMode,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (wantsLink) {
+      updatedTransaction = upsertLinkedCashflowForFinanceTransaction(updatedTransaction);
+    } else if (existingTransaction.linkedCashflowId) {
+      removeLinkedCashflowForFinanceTransaction(existingTransaction);
+      updatedTransaction = {
+        ...updatedTransaction,
+        linkedCashflowId: undefined,
+        linkedPortfolioId: undefined,
+      };
+    }
+
+    const updatedTransactions = financeTransactions.map((item: any) => item.id === id ? updatedTransaction : item);
+    saveFinanceTransactions(updatedTransactions);
+    logUserActivity('finance_transaction.updated', 'finance_transaction', id, {
+      accountId: updatedTransaction.accountId,
+      type: updatedTransaction.type,
+      fieldsUpdated: Object.keys(updates || {}),
+      linkedCashflowId: updatedTransaction.linkedCashflowId || null,
+    });
+    showToast('Transaksi finance berhasil diperbarui');
+    return updatedTransaction;
+  };
+
+  const deleteFinanceTransaction = (id) => {
+    if (!ensureWritable()) return null;
+    const existingTransaction = financeTransactions.find((item: any) => item.id === id);
+    if (!existingTransaction) return null;
+
+    const idsToDelete = existingTransaction.transferGroupId
+      ? financeTransactions
+          .filter((item: any) => item.transferGroupId === existingTransaction.transferGroupId)
+          .map((item: any) => item.id)
+      : [id];
+
+    financeTransactions
+      .filter((item: any) => idsToDelete.includes(item.id))
+      .forEach((item: any) => removeLinkedCashflowForFinanceTransaction(item));
+
+    const updatedTransactions = financeTransactions.filter((item: any) => !idsToDelete.includes(item.id));
+    saveFinanceTransactions(updatedTransactions);
+    logUserActivity('finance_transaction.deleted', 'finance_transaction', id, {
+      accountId: existingTransaction.accountId,
+      type: existingTransaction.type,
+      linkedCashflowId: existingTransaction.linkedCashflowId || null,
+      transferGroupId: existingTransaction.transferGroupId || null,
+    });
+    showToast(existingTransaction.transferGroupId ? 'Transfer internal berhasil dihapus' : 'Transaksi finance dihapus');
+    return existingTransaction;
+  };
+
+  const createFinancePortfolioTransfer = (transfer) => {
+    if (!ensureWritable()) return null;
+    const amount = Math.abs(Number(transfer.amount) || 0);
+    if (!amount) return null;
+
+    const payload = {
+      accountId: transfer.accountId,
+      type: 'expense',
+      amount,
+      date: transfer.date,
+      description: transfer.description || 'Transfer ke dompet trading',
+      category: transfer.category || 'Transfer ke dompet',
+      linkToCashflow: true,
+      linkedPortfolioId: transfer.portfolioId || activePortfolioId,
+      cashflowSyncMode: 'transfer_to_portfolio',
+    };
+
+    const createdTransaction = addFinanceTransaction(payload);
+    if (createdTransaction) {
+      logUserActivity('finance_portfolio_transfer.created', 'finance_transaction', createdTransaction.id, {
+        accountId: transfer.accountId,
+        portfolioId: payload.linkedPortfolioId || null,
+        amount,
       });
     }
-    showToast('Transaksi kas dibatalkan');
+    return createdTransaction;
+  };
+
+  const createPortfolioToFinanceTransfer = (transfer) => {
+    if (!ensureWritable()) return null;
+    const amount = Math.abs(Number(transfer.amount) || 0);
+    if (!amount) return null;
+
+    const payload = {
+      accountId: transfer.accountId,
+      type: 'income',
+      amount,
+      date: transfer.date,
+      description: transfer.description || 'Transfer dari dompet trading',
+      category: transfer.category || 'Transfer dari dompet',
+      linkToCashflow: true,
+      linkedPortfolioId: transfer.portfolioId || activePortfolioId,
+      cashflowSyncMode: 'transfer_from_portfolio',
+    };
+
+    const createdTransaction = addFinanceTransaction(payload);
+    if (createdTransaction) {
+      logUserActivity('portfolio_finance_transfer.created', 'finance_transaction', createdTransaction.id, {
+        accountId: transfer.accountId,
+        portfolioId: payload.linkedPortfolioId || null,
+        amount,
+      });
+    }
+    return createdTransaction;
+  };
+
+  const createFinanceTransfer = (transfer) => {
+    if (!ensureWritable()) return null;
+    const amount = Math.abs(Number(transfer.amount) || 0);
+    if (!amount) return null;
+
+    const transferGroupId = generateId();
+    const createdAt = new Date().toISOString();
+    const description = transfer.description || 'Transfer internal';
+    const sourceTransaction = {
+      id: generateId(),
+      accountId: transfer.fromAccountId,
+      type: 'transfer_out',
+      amount,
+      date: transfer.date,
+      description,
+      counterpartyAccountId: transfer.toAccountId,
+      transferGroupId,
+      createdAt,
+    };
+    const targetTransaction = {
+      id: generateId(),
+      accountId: transfer.toAccountId,
+      type: 'transfer_in',
+      amount,
+      date: transfer.date,
+      description,
+      counterpartyAccountId: transfer.fromAccountId,
+      transferGroupId,
+      createdAt,
+    };
+
+    saveFinanceTransactions([sourceTransaction, targetTransaction, ...financeTransactions]);
+    logUserActivity('finance_transfer.created', 'finance_transaction', transferGroupId, {
+      fromAccountId: transfer.fromAccountId,
+      toAccountId: transfer.toAccountId,
+      amount,
+    });
+    showToast('Transfer antar rekening berhasil dicatat');
+    return { transferGroupId, sourceTransaction, targetTransaction };
   };
 
   // === DIVIDENDS CRUD ===
@@ -480,12 +955,13 @@ export function DataProvider({ children }) {
   };
 
   // === PORTFOLIO CRUD ===
-  const addPortfolio = (name, description = '') => {
+  const addPortfolio = (name, description = '', financeAccountId = '') => {
     if (!ensureWritable()) return null;
     const newPort = {
       id: generateId(),
       name,
       description,
+      financeAccountId: financeAccountId || '',
       createdAt: new Date().toISOString()
     };
     const updated = [...portfolios, newPort];
@@ -549,6 +1025,23 @@ export function DataProvider({ children }) {
     showToast('Portofolio beserta datanya berhasil dihapus');
   };
 
+  const reorderPortfolios = (orderedIds: string[]) => {
+    if (!ensureWritable()) return null;
+    const orderMap = new Map(orderedIds.map((itemId, index) => [itemId, index]));
+    const updatedPortfolios = [...portfolios].sort((left: any, right: any) => {
+      const leftIndex = orderMap.get(left.id);
+      const rightIndex = orderMap.get(right.id);
+      if (leftIndex == null && rightIndex == null) return 0;
+      if (leftIndex == null) return 1;
+      if (rightIndex == null) return -1;
+      return leftIndex - rightIndex;
+    });
+    setPortfolios(updatedPortfolios);
+    persistData('portfolios', updatedPortfolios);
+    showToast('Urutan dompet berhasil diperbarui');
+    return updatedPortfolios;
+  };
+
   const selectPortfolio = (id) => {
     const nextId = id || 'default';
     setActivePortfolioId(nextId);
@@ -580,6 +1073,19 @@ export function DataProvider({ children }) {
     showToast('Rencana trading dihapus');
   };
 
+  const getIpoOfferingPrice = (ipoEventId: string) => {
+    const event = ipoEvents.find((item: any) => item.id === ipoEventId);
+    return event?.offeringPrice;
+  };
+
+  const normalizeIpoEntryBuyPrice = (entry: any) => {
+    const offeringPrice = getIpoOfferingPrice(entry.ipoEventId);
+    if (typeof offeringPrice !== 'number' || Number.isNaN(offeringPrice)) {
+      return entry;
+    }
+    return { ...entry, buyPrice: offeringPrice };
+  };
+
   // === IPO EVENTS CRUD ===
   const addIpoEvent = (event: any) => {
     if (!ensureWritable()) return;
@@ -600,6 +1106,15 @@ export function DataProvider({ children }) {
     const updated = ipoEvents.map(e => e.id === id ? { ...e, ...updates } : e);
     setIpoEvents(updated);
     persistData('ipoEvents', updated);
+    if (typeof updates.offeringPrice === 'number' && !Number.isNaN(updates.offeringPrice)) {
+      const updatedEntries = ipoEntries.map((entry: any) => (
+        entry.ipoEventId === id
+          ? { ...entry, buyPrice: updates.offeringPrice }
+          : entry
+      ));
+      setIpoEntries(updatedEntries);
+      persistData('ipoEntries', updatedEntries);
+    }
     showToast('IPO event diperbarui');
   };
 
@@ -625,7 +1140,7 @@ export function DataProvider({ children }) {
   // === IPO ENTRIES CRUD ===
   const addIpoEntry = (entry: any) => {
     if (!ensureWritable()) return;
-    const newEntry = { ...entry, id: generateId(), createdAt: new Date().toISOString() };
+    const newEntry = normalizeIpoEntryBuyPrice({ ...entry, id: generateId(), createdAt: new Date().toISOString() });
     const updated = [...ipoEntries, newEntry];
     setIpoEntries(updated);
     persistData('ipoEntries', updated);
@@ -639,7 +1154,11 @@ export function DataProvider({ children }) {
 
   const updateIpoEntry = (id: string, updates: any) => {
     if (!ensureWritable()) return;
-    const updated = ipoEntries.map((e: any) => e.id === id ? { ...e, ...updates } : e);
+    const updated = ipoEntries.map((e: any) => (
+      e.id === id
+        ? normalizeIpoEntryBuyPrice({ ...e, ...updates })
+        : e
+    ));
     setIpoEntries(updated);
     persistData('ipoEntries', updated);
     showToast('Entry diperbarui');
@@ -663,7 +1182,7 @@ export function DataProvider({ children }) {
   // Batch add — used for duplicating; avoids stale-state bug of calling addIpoEntry in a loop
   const batchAddIpoEntries = (entries: any[]) => {
     if (!ensureWritable()) return;
-    const newEntries = entries.map(entry => ({
+    const newEntries = entries.map(entry => normalizeIpoEntryBuyPrice({
       ...entry,
       id: generateId(),
       createdAt: new Date().toISOString(),
@@ -754,6 +1273,8 @@ export function DataProvider({ children }) {
     ipoEvents,
     ipoEntries,
     bsjpTrades,
+    financeAccounts,
+    financeTransactions,
     exportDate: new Date().toISOString(),
     version: '2.1',
     storage: isSupabaseConfigured ? 'supabase' : 'localStorage',
@@ -775,6 +1296,8 @@ export function DataProvider({ children }) {
       ipoEvents: data.ipoEvents || [],
       ipoEntries: data.ipoEntries || [],
       bsjpTrades: data.bsjpTrades || [],
+      financeAccounts: data.financeAccounts || [],
+      financeTransactions: data.financeTransactions || [],
     };
 
     applyData(nextData);
@@ -802,6 +1325,8 @@ export function DataProvider({ children }) {
     setIpoEvents([]);
     setIpoEntries([]);
     setBsjpTrades([]);
+    setFinanceAccounts([]);
+    setFinanceTransactions([]);
 
     LOCAL_DATA_KEYS.forEach((key) => removeScopedItem(key, userId));
     removeScopedItem('active_portfolio', userId);
@@ -822,6 +1347,8 @@ export function DataProvider({ children }) {
       setScopedItem('ipoEntries', userId, []);
       setScopedItem('active_portfolio', userId, 'default');
       setScopedItem('bsjpTrades', userId, []);
+      setScopedItem('financeAccounts', userId, []);
+      setScopedItem('financeTransactions', userId, []);
     }
   };
 
@@ -859,6 +1386,7 @@ export function DataProvider({ children }) {
       addPortfolio,
       updatePortfolio,
       deletePortfolio,
+      reorderPortfolios,
       selectPortfolio,
       tradingPlans,
       addTradingPlan,
@@ -876,6 +1404,22 @@ export function DataProvider({ children }) {
       addBsjpTrade,
       updateBsjpTrade,
       deleteBsjpTrade,
+      financeAccounts,
+      financeTransactions,
+      addFinanceAccount,
+      updateFinanceAccount,
+      toggleFinanceAccountActive,
+      deleteFinanceAccount,
+      reorderFinanceAccounts,
+      addFinanceTransaction,
+      updateFinanceTransaction,
+      deleteFinanceTransaction,
+      createFinanceTransfer,
+      createFinancePortfolioTransfer,
+      createPortfolioToFinanceTransfer,
+      getFinanceTransactionsByAccount,
+      getFinanceAccountCurrentBalance,
+      getFinanceSummary,
       dataLoading,
       dataError,
       databaseSetupError,
@@ -925,6 +1469,8 @@ function loadLocalData(userId) {
     ipoEvents: getScopedItem('ipoEvents', userId) || [],
     ipoEntries: getScopedItem('ipoEntries', userId) || [],
     bsjpTrades: getScopedItem('bsjpTrades', userId) || [],
+    financeAccounts: getScopedItem('financeAccounts', userId) || [],
+    financeTransactions: getScopedItem('financeTransactions', userId) || [],
   };
 }
 

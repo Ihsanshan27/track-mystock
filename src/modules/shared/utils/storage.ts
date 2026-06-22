@@ -1,5 +1,5 @@
 const PREFIX = 'jurnal_saham_';
-const USER_DATA_KEYS = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'bsjpTrades'];
+const USER_DATA_KEYS = ['trades', 'watchlist', 'notes', 'settings', 'cashflows', 'dividends', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'bsjpTrades', 'financeAccounts', 'financeTransactions'];
 
 // --- Generic key helpers ---
 

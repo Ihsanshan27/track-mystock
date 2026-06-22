@@ -1,14 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/modules/auth/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { setPendingVerificationEmail } from '@/modules/auth/verificationStorage';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const message = typeof location.state?.message === 'string' ? location.state.message : '';
+    if (message) {
+      setSuccessMessage(message);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,6 +38,22 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoToVerification = () => {
+    const normalizedEmail = username.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError('Masukkan email terlebih dahulu untuk lanjut ke verifikasi.');
+      return;
+    }
+    setPendingVerificationEmail(normalizedEmail);
+    navigate('/verify-email', {
+      state: {
+        email: normalizedEmail,
+      },
+    });
+  };
+
+  const showVerificationAction = error.toLowerCase().includes('belum dikonfirmasi');
+
   return (
     <div className="login-page">
       <div className="login-card">
@@ -37,18 +64,8 @@ export default function LoginPage() {
         <p className="login-subtitle">Catat, analisis, dan tingkatkan performa trading Anda</p>
 
         <form className="login-form" onSubmit={handleSubmit}>
-          {error && (
-            <div style={{
-              padding: '10px 14px',
-              background: 'var(--accent-red-dim)',
-              color: 'var(--accent-red)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.85rem',
-              marginBottom: '16px'
-            }}>
-              {error}
-            </div>
-          )}
+          {successMessage && <div className="auth-alert auth-alert-success">{successMessage}</div>}
+          {error && <div className="auth-alert auth-alert-danger">{error}</div>}
           <div className="form-group">
             <label className="form-label">Email</label>
             <input
@@ -74,6 +91,14 @@ export default function LoginPage() {
             {submitting ? 'Memproses...' : 'Masuk'}
           </button>
         </form>
+
+        {showVerificationAction && (
+          <div className="auth-secondary-actions">
+            <button type="button" className="btn btn-secondary" onClick={handleGoToVerification}>
+              Lanjut Verifikasi Email
+            </button>
+          </div>
+        )}
 
         <div className="login-footer">
           Belum punya akun? <Link to="/register">Daftar sekarang</Link>

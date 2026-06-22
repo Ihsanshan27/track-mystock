@@ -84,8 +84,10 @@ export function AuthProvider({ children }) {
         });
         return {
           success: true,
+          email,
           needsConfirmation: true,
-          message: 'Akun dibuat. Cek email untuk konfirmasi, lalu login kembali.',
+          needsOtpVerification: true,
+          message: 'Akun dibuat. Cek email untuk kode OTP verifikasi, lalu lanjutkan verifikasi.',
         };
       }
       if (data.user) {
@@ -142,6 +144,67 @@ export function AuthProvider({ children }) {
     });
 
     return { success: true };
+  };
+
+  const verifyEmailOtp = async (email, token) => {
+    if (!isSupabaseConfigured) {
+      return {
+        success: false,
+        error: 'Verifikasi OTP email hanya tersedia saat Supabase aktif.',
+      };
+    }
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: email.toLowerCase(),
+      token,
+      type: 'email',
+    });
+
+    if (error) {
+      return { success: false, error: getAuthErrorMessage(error.message) };
+    }
+
+    if (data.user) {
+      await createAuditLogSafe({
+        actorId: data.user.id,
+        action: 'auth.email_verified',
+        targetType: 'auth_user',
+        targetId: data.user.id,
+        metadata: {
+          email: data.user.email,
+          provider: 'supabase',
+        },
+      });
+    }
+
+    return {
+      success: true,
+      hasSession: Boolean(data.session),
+      message: 'Email berhasil diverifikasi.',
+    };
+  };
+
+  const resendEmailOtp = async (email) => {
+    if (!isSupabaseConfigured) {
+      return {
+        success: false,
+        error: 'Kirim ulang OTP email hanya tersedia saat Supabase aktif.',
+      };
+    }
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.toLowerCase(),
+    });
+
+    if (error) {
+      return { success: false, error: getAuthErrorMessage(error.message) };
+    }
+
+    return {
+      success: true,
+      message: 'Kode OTP baru sudah dikirim ke email Anda.',
+    };
   };
 
   const login = async (username, password) => {
@@ -249,7 +312,9 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, register, login, logout, updateUsername }}>
+    <AuthContext.Provider
+      value={{ user, loading, register, login, logout, updateUsername, verifyEmailOtp, resendEmailOtp }}
+    >
       {children}
     </AuthContext.Provider>
   );

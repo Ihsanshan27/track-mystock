@@ -47,6 +47,7 @@ export const NAV_ITEMS = [
   { path: '/portfolio', label: 'Portfolio', icon: 'Briefcase', section: 'MENU', roles: ['admin', 'mentor', 'trader', 'viewer'] },
   { path: '/history', label: 'History', icon: 'History', section: 'MENU', roles: ['admin', 'mentor', 'trader', 'viewer'] },
   { path: '/cashflow', label: 'Cash Balance', icon: 'Wallet', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },
+  { path: '/finance', label: 'Finance Tracker', icon: 'Landmark', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },
   { path: '/dividends', label: 'Dividen', icon: 'Coins', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },
   { path: '/analytics', label: 'Analitik', icon: 'LineChart', section: 'MENU', roles: ['admin', 'mentor', 'trader', 'viewer'] },
   { path: '/reports', label: 'Reports', icon: 'FileText', section: 'MENU', roles: ['admin', 'mentor', 'trader'] },

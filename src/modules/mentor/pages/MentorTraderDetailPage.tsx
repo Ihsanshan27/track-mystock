@@ -177,7 +177,7 @@ function SharedTradeDetail({ trade }) {
   let displayPnL = calc.pnl;
   let displayPnLPercent = calc.pnlPercent;
   if (isOpen && trade.sellPrice) {
-    const unrealized = calculateUnrealizedPnL(trade.buyPrice, trade.sellPrice, trade.lots, trade.buyFee, trade.market || 'ID');
+    const unrealized = calculateUnrealizedPnL(trade.buyPrice, trade.sellPrice, trade.lots, trade.buyFee, trade.market || 'ID', trade.assetType || 'stock');
     displayPnL = unrealized.pnl;
     displayPnLPercent = unrealized.pnlPercent;
   }

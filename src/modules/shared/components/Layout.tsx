@@ -14,6 +14,7 @@ const PAGE_TITLES = {
   '/history': 'History Trades',
   '/portfolio': 'Portfolio',
   '/reports': 'Reports',
+  '/finance': 'Finance Tracker',
   '/mentor/traders': 'Trader Share',
   '/watchlist': 'Watchlist',
   '/plans': 'Rencana Trading',
@@ -38,6 +39,9 @@ export default function Layout({ children }) {
   let pageTitle = PAGE_TITLES[location.pathname] || 'Jurnal Saham';
   if (location.pathname.startsWith('/mentor/traders/')) {
     pageTitle = 'Detail Trader Share';
+  }
+  if (location.pathname.startsWith('/finance/')) {
+    pageTitle = 'Ledger Rekening';
   }
 
   useEffect(() => {

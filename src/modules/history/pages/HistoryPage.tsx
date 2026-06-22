@@ -14,6 +14,7 @@ import SortableTableHeader from '@/modules/shared/components/SortableTableHeader
 import { useData } from '@/modules/shared/context/DataContext';
 import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { calculateTradePnL } from '@/modules/trades/calculations';
+import { getTradeQuantityLabel } from '@/modules/trades/calculations';
 import { formatCompactNumber, formatDate, formatPercent, formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
 
@@ -372,7 +373,7 @@ export default function HistoryPage() {
         market: trade.market || 'ID',
         portfolioId: trade.portfolioId || 'default',
         title: `Trade closed ${trade.stockCode}`,
-        subtitle: `${trade.strategy || 'Tanpa strategi'} • ${trade.lots} ${trade.market === 'US' ? 'shares' : 'lot'}`,
+        subtitle: `${trade.strategy || 'Tanpa strategi'} • ${trade.lots} ${getTradeQuantityLabel(trade)}`,
         amount: trade.pnl,
         amountKind: trade.pnl >= 0 ? 'positive' : 'negative',
         meta: `Close ${formatDate(trade.dateSell)}`,

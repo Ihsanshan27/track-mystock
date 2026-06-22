@@ -7,68 +7,79 @@ import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { calculatePortfolioBalance, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import { formatRupiah } from '@/modules/shared/utils/formatters';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
+import SelectionToggleCard from '@/modules/shared/components/SelectionToggleCard';
 import * as Icons from 'lucide-react';
 
 export default function ProfilePage() {
   const { user, updateUsername } = useAuth();
   const { profile, roleLabel, role, roleError, permissions, permissionDefinitions, refreshProfile } = usePermissions();
   const { availableWorkspaces, activeWorkspaceId } = useWorkspace();
-  const { portfolios, activePortfolioId, showToast, allTrades, allCashflows, allDividends, marketPrices, settings } = useData();
+  const {
+    portfolios,
+    activePortfolioId,
+    showToast,
+    allTrades,
+    allCashflows,
+    allDividends,
+    marketPrices,
+    settings,
+    updateSettings,
+    financeAccounts,
+    getFinanceAccountCurrentBalance,
+  } = useData();
 
   const [newUsername, setNewUsername] = useState(profile?.displayName || user?.username || '');
 
-  const activePort = portfolios.find(p => p.id === activePortfolioId)?.name || 'Utama';
+  const activePort = portfolios.find((p) => p.id === activePortfolioId)?.name || 'Utama';
   const activeWS = availableWorkspaces.find((w: any) => w.id === activeWorkspaceId)?.name || 'Workspace Pribadi';
-
   const blurStyle = usePrivacyStyle();
+  const selectedFinanceAccountIds = settings.profileIncludedFinanceAccountIds || [];
+  const selectableFinanceAccounts = financeAccounts.filter((account: any) => account.isActive !== false);
 
-  // Calculate Total Assets across all portfolios
-  const totalAssetsIDR = useMemo(() => {
+  const tradingAssetsIDR = useMemo(() => {
     let total = 0;
 
-    portfolios.forEach((p: any) => {
-      const pTrades = allTrades.filter((t: any) => (t.portfolioId || 'default') === p.id);
-      const pCashflows = allCashflows.filter((c: any) => (c.portfolioId || 'default') === p.id);
-      const pDividends = allDividends.filter((d: any) => (d.portfolioId || 'default') === p.id);
+    portfolios.forEach((portfolio: any) => {
+      const portfolioTrades = allTrades.filter((trade: any) => (trade.portfolioId || 'default') === portfolio.id);
+      const portfolioCashflows = allCashflows.filter((cashflow: any) => (cashflow.portfolioId || 'default') === portfolio.id);
+      const portfolioDividends = allDividends.filter((dividend: any) => (dividend.portfolioId || 'default') === portfolio.id);
 
-      const initialCapID = p.id === 'default' ? (settings.initialCapital ?? 10000000) : 0;
-      const initialCapUS = p.id === 'default' ? (settings.initialCapitalUS ?? 1000) : 0;
+      const initialCapID = portfolio.id === 'default' ? (settings.initialCapital ?? 10000000) : 0;
+      const initialCapUS = portfolio.id === 'default' ? (settings.initialCapitalUS ?? 1000) : 0;
 
-      // 1. Calculate Buying Power
       const statsID = calculatePortfolioBalance(
-        pTrades.filter((t: any) => t.market !== 'US'),
-        pCashflows.filter((c: any) => c.market !== 'US'),
-        pDividends.filter((d: any) => d.market !== 'US'),
-        initialCapID
+        portfolioTrades.filter((trade: any) => trade.market !== 'US'),
+        portfolioCashflows.filter((cashflow: any) => cashflow.market !== 'US'),
+        portfolioDividends.filter((dividend: any) => dividend.market !== 'US'),
+        initialCapID,
       );
 
       const statsUS = calculatePortfolioBalance(
-        pTrades.filter((t: any) => t.market === 'US'),
-        pCashflows.filter((c: any) => c.market === 'US'),
-        pDividends.filter((d: any) => d.market === 'US'),
-        initialCapUS
+        portfolioTrades.filter((trade: any) => trade.market === 'US'),
+        portfolioCashflows.filter((cashflow: any) => cashflow.market === 'US'),
+        portfolioDividends.filter((dividend: any) => dividend.market === 'US'),
+        initialCapUS,
       );
 
-      // 2. Calculate open stock position values
-      const openTrades = pTrades.filter((t: any) => !t.sellPrice || !t.dateSell);
+      const openTrades = portfolioTrades.filter((trade: any) => !trade.sellPrice || !trade.dateSell);
       let openValueID = 0;
       let openValueUS = 0;
 
-      openTrades.forEach((t: any) => {
-        const isUS = t.market === 'US';
-        const shares = isUS ? t.lots : t.lots * 100;
-        const currentPrice = (marketPrices && marketPrices[t.stockCode]) || t.sellPrice || 0;
+      openTrades.forEach((trade: any) => {
+        const isUS = trade.market === 'US';
+        const shares = isUS ? trade.lots : trade.lots * 100;
+        const currentPrice = (marketPrices && marketPrices[trade.stockCode]) || trade.sellPrice || 0;
 
-        let positionVal = t.buyPrice * shares;
+        let positionValue = trade.buyPrice * shares;
         if (currentPrice > 0) {
-          const unrealized = calculateUnrealizedPnL(t.buyPrice, currentPrice, t.lots, t.buyFee, t.market || 'ID');
-          positionVal = (t.buyPrice * shares) + unrealized.pnl;
+          const unrealized = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID', trade.assetType || 'stock');
+          positionValue = (trade.buyPrice * shares) + unrealized.pnl;
         }
 
         if (isUS) {
-          openValueUS += positionVal;
+          openValueUS += positionValue;
         } else {
-          openValueID += positionVal;
+          openValueID += positionValue;
         }
       });
 
@@ -80,6 +91,24 @@ export default function ProfilePage() {
 
     return total;
   }, [portfolios, allTrades, allCashflows, allDividends, settings, marketPrices]);
+
+  const selectedFinanceBalance = useMemo(() => {
+    return selectedFinanceAccountIds.reduce((total: number, accountId: string) => {
+      return total + getFinanceAccountCurrentBalance(accountId);
+    }, 0);
+  }, [selectedFinanceAccountIds, getFinanceAccountCurrentBalance]);
+
+  const totalAssetsIDR = tradingAssetsIDR + selectedFinanceBalance;
+
+  const handleToggleFinanceInProfile = (accountId: string) => {
+    const nextIds = selectedFinanceAccountIds.includes(accountId)
+      ? selectedFinanceAccountIds.filter((id: string) => id !== accountId)
+      : [...selectedFinanceAccountIds, accountId];
+
+    updateSettings({
+      profileIncludedFinanceAccountIds: nextIds,
+    });
+  };
 
   const handleSaveUsername = async () => {
     const trimmed = newUsername.trim();
@@ -114,13 +143,12 @@ export default function ProfilePage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">👤 Profil Saya</h1>
-          <p className="page-subtitle">Kelola informasi akun dan hak akses Anda</p>
+          <h1 className="page-title">Profil Saya</h1>
+          <p className="page-subtitle">Kelola informasi akun, total aset profile, dan hak akses Anda</p>
         </div>
       </div>
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
-        {/* Left Card: Account Info summary */}
         <div className="card">
           <div className="card-header">
             <h3 className="card-title">Informasi Akun</h3>
@@ -144,7 +172,7 @@ export default function ProfilePage() {
             >
               {displayName.charAt(0).toUpperCase()}
             </div>
-            
+
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 6px 0' }}>{displayName}</h2>
             <div style={{ display: 'inline-block', marginBottom: 20 }}>
               <span className={`role-badge role-badge-${role}`} style={{ padding: '4px 12px', fontSize: '0.8rem' }}>
@@ -184,32 +212,91 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Total Assets Card */}
-            <div 
-              style={{ 
-                marginTop: 24, 
-                padding: '16px 20px', 
-                background: 'var(--gradient-primary)', 
-                borderRadius: 'var(--radius-lg)', 
-                color: '#ffffff', 
+            <div
+              style={{
+                marginTop: 24,
+                padding: '16px 20px',
+                background: 'var(--gradient-primary)',
+                borderRadius: 'var(--radius-lg)',
+                color: '#ffffff',
                 boxShadow: '0 4px 16px rgba(16, 185, 129, 0.2)',
                 textAlign: 'left'
               }}
             >
               <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.9 }}>
-                💰 Total Aset (Semua Dompet)
+                Total Aset Profile
               </div>
               <div style={{ fontSize: '1.5rem', fontWeight: 800, marginTop: 8, ...blurStyle }}>
                 {formatRupiah(totalAssetsIDR)}
               </div>
               <div style={{ fontSize: '0.7rem', opacity: 0.8, marginTop: 6, lineHeight: 1.3 }}>
-                Akumulasi seluruh saldo & nilai saham terbuka. Konversi USD menggunakan kurs Rp {settings.usdToIdrRate ?? '16.200'}.
+                Aset trading semua dompet ditambah saldo rekening finance yang Anda pilih. Konversi USD menggunakan kurs Rp {settings.usdToIdrRate ?? '16.200'}.
+              </div>
+              <div style={{ fontSize: '0.72rem', opacity: 0.88, marginTop: 10, lineHeight: 1.4 }}>
+                Trading: <strong>{formatRupiah(tradingAssetsIDR)}</strong>
+              </div>
+              <div style={{ fontSize: '0.72rem', opacity: 0.88, marginTop: 4, lineHeight: 1.4 }}>
+                Bank terpilih: <strong>{formatRupiah(selectedFinanceBalance)}</strong>
               </div>
             </div>
+
+            {selectableFinanceAccounts.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: '16px 20px',
+                  background: 'var(--bg-input)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border-color)',
+                  textAlign: 'left'
+                }}
+              >
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 10 }}>
+                  Pilih Rekening untuk Total Aset
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Centang rekening yang mau ikut dihitung ke total aset profile.
+                  </div>
+                  <div className="badge badge-blue">
+                    {selectedFinanceAccountIds.length} dipilih
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
+                  {selectableFinanceAccounts.map((account: any) => {
+                    const isSelected = selectedFinanceAccountIds.includes(account.id);
+                    return (
+                      <SelectionToggleCard
+                        key={account.id}
+                        checked={isSelected}
+                        onToggle={() => handleToggleFinanceInProfile(account.id)}
+                        title={account.name}
+                        description={account.institutionName}
+                        rightContent={(
+                          <>
+                            <span
+                              className={isSelected ? 'badge badge-green' : 'badge'}
+                              style={isSelected ? undefined : { background: 'var(--bg-input)', color: 'var(--text-muted)' }}
+                            >
+                              {isSelected ? 'Terpilih' : 'Opsional'}
+                            </span>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', ...blurStyle }}>
+                              {formatRupiah(getFinanceAccountCurrentBalance(account.id))}
+                            </span>
+                          </>
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 10 }}>
+                  Kalau rekening tidak dipilih, saldo finance-nya tidak ikut masuk ke total aset profile.
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {/* Right Columns: Edit profile & Capability list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="card">
             <div className="card-header">
@@ -251,7 +338,7 @@ export default function ProfilePage() {
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
                 {permissions.map((permKey: string) => {
-                  const def = (permissionDefinitions as any)[permKey];
+                  const definition = (permissionDefinitions as any)[permKey];
                   return (
                     <div
                       key={permKey}
@@ -267,9 +354,9 @@ export default function ProfilePage() {
                     >
                       <Icons.CheckCircle2 size={16} style={{ color: 'var(--accent-green)', flexShrink: 0, marginTop: 2 }} />
                       <div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{def?.label || permKey}</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{definition?.label || permKey}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                          {def?.description || '-'}
+                          {definition?.description || '-'}
                         </div>
                       </div>
                     </div>

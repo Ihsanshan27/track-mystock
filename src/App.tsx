@@ -9,6 +9,7 @@ import { DialogProvider } from '@/modules/shared/context/DialogContext';
 
 import LoginPage from '@/modules/auth/pages/LoginPage';
 import RegisterPage from '@/modules/auth/pages/RegisterPage';
+import VerifyEmailPage from '@/modules/auth/pages/VerifyEmailPage';
 import DashboardPage from '@/modules/dashboard/pages/DashboardPage';
 import TradesPage from '@/modules/trades/pages/TradesPage';
 import NewTradePage from '@/modules/trades/pages/NewTradePage';
@@ -26,6 +27,8 @@ import BsjpRecapPage from './modules/trades/pages/BsjpRecapPage'; // bsjp recap 
 import TradingPlansPage from '@/modules/plans/pages/TradingPlansPage';
 import CashflowPage from '@/modules/cashflow/pages/CashflowPage';
 import DividendPage from '@/modules/dividends/pages/DividendPage';
+import FinancePage from '@/modules/finance/pages/FinancePage';
+import FinanceAccountDetailPage from '@/modules/finance/pages/FinanceAccountDetailPage';
 import IpoListPage from '@/modules/ipo/pages/IpoListPage';
 import IpoDetailPage from '@/modules/ipo/pages/IpoDetailPage';
 import IpoSummaryPage from '@/modules/ipo/pages/IpoSummaryPage';
@@ -125,6 +128,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+      <Route path="/verify-email" element={<PublicRoute><VerifyEmailPage /></PublicRoute>} />
       <Route path="/shared/:shareId" element={<SharedReportPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<PermissionRoute permission="dashboard:read"><DashboardPage /></PermissionRoute>} />
@@ -136,6 +140,8 @@ function AppRoutes() {
         <Route path="/history" element={<PermissionRoute permission="portfolio:read"><HistoryPage /></PermissionRoute>} />
         <Route path="/portfolio" element={<PermissionRoute permission="portfolio:read"><PortfolioPage /></PermissionRoute>} />
         <Route path="/cashflow" element={<PermissionRoute permission="journal:write"><CashflowPage /></PermissionRoute>} />
+        <Route path="/finance" element={<PermissionRoute permission="journal:write"><FinancePage /></PermissionRoute>} />
+        <Route path="/finance/:id" element={<PermissionRoute permission="journal:write"><FinanceAccountDetailPage /></PermissionRoute>} />
         <Route path="/dividends" element={<PermissionRoute permission="journal:write"><DividendPage /></PermissionRoute>} />
         <Route path="/calculator" element={<PermissionRoute permission="journal:write"><CalculatorPage /></PermissionRoute>} />
         <Route path="/watchlist" element={<PermissionRoute permission="journal:write"><WatchlistPage /></PermissionRoute>} />

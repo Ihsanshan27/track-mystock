@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
-import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
+import { calculateTradePnL, calculateUnrealizedPnL, getTradeAssetTypeLabel, getTradeQuantityLabel, getTradeQuantityUnits } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 import { useState, useEffect } from 'react';
@@ -43,7 +43,9 @@ export default function TradeDetailPage() {
   const isOpen = !trade.sellPrice || !trade.dateSell;
   const emotion = emotionsList.find((item) => item.value === trade.emotion);
   const isUS = trade.market === 'US';
+  const isMutualFund = trade.assetType === 'mutual_fund';
   const formatMoney = isUS ? formatUSD : formatRupiah;
+  const quantityLabel = getTradeQuantityLabel(trade);
 
   let displayPnL = calc.pnl;
   let displayPnLPercent = calc.pnlPercent;
@@ -51,7 +53,7 @@ export default function TradeDetailPage() {
 
   if (isOpen && !trade.sellPrice && marketPrices && marketPrices[trade.stockCode]) {
     const currentPrice = marketPrices[trade.stockCode];
-    const { pnl, pnlPercent } = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID');
+    const { pnl, pnlPercent } = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID', trade.assetType || 'stock');
     displayPnL = pnl;
     displayPnLPercent = pnlPercent;
     isEstimasi = true;
@@ -88,7 +90,8 @@ export default function TradeDetailPage() {
 
     updateTrade(id, {
       ...form,
-      stockCode: form.stockCode?.toUpperCase(),
+      assetType: form.assetType || 'stock',
+      stockCode: form.assetType === 'mutual_fund' ? form.stockCode?.trim() : form.stockCode?.toUpperCase(),
       buyPrice: parseFloat(form.buyPrice),
       sellPrice: form.sellPrice ? parseFloat(form.sellPrice) : null,
       lots: parseFloat(form.lots),
@@ -174,12 +177,12 @@ export default function TradeDetailPage() {
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label className="form-label">Kode Saham</label>
+                      <label className="form-label">{isMutualFund ? 'Nama / Kode Reksadana' : 'Kode Saham'}</label>
                       <input className="form-input" value={form.stockCode} onChange={e => set('stockCode', e.target.value)} />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">{isUS ? 'Lembar' : 'Lot'}</label>
-                      <input type="number" step={isUS ? 'any' : '1'} className="form-input" value={form.lots} onChange={e => set('lots', e.target.value)} />
+                      <label className="form-label">{isMutualFund ? 'Unit' : isUS ? 'Lembar' : 'Lot'}</label>
+                      <input type="number" step={isMutualFund || isUS ? 'any' : '1'} className="form-input" value={form.lots} onChange={e => set('lots', e.target.value)} />
                     </div>
                   </div>
                   <div className="form-row">
@@ -194,11 +197,11 @@ export default function TradeDetailPage() {
                   </div>
                   <div className="form-row">
                     <div className="form-group">
-                      <label className="form-label">Harga Beli</label>
+                      <label className="form-label">{isMutualFund ? 'NAB Beli' : 'Harga Beli'}</label>
                       <input type="number" className="form-input" value={form.buyPrice} onChange={e => set('buyPrice', e.target.value)} />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Harga Jual</label>
+                      <label className="form-label">{isMutualFund ? 'NAB Jual' : 'Harga Jual'}</label>
                       <input type="number" className="form-input" value={form.sellPrice || ''} onChange={e => set('sellPrice', e.target.value)} />
                     </div>
                   </div>
@@ -258,12 +261,13 @@ export default function TradeDetailPage() {
                 </>
               ) : (
                 <div className="calc-result" style={{ marginTop: 0, background: 'transparent', border: 'none', padding: 0 }}>
-                  <div className="calc-result-row"><span className="calc-result-label">Kode Saham</span><span className="calc-result-value">{trade.stockCode}</span></div>
+                  <div className="calc-result-row"><span className="calc-result-label">{isMutualFund ? 'Produk' : 'Kode Saham'}</span><span className="calc-result-value">{trade.stockCode}</span></div>
+                  <div className="calc-result-row"><span className="calc-result-label">Jenis Aset</span><span className="calc-result-value">{getTradeAssetTypeLabel(trade)}</span></div>
                   <div className="calc-result-row"><span className="calc-result-label">Tanggal Beli</span><span className="calc-result-value">{formatDate(trade.dateBuy)}</span></div>
                   <div className="calc-result-row"><span className="calc-result-label">Tanggal Jual</span><span className="calc-result-value">{trade.dateSell ? formatDate(trade.dateSell) : '-'}</span></div>
-                  <div className="calc-result-row"><span className="calc-result-label">Harga Beli</span><span className="calc-result-value">{formatMoney(trade.buyPrice)}</span></div>
-                  <div className="calc-result-row"><span className="calc-result-label">Harga Jual</span><span className="calc-result-value">{trade.sellPrice ? formatMoney(trade.sellPrice) : (marketPrices && marketPrices[trade.stockCode] ? <span style={{ color: 'var(--text-muted)' }}>{formatMoney(marketPrices[trade.stockCode])} (est)</span> : '-')}</span></div>
-                  <div className="calc-result-row"><span className="calc-result-label">{isUS ? 'Shares' : 'Lot'}</span><span className="calc-result-value">{trade.lots} {isUS ? 'lembar' : `(${trade.lots * 100} lembar)`}</span></div>
+                  <div className="calc-result-row"><span className="calc-result-label">{isMutualFund ? 'NAB Beli' : 'Harga Beli'}</span><span className="calc-result-value">{formatMoney(trade.buyPrice)}</span></div>
+                  <div className="calc-result-row"><span className="calc-result-label">{isMutualFund ? 'NAB Jual' : 'Harga Jual'}</span><span className="calc-result-value">{trade.sellPrice ? formatMoney(trade.sellPrice) : (marketPrices && marketPrices[trade.stockCode] ? <span style={{ color: 'var(--text-muted)' }}>{formatMoney(marketPrices[trade.stockCode])} (est)</span> : '-')}</span></div>
+                  <div className="calc-result-row"><span className="calc-result-label">{isMutualFund ? 'Unit' : isUS ? 'Shares' : 'Lot'}</span><span className="calc-result-value">{trade.lots} {isMutualFund ? quantityLabel : isUS ? 'lembar' : `(${getTradeQuantityUnits(trade)} lembar)`}</span></div>
                   <div className="calc-result-row"><span className="calc-result-label">Total Beli</span><span className="calc-result-value">{formatMoney(calc.totalBuy)}</span></div>
                   {!isOpen ? <div className="calc-result-row"><span className="calc-result-label">Total Jual</span><span className="calc-result-value">{formatMoney(calc.totalSell)}</span></div> : null}
                   {!isOpen ? <div className="calc-result-row"><span className="calc-result-label">Total Fee</span><span className="calc-result-value">{formatMoney(calc.totalFee)}</span></div> : null}

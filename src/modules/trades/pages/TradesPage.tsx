@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
-import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
+import { calculateTradePnL, calculateUnrealizedPnL, getTradeAssetTypeLabel, getTradeQuantityLabel } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 
@@ -124,12 +124,12 @@ export default function TradesPage() {
   };
 
   const exportCSV = () => {
-    const headers = ['Kode', 'Pasar', 'Tgl Beli', 'Tgl Jual', 'Harga Beli', 'Harga Jual', 'Qty', 'P/L', '%', 'Strategi', 'Emosi'];
+      const headers = ['Kode', 'Jenis', 'Pasar', 'Tgl Beli', 'Tgl Jual', 'Harga Beli', 'Harga Jual', 'Qty', 'P/L', '%', 'Strategi', 'Emosi'];
     const rows = trades.map(t => {
       const calc = calculateTradePnL(t);
       const em = EMOTIONS.find(e => e.value === t.emotion);
       return [
-        t.stockCode, t.market || 'ID', t.dateBuy, t.dateSell || '', t.buyPrice, t.sellPrice || '', t.lots,
+        t.stockCode, getTradeAssetTypeLabel(t), t.market || 'ID', t.dateBuy, t.dateSell || '', t.buyPrice, t.sellPrice || '', t.lots,
         calc.pnl, calc.pnlPercent.toFixed(2), t.strategy || '', em?.label || ''
       ].join(',');
     });
@@ -186,7 +186,7 @@ export default function TradesPage() {
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <div className="empty-state-title">Belum ada transaksi</div>
-          <div className="empty-state-desc">Mulai catat transaksi trading Anda</div>
+          <div className="empty-state-desc">Mulai catat transaksi saham atau reksadana Anda</div>
           <Link to="/trades/new" className="btn btn-primary">➕ Catat Transaksi</Link>
         </div>
       ) : (
@@ -213,7 +213,9 @@ export default function TradesPage() {
                   let calc = calculateTradePnL(trade);
                   const isOpen = !trade.sellPrice || !trade.dateSell;
                   const isUS = trade.market === 'US';
+                  const isMutualFund = trade.assetType === 'mutual_fund';
                   const formatMoney = isUS ? formatUSD : formatRupiah;
+                  const quantityLabel = getTradeQuantityLabel(trade);
                   
                   let displayPnL = calc.pnl;
                   let displayPnLPercent = calc.pnlPercent;
@@ -221,7 +223,7 @@ export default function TradesPage() {
 
                   if (isOpen && !trade.sellPrice && marketPrices && marketPrices[trade.stockCode]) {
                     const currentPrice = marketPrices[trade.stockCode];
-                    const { pnl, pnlPercent } = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID');
+                    const { pnl, pnlPercent } = calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID', trade.assetType || 'stock');
                     displayPnL = pnl;
                     displayPnLPercent = pnlPercent;
                     isEstimasi = true;
@@ -233,12 +235,15 @@ export default function TradesPage() {
 
                   return (
                     <tr key={trade.id}>
-                      <td><strong>{trade.stockCode}</strong> {isUS && <span style={{fontSize: '0.8em'}}>🇺🇸</span>}</td>
+                      <td>
+                        <strong>{trade.stockCode}</strong> {isUS && <span style={{fontSize: '0.8em'}}>🇺🇸</span>}
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{getTradeAssetTypeLabel(trade)}</div>
+                      </td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{formatDate(trade.dateBuy)}</td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{trade.dateSell ? formatDate(trade.dateSell) : '-'}</td>
                       <td>{formatMoney(trade.buyPrice)}</td>
                       <td>{trade.sellPrice ? formatMoney(trade.sellPrice) : (marketPrices && marketPrices[trade.stockCode] ? <span style={{color: 'var(--text-muted)'}}>{formatMoney(marketPrices[trade.stockCode])} (est)</span> : '-')}</td>
-                      <td>{trade.lots}</td>
+                      <td>{trade.lots} {isMutualFund ? 'unit' : quantityLabel}</td>
                       <td className={!hasPnL ? '' : displayPnL >= 0 ? 'text-profit' : 'text-loss'}>
                         <strong>{!hasPnL ? '-' : formatMoney(displayPnL)}</strong>
                       </td>

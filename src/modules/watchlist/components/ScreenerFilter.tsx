@@ -1,4 +1,5 @@
 import React from 'react';
+import SelectionToggleCard from '@/modules/shared/components/SelectionToggleCard';
 
 const SIGNAL_LABELS = {
     BOW: { label: 'Buy on Weakness', color: '#10B981', dim: 'rgba(16,185,129,0.12)' },
@@ -9,7 +10,6 @@ const SIGNAL_LABELS = {
 };
 
 const ScreenerFilter = ({ filters, setFilters }) => {
-    const handleCheckbox = (e) => setFilters({ ...filters, [e.target.name]: e.target.checked });
     const handleSelect = (e) => setFilters({ ...filters, [e.target.name]: e.target.value });
 
     return (
@@ -45,14 +45,25 @@ const ScreenerFilter = ({ filters, setFilters }) => {
                         { name: 'stochasticOversold', label: 'Stochastic Oversold', sub: '%K < 20, potensi rebound', color: '#8B5CF6', dim: 'rgba(139,92,246,0.12)' },
                         { name: 'emaGoldenCross', label: 'EMA Golden Cross', sub: 'EMA50 cross EMA200', color: '#F59E0B', dim: 'rgba(245,158,11,0.12)' },
                     ].map(item => (
-                        <label key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '9px 11px', borderRadius: 'var(--radius-md)', background: filters[item.name] ? item.dim : 'transparent', border: `1px solid ${filters[item.name] ? item.color : 'transparent'}`, transition: 'all 0.2s' }}>
-                            <input type="checkbox" name={item.name} checked={filters[item.name] || false} onChange={handleCheckbox}
-                                style={{ accentColor: item.color, width: '15px', height: '15px', cursor: 'pointer', flexShrink: 0 }} />
-                            <div>
-                                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{item.label}</div>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{item.sub}</div>
-                            </div>
-                        </label>
+                        <div key={item.name} style={{ '--accent-green': item.color } as React.CSSProperties}>
+                            <SelectionToggleCard
+                                checked={filters[item.name] || false}
+                                onToggle={() => setFilters({ ...filters, [item.name]: !(filters[item.name] || false) })}
+                                title={item.label}
+                                description={item.sub}
+                                compact
+                                rightContent={(
+                                    <span
+                                        className={filters[item.name] ? 'badge badge-green' : 'badge'}
+                                        style={filters[item.name]
+                                            ? { background: item.dim, color: item.color, border: `1px solid ${item.color}` }
+                                            : { background: 'var(--bg-input)', color: 'var(--text-muted)' }}
+                                    >
+                                        {filters[item.name] ? 'Aktif' : 'Pilih'}
+                                    </span>
+                                )}
+                            />
+                        </div>
                     ))}
                 </div>
             </div>

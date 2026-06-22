@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/modules/auth/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { getRegistrationEnabled } from '@/modules/shared/services/appSettingsService';
+import { setPendingVerificationEmail } from '@/modules/auth/verificationStorage';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -63,6 +64,17 @@ export default function RegisterPage() {
     const result = await register(username.trim(), password);
     setSubmitting(false);
     if (result.success) {
+      if (result.needsOtpVerification && result.email) {
+        setPendingVerificationEmail(result.email);
+        navigate('/verify-email', {
+          replace: true,
+          state: {
+            email: result.email,
+            message: result.message,
+          },
+        });
+        return;
+      }
       if (result.needsConfirmation) {
         setSuccessMessage(result.message);
         return;
@@ -84,41 +96,12 @@ export default function RegisterPage() {
 
         <form className="login-form" onSubmit={handleSubmit}>
           {!loadingSetting && !registrationEnabled && (
-            <div style={{
-              padding: '10px 14px',
-              background: 'var(--accent-yellow-dim)',
-              color: 'var(--accent-yellow)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.85rem',
-              marginBottom: '16px'
-            }}>
+            <div className="auth-alert auth-alert-warning">
               Registrasi publik sedang dinonaktifkan. Admin dapat membuat akun dari panel admin.
             </div>
           )}
-          {error && (
-            <div style={{
-              padding: '10px 14px',
-              background: 'var(--accent-red-dim)',
-              color: 'var(--accent-red)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.85rem',
-              marginBottom: '16px'
-            }}>
-              {error}
-            </div>
-          )}
-          {successMessage && (
-            <div style={{
-              padding: '10px 14px',
-              background: 'var(--accent-green-dim)',
-              color: 'var(--accent-green)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.85rem',
-              marginBottom: '16px'
-            }}>
-              {successMessage}
-            </div>
-          )}
+          {error && <div className="auth-alert auth-alert-danger">{error}</div>}
+          {successMessage && <div className="auth-alert auth-alert-success">{successMessage}</div>}
           <div className="form-group">
             <label className="form-label">Email</label>
             <input

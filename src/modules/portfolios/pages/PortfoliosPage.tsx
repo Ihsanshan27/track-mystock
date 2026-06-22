@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
@@ -6,6 +7,7 @@ import { formatDate, formatRupiah, formatUSD } from '@/modules/shared/utils/form
 import { calculatePortfolioAssetIdrEquivalent, calculatePortfolioAssetMetrics } from '@/modules/trades/calculations';
 import MarketTabBar from '@/modules/shared/components/MarketTabBar';
 import * as Icons from 'lucide-react';
+import '@/modules/portfolios/portfolios.css';
 
 function getPortfolioMetrics(portfolioId, trades, cashflows, dividends, settings, marketPrices) {
   const scopedTrades = trades.filter((item: any) => (item.portfolioId || 'default') === portfolioId);
@@ -45,6 +47,10 @@ function getPortfolioMetrics(portfolioId, trades, cashflows, dividends, settings
   };
 }
 
+function createInitialPortfolioForm() {
+  return { name: '', description: '', financeAccountId: '' };
+}
+
 export default function PortfoliosPage() {
   const {
     portfolios,
@@ -52,21 +58,25 @@ export default function PortfoliosPage() {
     addPortfolio,
     updatePortfolio,
     deletePortfolio,
+    reorderPortfolios,
     selectPortfolio,
     settings,
     marketPrices,
     allTrades,
     allCashflows,
     allDividends,
+    financeAccounts,
   } = useData();
   const { confirm } = useDialog();
   const blurStyle = usePrivacyStyle();
 
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [composerMode, setComposerMode] = useState<'closed' | 'create' | 'edit'>('closed');
+  const [form, setForm] = useState(createInitialPortfolioForm());
   const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', description: '' });
   const [activeMarketTab, setActiveMarketTab] = useState<'ID' | 'US'>('ID');
+  const [draggedPortfolioId, setDraggedPortfolioId] = useState<string | null>(null);
+  const [dragOverPortfolioId, setDragOverPortfolioId] = useState<string | null>(null);
+  const activeFinanceAccounts = financeAccounts.filter((account: any) => account.isActive !== false);
 
   const portfolioMetrics = useMemo(() => {
     return portfolios.reduce((acc: Record<string, any>, portfolio: any) => {
@@ -96,22 +106,28 @@ export default function PortfoliosPage() {
   const hasFallbackAcrossPortfolios = portfolios.some((portfolio: any) => portfolioMetrics[portfolio.id]?.hasFallback);
   const formatHeadlineMoney = activeMarketTab === 'US' ? formatUSD : formatRupiah;
 
+  const resetComposer = () => {
+    setComposerMode('closed');
+    setEditId(null);
+    setForm(createInitialPortfolioForm());
+  };
+
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    addPortfolio(form.name.trim(), form.description.trim());
-    setForm({ name: '', description: '' });
-    setShowForm(false);
+    addPortfolio(form.name.trim(), form.description.trim(), form.financeAccountId);
+    resetComposer();
   };
 
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editForm.name.trim()) return;
-    if (editId) {
-      updatePortfolio(editId, { name: editForm.name.trim(), description: editForm.description.trim() });
-    }
-    setEditId(null);
-    setEditForm({ name: '', description: '' });
+    if (!editId || !form.name.trim()) return;
+    updatePortfolio(editId, {
+      name: form.name.trim(),
+      description: form.description.trim(),
+      financeAccountId: form.financeAccountId || '',
+    });
+    resetComposer();
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -126,28 +142,51 @@ export default function PortfoliosPage() {
     }
   };
 
+  const openCreateComposer = () => {
+    setEditId(null);
+    setForm(createInitialPortfolioForm());
+    setComposerMode((prev) => prev === 'create' ? 'closed' : 'create');
+  };
+
   const startEdit = (portfolio: any) => {
     setEditId(portfolio.id);
-    setEditForm({ name: portfolio.name, description: portfolio.description || '' });
+    setForm({
+      name: portfolio.name,
+      description: portfolio.description || '',
+      financeAccountId: portfolio.financeAccountId || '',
+    });
+    setComposerMode('edit');
+  };
+
+  const movePortfolioCard = (sourceId: string, targetId: string) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const orderedIds = portfolios.map((item: any) => item.id);
+    const sourceIndex = orderedIds.indexOf(sourceId);
+    const targetIndex = orderedIds.indexOf(targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const nextIds = [...orderedIds];
+    const [movedId] = nextIds.splice(sourceIndex, 1);
+    nextIds.splice(targetIndex, 0, movedId);
+    reorderPortfolios(nextIds);
   };
 
   return (
     <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="page-header portfolio-page-header">
         <div>
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
+          <h1 className="page-title portfolio-page-title">
             <Icons.Wallet size={28} style={{ color: 'var(--accent-green)' }} />
             <span>Dompet & Portofolio</span>
           </h1>
-          <p className="page-subtitle" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
+          <p className="page-subtitle portfolio-page-subtitle">
             Pecah dan kelola portofolio investasi Anda menjadi beberapa bagian
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {showForm ? (
+        <button className="btn btn-primary portfolio-action-btn" onClick={openCreateComposer}>
+          {composerMode === 'create' ? (
             <>
               <Icons.X size={16} />
-              <span>Batal</span>
+              <span>Tutup Form</span>
             </>
           ) : (
             <>
@@ -158,10 +197,10 @@ export default function PortfoliosPage() {
         </button>
       </div>
 
-      {showForm && (
-        <div className="bento-card" style={{ marginBottom: 24, animation: 'fadeInUp 0.3s ease' }}>
-          <h3 className="bento-card-title">Buat Portofolio Baru</h3>
-          <form onSubmit={handleCreate}>
+      {composerMode !== 'closed' ? (
+        <div className={`bento-card portfolio-composer-card ${composerMode === 'edit' ? 'is-editing' : ''}`}>
+          <h3 className="bento-card-title">{composerMode === 'edit' ? 'Edit Portofolio' : 'Buat Portofolio Baru'}</h3>
+          <form onSubmit={composerMode === 'edit' ? handleUpdate : handleCreate}>
             <div className="form-group">
               <label className="form-label">Nama Portofolio *</label>
               <input
@@ -182,56 +221,37 @@ export default function PortfoliosPage() {
                 style={{ minHeight: 60 }}
               />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Icons.Save size={16} />
-              <span>Buat Portofolio</span>
-            </button>
-          </form>
-        </div>
-      )}
-
-      {editId && (
-        <div className="bento-card" style={{ marginBottom: 24, border: '1px solid var(--accent-green)', animation: 'fadeInUp 0.3s ease' }}>
-          <h3 className="bento-card-title">Edit Portofolio</h3>
-          <form onSubmit={handleUpdate}>
             <div className="form-group">
-              <label className="form-label">Nama Portofolio *</label>
-              <input
-                className="form-input"
-                value={editForm.name}
-                onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Deskripsi / Catatan</label>
-              <textarea
-                className="form-textarea"
-                value={editForm.description}
-                onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                style={{ minHeight: 60 }}
-              />
+              <label className="form-label">Hubungkan ke Rekening Finance</label>
+              <select
+                className="form-select"
+                value={form.financeAccountId}
+                onChange={e => setForm(prev => ({ ...prev, financeAccountId: e.target.value }))}
+              >
+                <option value="">Tidak dihubungkan</option>
+                {activeFinanceAccounts.map((account: any) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} • {account.institutionName}
+                  </option>
+                ))}
+              </select>
+              <div className="portfolio-form-note">
+                Satu dompet hanya bisa pilih satu rekening. Satu rekening boleh dipakai banyak dompet.
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button type="submit" className="btn btn-primary portfolio-action-btn">
                 <Icons.Save size={16} />
-                <span>Simpan Perubahan</span>
+                <span>{composerMode === 'edit' ? 'Simpan Perubahan' : 'Buat Portofolio'}</span>
               </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setEditId(null)}>Batal</button>
+              <button type="button" className="btn btn-secondary" onClick={resetComposer}>Batal</button>
             </div>
           </form>
         </div>
-      )}
+      ) : null}
 
-      <div className="bento-card" style={{
-        marginBottom: 32,
-        background: 'rgba(24, 24, 27, 0.4)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), var(--shadow-lg)',
-        borderLeft: '4px solid var(--accent-green)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <div className="bento-card portfolio-hero-card">
+        <div className="portfolio-hero-head">
           <Icons.CheckCircle size={14} style={{ color: 'var(--accent-green)' }} />
           <span className="badge badge-green" style={{ fontSize: '0.7rem' }}>Aktif Sekarang</span>
         </div>
@@ -263,7 +283,7 @@ export default function PortfoliosPage() {
               {activeMetrics?.hasUS ? <div style={{ color: 'var(--accent-blue-light)' }}>USD: {formatUSD(activeMetrics?.usMetrics?.buyingPower || 0)}</div> : null}
             </div>
           </div>
-            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+          <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Nilai Investasi Terbuka</div>
             <div className="font-mono" style={{ fontSize: '1.10rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4, ...blurStyle }}>
               <div>IDR: {formatRupiah(activeMetrics?.idMetrics?.displayInvestedAmount || 0)}</div>
@@ -286,7 +306,7 @@ export default function PortfoliosPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 24, border: '1px solid rgba(59,130,246,0.18)' }}>
+      <div className="card portfolio-summary-card">
         <div className="card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -313,15 +333,37 @@ export default function PortfoliosPage() {
       </div>
 
       <h3 style={{ marginBottom: 16, fontFamily: 'var(--font-display)' }}>Daftar Portofolio / Dompet Anda</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+      <div className="portfolio-list-grid">
         {portfolios.map((portfolio: any) => {
           const isActive = portfolio.id === activePortfolioId;
           const metrics = portfolioMetrics[portfolio.id];
+          const linkedFinanceAccount = financeAccounts.find((account: any) => account.id === portfolio.financeAccountId);
 
           return (
             <div
               key={portfolio.id}
-              className={`portfolio-card-item bento-card ${isActive ? 'portfolio-card-active' : ''}`}
+              className={`portfolio-card-item bento-card ${isActive ? 'portfolio-card-active' : ''} ${draggedPortfolioId === portfolio.id ? 'portfolio-card-dragging' : ''} ${dragOverPortfolioId === portfolio.id ? 'portfolio-card-drag-over' : ''}`}
+              draggable
+              onDragStart={() => {
+                setDraggedPortfolioId(portfolio.id);
+                setDragOverPortfolioId(portfolio.id);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (draggedPortfolioId && draggedPortfolioId !== portfolio.id) {
+                  setDragOverPortfolioId(portfolio.id);
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                movePortfolioCard(draggedPortfolioId || '', portfolio.id);
+                setDraggedPortfolioId(null);
+                setDragOverPortfolioId(null);
+              }}
+              onDragEnd={() => {
+                setDraggedPortfolioId(null);
+                setDragOverPortfolioId(null);
+              }}
               style={{
                 border: isActive ? '1px solid var(--accent-green)' : '1px solid var(--border-color)',
                 boxShadow: isActive ? '0 0 16px rgba(16, 185, 129, 0.1)' : 'none',
@@ -331,20 +373,46 @@ export default function PortfoliosPage() {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{portfolio.name}</h4>
-                    {isActive ? (
-                      <span className="badge badge-green">Aktif</span>
-                    ) : (
-                      <button className="btn btn-ghost btn-sm" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => selectPortfolio(portfolio.id)}>
-                        Gunakan
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {isActive ? (
+                        <span className="badge badge-green">Aktif</span>
+                      ) : (
+                        <button className="btn btn-ghost btn-sm" style={{ padding: '2px 8px', fontSize: '0.75rem' }} onClick={() => selectPortfolio(portfolio.id)}>
+                          Gunakan
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm portfolio-drag-handle"
+                        title="Geser untuk mengatur posisi card"
+                        aria-label={`Geser posisi card ${portfolio.name}`}
+                        style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                      >
+                        <Icons.ArrowRightLeft size={12} />
                       </button>
-                    )}
+                    </div>
                   </div>
                   <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0 0 12px 0', minHeight: '36px', lineHeight: 1.4 }}>
                     {portfolio.description || 'Tidak ada deskripsi.'}
                   </p>
 
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                    <span className="badge badge-blue">
+                      {linkedFinanceAccount ? 'Terhubung ke Finance' : 'Tanpa Rekening Tertaut'}
+                    </span>
+                    {linkedFinanceAccount ? (
+                      <Link
+                        to={`/finance/${linkedFinanceAccount.id}`}
+                        className="badge badge-green"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        {linkedFinanceAccount.name} • {linkedFinanceAccount.institutionName}
+                      </Link>
+                    ) : null}
+                  </div>
+
                   <div style={{ background: 'rgba(59,130,246,0.06)', borderRadius: 'var(--radius-md)', padding: '12px 14px', border: '1px solid rgba(59,130,246,0.12)', marginBottom: 12 }}>
-                  <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 4 }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginBottom: 4 }}>
                       Total Equity ({activeMarketTab === 'US' ? 'USD' : 'IDR'})
                     </div>
                     <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-blue)', ...blurStyle }}>
@@ -409,24 +477,6 @@ export default function PortfoliosPage() {
           );
         })}
       </div>
-
-      <style>{`
-        .portfolio-card-item {
-          transition: all var(--transition-fast) !important;
-        }
-        .portfolio-card-item:active {
-          transform: scale(0.98) !important;
-        }
-        .portfolio-card-active {
-          transform: translateY(-2px);
-        }
-        .btn-danger-text {
-          color: var(--accent-red) !important;
-        }
-        .btn-danger-text:hover {
-          background: var(--accent-red-dim) !important;
-        }
-      `}</style>
     </div>
   );
 }

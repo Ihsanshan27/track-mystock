@@ -1339,7 +1339,7 @@ export default function DashboardPage() {
                                        <div>
                                           <strong>{trade.stockCode}</strong>
                                           <div className="dashboard-table-secondary-text">
-                                             {trade.lots} lot • Buy {formatMoney(trade.buyPrice)} • Sell{" "}
+                                             {trade.lots} {trade.assetType === 'mutual_fund' ? 'unit' : 'lot'} • Buy {formatMoney(trade.buyPrice)} • Sell{" "}
                                              {formatMoney(trade.sellPrice)}
                                           </div>
                                        </div>

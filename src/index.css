@@ -1242,6 +1242,78 @@ img {
   margin-top: 8px;
 }
 
+.auth-alert {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.auth-alert-danger {
+  background: var(--accent-red-dim);
+  color: var(--accent-red);
+}
+
+.auth-alert-success {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+}
+
+.auth-alert-warning {
+  background: var(--accent-yellow-dim);
+  color: var(--accent-yellow);
+}
+
+.auth-email-highlight {
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: var(--radius-lg);
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: center;
+  word-break: break-word;
+}
+
+.auth-otp-input {
+  text-align: center;
+  letter-spacing: 0.45em;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.auth-secondary-actions {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.auth-helper-text {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.auth-inline-links {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+  font-size: 0.85rem;
+}
+
+.auth-inline-links a {
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.auth-inline-links a:hover {
+  color: var(--accent-blue-light);
+}
+
 .login-footer {
   text-align: center;
   margin-top: 24px;

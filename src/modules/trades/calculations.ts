@@ -1,8 +1,23 @@
 // === Trade Calculations ===
 
+export function getTradeQuantityUnits(trade) {
+  const quantity = Number(trade?.lots) || 0;
+  if (trade?.assetType === 'mutual_fund') return quantity;
+  return trade?.market === 'US' ? quantity : quantity * 100;
+}
+
+export function getTradeQuantityLabel(trade) {
+  if (trade?.assetType === 'mutual_fund') return 'unit';
+  return trade?.market === 'US' ? 'shares' : 'lot';
+}
+
+export function getTradeAssetTypeLabel(trade) {
+  return trade?.assetType === 'mutual_fund' ? 'Reksadana' : 'Saham';
+}
+
 export function calculateTradePnL(trade) {
   const { buyPrice, sellPrice, lots, buyFee = 0.15, sellFee = 0.25, market = 'ID' } = trade;
-  const shares = market === 'US' ? lots : lots * 100;
+  const shares = getTradeQuantityUnits({ ...trade, lots, market });
   const hasSellPrice = sellPrice != null;
 
   const totalBuy = buyPrice * shares;
@@ -35,8 +50,8 @@ function isOpenTrade(trade) {
   return !isClosedTrade(trade);
 }
 
-export function calculateUnrealizedPnL(buyPrice, currentPrice, lots, buyFee = 0.15, market = 'ID') {
-  const shares = market === 'US' ? lots : lots * 100;
+export function calculateUnrealizedPnL(buyPrice, currentPrice, lots, buyFee = 0.15, market = 'ID', assetType = 'stock') {
+  const shares = getTradeQuantityUnits({ lots, market, assetType });
   const totalBuy = buyPrice * shares;
   const totalCurrent = currentPrice * shares;
   const fee = totalBuy * (buyFee / 100);
@@ -804,8 +819,7 @@ export function calculatePortfolioBalance(trades, cashflows = [], dividends = []
 }
 
 export function calculateOpenPositionSnapshot(trade, marketPrices = {}) {
-  const market = trade.market || 'ID';
-  const shares = market === 'US' ? trade.lots : trade.lots * 100;
+  const shares = getTradeQuantityUnits(trade);
   const totalBuy = trade.buyPrice * shares;
   const buyCommission = totalBuy * ((trade.buyFee || 0) / 100);
   const livePrice = Number(marketPrices?.[trade.stockCode]) || Number(trade.sellPrice) || 0;

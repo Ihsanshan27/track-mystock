@@ -34,6 +34,46 @@ const TABS = [
   { id: 'pension', label: 'Pensiun', icon: Coffee },
 ];
 
+const CALCULATOR_GROUPS = [
+  {
+    id: 'trading-basic',
+    label: 'Trading Dasar',
+    description: 'Hitung hasil transaksi dan kebutuhan fee.',
+    tabs: ['pnl', 'fee', 'araarb'],
+  },
+  {
+    id: 'risk-plan',
+    label: 'Risk & Plan',
+    description: 'Bantu entry plan, ukuran posisi, dan target.',
+    tabs: ['rr', 'position', 'target'],
+  },
+  {
+    id: 'averaging',
+    label: 'Averaging',
+    description: 'Skenario average buy dan average down.',
+    tabs: ['avg', 'avgdown'],
+  },
+  {
+    id: 'growth',
+    label: 'Growth',
+    description: 'Proyeksi compounding dan target pensiun.',
+    tabs: ['compound', 'pension'],
+  },
+] as const;
+
+const TAB_DESCRIPTIONS = {
+  pnl: 'Simulasi hasil beli-jual setelah fee.',
+  fee: 'Hitung total biaya broker, PPN, dan PPh.',
+  araarb: 'Simulasi batas auto rejection harian dan beruntun.',
+  avg: 'Hitung average price dari beberapa pembelian.',
+  avgdown: 'Cari kebutuhan modal untuk turunkan average.',
+  rr: 'Ukur rasio risk/reward sebelum entry.',
+  position: 'Cari jumlah lot ideal sesuai batas risiko.',
+  target: 'Hitung target harga jual sesuai target profit.',
+  compound: 'Proyeksi pertumbuhan modal dari compounding.',
+  pension: 'Hitung kebutuhan dana pensiun dan Coast FIRE.',
+} as const;
+
 function ResultRow({ label, value, className, big }: { label: string; value: string; className?: string; big?: boolean }) {
   return (
     <div className="calc-result-row">
@@ -951,6 +991,10 @@ export default function CalculatorPage() {
     }));
   };
 
+  const activeGroup = CALCULATOR_GROUPS.find((group) => group.tabs.includes(calculatorActiveTab as any)) || CALCULATOR_GROUPS[0];
+  const activeTabMeta = TABS.find((tab) => tab.id === calculatorActiveTab) || TABS[0];
+  const activeGroupTabs = TABS.filter((tab) => activeGroup.tabs.includes(tab.id as any));
+
   return (
     <div>
       <div className="page-header">
@@ -965,21 +1009,91 @@ export default function CalculatorPage() {
         </div>
       </div>
 
-      <div className="calc-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-        {TABS.map(tab => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              className={`calc-tab ${calculatorActiveTab === tab.id ? 'active' : ''}`}
-              onClick={() => setCalculatorActiveTab(tab.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-            >
-              <Icon size={16} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-body">
+          <div style={{ marginBottom: 16 }}>
+            <label className="form-label" style={{ marginBottom: 10, display: 'block' }}>Pilih Kalkulator</label>
+            <div style={{
+              padding: '16px 18px',
+              borderRadius: 16,
+              border: '1px solid rgba(59,130,246,0.18)',
+              background: 'linear-gradient(135deg, rgba(59,130,246,0.10), rgba(16,185,129,0.06))',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                    {activeGroup.label}
+                  </div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {activeTabMeta.label}
+                  </div>
+                </div>
+                <span className="badge badge-blue">{activeGroupTabs.length} tools</span>
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                {TAB_DESCRIPTIONS[activeTabMeta.id as keyof typeof TAB_DESCRIPTIONS]}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {CALCULATOR_GROUPS.map((group) => (
+              <button
+                key={group.id}
+                type="button"
+                className={`calc-tab ${activeGroup.id === group.id ? 'active' : ''}`}
+                onClick={() => setCalculatorActiveTab(group.tabs[0])}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <span>{group.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: 14 }}>
+            {activeGroup.description}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+            {activeGroupTabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  className={`calc-tab ${calculatorActiveTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setCalculatorActiveTab(tab.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 10,
+                    padding: '14px 14px',
+                    textAlign: 'left',
+                    minHeight: 74,
+                  }}
+                >
+                  <span style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: calculatorActiveTab === tab.id ? 'rgba(255,255,255,0.16)' : 'rgba(59,130,246,0.10)',
+                    flexShrink: 0,
+                  }}>
+                    <Icon size={16} />
+                  </span>
+                  <span>
+                    <span style={{ display: 'block', fontWeight: 700 }}>{tab.label}</span>
+                    <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.35 }}>
+                      {TAB_DESCRIPTIONS[tab.id as keyof typeof TAB_DESCRIPTIONS]}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="card">

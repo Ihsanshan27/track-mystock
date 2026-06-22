@@ -6,6 +6,7 @@ import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { formatRupiah } from '@/modules/shared/utils/formatters';
 import type { IpoEntry, IpoEntryCalc } from '@/modules/ipo/types/ipo';
 import * as Icons from 'lucide-react';
+import '@/modules/ipo/ipo.css';
 
 const SLTL_OPTIONS = ['-', 'SL', 'TL'] as const;
 const ACTION_OPTIONS = ['SELL', 'KEEP'] as const;
@@ -19,7 +20,6 @@ const formatLongDate = (date?: string) => (
 const EMPTY_FORM = {
   accountName: '',
   email: '',
-  buyPrice: '',
   lots: '',
   sellPrice: '',
   slTl: '-' as '-' | 'SL' | 'TL',
@@ -177,8 +177,8 @@ export default function IpoDetailPage() {
     return ipoEntries
       .filter((e: any) => e.ipoEventId === id)
       .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-      .map((e: any, idx: number) => calcEntry({ ...e, no: idx + 1 }));
-  }, [ipoEntries, id]);
+      .map((e: any, idx: number) => calcEntry({ ...e, no: idx + 1, buyPrice: event?.offeringPrice ?? e.buyPrice }));
+  }, [event?.offeringPrice, ipoEntries, id]);
 
   const sortedEntries = useMemo(() => {
     const stockCode = event?.stockCode || '';
@@ -237,8 +237,8 @@ export default function IpoDetailPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.accountName || !form.buyPrice || !form.lots) {
-      await alert('Nama akun, harga beli, dan lot wajib diisi.', {
+    if (!form.accountName || !form.lots) {
+      await alert('Nama akun dan lot wajib diisi.', {
         title: 'Formulir Belum Lengkap',
         severity: 'warning'
       });
@@ -248,7 +248,7 @@ export default function IpoDetailPage() {
       ipoEventId: id,
       accountName: form.accountName,
       email: form.email,
-      buyPrice: parseFloat(form.buyPrice) || 0,
+      buyPrice: event?.offeringPrice || 0,
       lots: parseFloat(form.lots) || 0,
       sellPrice: parseFloat(form.sellPrice) || 0,
       slTl: form.slTl,
@@ -267,7 +267,6 @@ export default function IpoDetailPage() {
     const draft = {
       accountName: entry.accountName,
       email: entry.email,
-      buyPrice: String(entry.buyPrice),
       lots: String(entry.lots),
       sellPrice: String(entry.sellPrice || ''),
       slTl: entry.slTl,
@@ -294,7 +293,7 @@ export default function IpoDetailPage() {
       ipoEventId: id,
       accountName: `${entry.accountName} (Kopi)`,
       email: entry.email,
-      buyPrice: entry.buyPrice,
+      buyPrice: event?.offeringPrice ?? entry.buyPrice,
       lots: entry.lots,
       sellPrice: entry.sellPrice,
       slTl: entry.slTl,
@@ -340,7 +339,7 @@ export default function IpoDetailPage() {
   };
 
   const previewLots = parseFloat(form.lots) || 0;
-  const previewBuy = parseFloat(form.buyPrice) || 0;
+  const previewBuy = event?.offeringPrice || 0;
   const previewSell = parseFloat(form.sellPrice) || 0;
   const previewTotalBuy = previewBuy * previewLots * 100;
   const previewTotalSell = previewSell > 0 ? previewSell * previewLots * 100 : 0;
@@ -348,21 +347,6 @@ export default function IpoDetailPage() {
   const previewPct = previewTotalBuy > 0 && previewTotalSell > 0 ? (previewProfit / previewTotalBuy) * 100 : 0;
   const compactCellStyle = { padding: '10px 8px', fontSize: '0.8rem', verticalAlign: 'middle' } as const;
   const compactHeaderStyle = { padding: '10px 8px', fontSize: '0.68rem' } as const;
-  const sortableHeaderButtonStyle = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 4,
-    width: '100%',
-    padding: 0,
-    border: 'none',
-    background: 'transparent',
-    color: 'inherit',
-    font: 'inherit',
-    fontWeight: 700,
-    cursor: 'pointer',
-    textAlign: 'left' as const,
-  };
-
   const renderSortableHeader = (label: string, key: SortKey) => {
     const isActive = sortConfig.key === key;
     const SortIcon = isActive
@@ -373,10 +357,7 @@ export default function IpoDetailPage() {
       <button
         type="button"
         onClick={() => handleSort(key)}
-        style={{
-          ...sortableHeaderButtonStyle,
-          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-        }}
+        className={`ipo-sort-button ${isActive ? 'active' : 'inactive'}`}
         title={`Urutkan berdasarkan ${label}`}
       >
         <span>{label}</span>
@@ -389,83 +370,77 @@ export default function IpoDetailPage() {
     <form onSubmit={handleSubmit}>
       <div className="form-row">
         <div className="form-group">
-          <label className="form-label">Nama Akun *</label>
-          <input className="form-input" placeholder="Akun Pribadi / Istri / dll" value={form.accountName} onChange={e => set('accountName', e.target.value)} required />
+          <label className="form-label" htmlFor={`ipo-account-name-${isInline ? 'inline' : 'main'}`}>Nama Akun *</label>
+          <input id={`ipo-account-name-${isInline ? 'inline' : 'main'}`} className="form-input" placeholder="Akun Pribadi / Istri / dll" value={form.accountName} onChange={e => set('accountName', e.target.value)} required />
         </div>
         <div className="form-group">
-          <label className="form-label">Email (Google)</label>
-          <input type="email" className="form-input" placeholder="email@gmail.com" value={form.email} onChange={e => set('email', e.target.value)} />
+          <label className="form-label" htmlFor={`ipo-account-email-${isInline ? 'inline' : 'main'}`}>Email (Google)</label>
+          <input id={`ipo-account-email-${isInline ? 'inline' : 'main'}`} type="email" className="form-input" placeholder="email@gmail.com" value={form.email} onChange={e => set('email', e.target.value)} />
         </div>
       </div>
-      <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+      <div className="form-row ipo-grid-4">
         <div className="form-group">
-          <label className="form-label">Harga Beli (Rp) *</label>
-          <input type="number" step="any" className="form-input" placeholder={String(event?.offeringPrice || '')} value={form.buyPrice} onChange={e => set('buyPrice', e.target.value)} required />
+          <label className="form-label" htmlFor={`ipo-buy-price-${isInline ? 'inline' : 'main'}`}>Harga Beli (Rp)</label>
+          <input id={`ipo-buy-price-${isInline ? 'inline' : 'main'}`} type="text" className="form-input ipo-form-value-readonly" value={event ? formatRupiah(event.offeringPrice) : '-'} readOnly />
         </div>
         <div className="form-group">
-          <label className="form-label">Total Lot *</label>
-          <input type="number" step="any" min="0" className="form-input" placeholder="1" value={form.lots} onChange={e => set('lots', e.target.value)} required />
+          <label className="form-label" htmlFor={`ipo-lots-${isInline ? 'inline' : 'main'}`}>Total Lot *</label>
+          <input id={`ipo-lots-${isInline ? 'inline' : 'main'}`} type="number" step="any" min="0" className="form-input" placeholder="1" value={form.lots} onChange={e => set('lots', e.target.value)} required />
         </div>
         <div className="form-group">
-          <label className="form-label">Harga Skrg / Jual AVG (Rp)</label>
-          <input type="number" step="any" min="0" className="form-input" placeholder="Isi harga sekarang untuk estimasi" value={form.sellPrice} onChange={e => setSellPrice(e.target.value)} />
+          <label className="form-label" htmlFor={`ipo-sell-price-${isInline ? 'inline' : 'main'}`}>Harga Skrg / Jual AVG (Rp)</label>
+          <input id={`ipo-sell-price-${isInline ? 'inline' : 'main'}`} type="number" step="any" min="0" className="form-input" placeholder="Isi harga sekarang untuk estimasi" value={form.sellPrice} onChange={e => setSellPrice(e.target.value)} />
         </div>
         <div className="form-group">
-          <label className="form-label">SL / TL</label>
-          <select className="form-select" value={form.slTl} onChange={e => set('slTl', e.target.value)}>
+          <label className="form-label" htmlFor={`ipo-sl-tl-${isInline ? 'inline' : 'main'}`}>SL / TL</label>
+          <select id={`ipo-sl-tl-${isInline ? 'inline' : 'main'}`} className="form-select" value={form.slTl} onChange={e => set('slTl', e.target.value)}>
             {SLTL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
       </div>
       <div className="form-row">
         <div className="form-group">
-          <label className="form-label">Aksi</label>
-          <select className="form-select" value={form.action} onChange={e => setAction(e.target.value as 'SELL' | 'KEEP')}>
+          <label className="form-label" htmlFor={`ipo-action-${isInline ? 'inline' : 'main'}`}>Aksi</label>
+          <select id={`ipo-action-${isInline ? 'inline' : 'main'}`} className="form-select" value={form.action} onChange={e => setAction(e.target.value as 'SELL' | 'KEEP')}>
             {ACTION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
         </div>
         <div className="form-group">
-          <label className="form-label">Catatan</label>
-          <input className="form-input" placeholder="Opsional..." value={form.notes} onChange={e => set('notes', e.target.value)} />
+          <label className="form-label" htmlFor={`ipo-notes-${isInline ? 'inline' : 'main'}`}>Catatan</label>
+          <input id={`ipo-notes-${isInline ? 'inline' : 'main'}`} className="form-input" placeholder="Opsional..." value={form.notes} onChange={e => set('notes', e.target.value)} />
         </div>
+      </div>
+      <div className="ipo-form-hint ipo-margin-b16">
+        Harga beli otomatis mengikuti harga penawaran IPO.
       </div>
 
       {previewBuy > 0 && previewLots > 0 && (
-        <div style={{
-          background: 'var(--bg-input)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--radius-md)',
-          padding: '14px 16px',
-          marginBottom: 16,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-          gap: 12,
-        }}>
+        <div className="ipo-preview-grid">
           <div>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Total Harga Beli</div>
-            <div className="font-mono" style={{ fontWeight: 700, ...blurStyle }}>{formatRupiah(previewTotalBuy)}</div>
+            <div className="ipo-kicker">Total Harga Beli</div>
+            <div className="font-mono ipo-preview-value" style={blurStyle}>{formatRupiah(previewTotalBuy)}</div>
           </div>
           {previewSell > 0 && (
             <>
               <div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                <div className="ipo-kicker">
                   {form.action === 'SELL' ? 'Total Harga Jual' : 'Estimasi Nilai Sekarang'}
                 </div>
-                <div className="font-mono" style={{ fontWeight: 700, ...blurStyle }}>{formatRupiah(previewTotalSell)}</div>
+                <div className="font-mono ipo-preview-value" style={blurStyle}>{formatRupiah(previewTotalSell)}</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                <div className="ipo-kicker">
                   {form.action === 'SELL' ? 'Profit (Rp)' : 'Estimasi Profit (Rp)'}
                 </div>
-                <div className="font-mono" style={{ fontWeight: 700, color: previewProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', ...blurStyle }}>
+                <div className={`font-mono ipo-preview-value ${previewProfit >= 0 ? 'positive' : 'negative'}`} style={blurStyle}>
                   {previewProfit >= 0 ? '+' : ''}{formatRupiah(previewProfit)}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                <div className="ipo-kicker">
                   {form.action === 'SELL' ? 'Profit (%)' : 'Estimasi Profit (%)'}
                 </div>
-                <div className="font-mono" style={{ fontWeight: 700, color: previewPct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                <div className={`font-mono ipo-preview-value ${previewPct >= 0 ? 'positive' : 'negative'}`}>
                   {previewPct >= 0 ? '+' : ''}{previewPct.toFixed(2)}%
                 </div>
               </div>
@@ -473,14 +448,14 @@ export default function IpoDetailPage() {
           )}
           {form.action === 'KEEP' && previewSell <= 0 && (
             <div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Status</div>
-              <div style={{ fontWeight: 700, color: 'var(--accent-yellow)' }}>KEEP - isi harga sekarang untuk lihat estimasi</div>
+              <div className="ipo-kicker">Status</div>
+              <div className="ipo-preview-value keep">KEEP - isi harga sekarang untuk lihat estimasi</div>
             </div>
           )}
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="ipo-flex-wrap">
         <button type="submit" className="btn btn-primary">
           {submitIcon}
           {submitLabel}
@@ -489,7 +464,7 @@ export default function IpoDetailPage() {
           <Icons.X size={15} /> Batal
         </button>
         {isInline && (
-          <span style={{ alignSelf: 'center', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+          <span className="ipo-form-hint">
             Sedang mengedit entry akun ini
           </span>
         )}
@@ -509,33 +484,24 @@ export default function IpoDetailPage() {
 
   return (
     <div>
-      <div className="page-header" style={{ marginBottom: 24 }}>
+      <div className="page-header ipo-page-header">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div className="ipo-inline-meta">
             <button
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm ipo-btn-back"
               onClick={() => navigate('/ipo')}
-              style={{ padding: '4px 8px' }}
             >
               <Icons.ChevronLeft size={16} /> Daftar IPO
             </button>
           </div>
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{
-              background: 'var(--accent-green-dim)',
-              color: 'var(--accent-green)',
-              padding: '2px 14px',
-              borderRadius: 999,
-              fontWeight: 800,
-              fontSize: '1.4rem',
-            }}>
+          <h1 className="page-title ipo-title-row">
+            <span className="ipo-badge-pill ipo-badge-stock">
               {event.stockCode}
             </span>
-            <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>IPO Journey</span>
+            <span className="ipo-subtitle">IPO Journey</span>
             {canWrite && (
               <button
-                className="btn btn-secondary btn-sm"
-                style={{ padding: '6px 10px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 8 }}
+                className="btn btn-secondary btn-sm ipo-btn-inline"
                 onClick={handleOpenEditEvent}
                 title="Edit Detail IPO (Kode/Harga/Tanggal)"
               >
@@ -565,7 +531,7 @@ export default function IpoDetailPage() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 }}>
+      <div className="ipo-summary-grid">
         {[
           {
             label: 'Total Modal', value: formatRupiah(summary.totalCapital),
@@ -593,16 +559,16 @@ export default function IpoDetailPage() {
         ].map((stat, i) => {
           const Ic = stat.icon;
           return (
-            <div key={i} className="bento-card" style={{ padding: '14px 18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <div key={i} className="bento-card ipo-stat-card">
+              <div className="ipo-stat-head">
+                <span className="ipo-stat-label">
                   {stat.label}
                 </span>
-                <div style={{ width: 28, height: 28, borderRadius: 'var(--radius-sm)', background: stat.dim, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="ipo-stat-icon-box" style={{ background: stat.dim }}>
                   <Ic size={14} style={{ color: stat.color }} />
                 </div>
               </div>
-              <div className="font-mono" style={{ fontSize: '1.3rem', fontWeight: 800, color: (stat as any).valueColor || 'var(--text-primary)', ...(stat.blur ? blurStyle : {}) }}>
+              <div className="font-mono ipo-stat-value" style={{ color: (stat as any).valueColor || 'var(--text-primary)', ...(stat.blur ? blurStyle : {}) }}>
                 {stat.value}
               </div>
             </div>
@@ -611,7 +577,7 @@ export default function IpoDetailPage() {
       </div>
 
       {showForm && !editId && (
-        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--accent-green)' }}>
+        <div className="card ipo-card-accent">
           <div className="card-header">
             <h3 className="card-title">
               <Icons.UserPlus size={15} /> Tambah Akun Baru
@@ -624,27 +590,26 @@ export default function IpoDetailPage() {
       )}
 
       {entries.length === 0 ? (
-        <div className="empty-state" style={{ marginTop: 32 }}>
+        <div className="empty-state ipo-empty-top">
           <div className="empty-state-icon"><Icons.Users size={40} style={{ color: 'var(--text-muted)' }} /></div>
           <div className="empty-state-title">Belum ada catatan akun</div>
           <div className="empty-state-desc">Tambahkan akun-akun yang berpartisipasi dalam IPO {event.stockCode} ini.</div>
           {canWrite && (
-            <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => setShowForm(true)}>
+            <button className="btn btn-primary ipo-empty-cta" onClick={() => setShowForm(true)}>
               <Icons.Plus size={16} /> Tambah Akun
             </button>
           )}
         </div>
       ) : (
         <div className="card">
-          <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="card-header ipo-card-header-between">
             <h3 className="card-title">Catatan Per Akun</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{entries.length} akun terdaftar</span>
+            <div className="ipo-card-header-actions">
+              <span className="ipo-muted-small">{entries.length} akun terdaftar</span>
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-sm ipo-copy-btn"
                 onClick={handleCopyTable}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, height: 30, fontSize: '0.78rem' }}
                 title="Copy semua data ke clipboard (paste ke Excel/Sheets)"
               >
                 {copySuccess
@@ -653,8 +618,8 @@ export default function IpoDetailPage() {
               </button>
             </div>
           </div>
-          <div className="table-container" style={{ border: 'none', overflowX: 'auto' }}>
-            <table className="table" style={{ width: '100%', minWidth: 920, tableLayout: 'fixed' }}>
+          <div className="table-container ipo-table-wrap">
+            <table className="table ipo-table-fixed">
               <thead>
                 <tr>
                   <th style={{ ...compactHeaderStyle, width: 36 }}>{renderSortableHeader('No', 'no')}</th>
@@ -828,19 +793,20 @@ export default function IpoDetailPage() {
       )}
 
       {showEditEventModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal" style={{ maxWidth: 500, width: '90%' }}>
-            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>
-              <h3 style={{ margin: 0 }}>Edit Detail IPO Event</h3>
-              <button className="btn btn-ghost btn-icon" onClick={() => setShowEditEventModal(false)}>
+        <div className="modal-overlay ipo-modal-overlay">
+          <div className="modal ipo-modal">
+            <div className="modal-header ipo-modal-header">
+              <h3>Edit Detail IPO Event</h3>
+              <button className="btn btn-ghost btn-icon ipo-btn-close" onClick={() => setShowEditEventModal(false)} aria-label="Tutup modal edit IPO">
                 <Icons.X size={16} />
               </button>
             </div>
             <form onSubmit={handleSaveEvent}>
-              <div className="modal-body" style={{ padding: '20px' }}>
-                <div className="form-group" style={{ marginBottom: 16 }}>
-                  <label className="form-label">Kode Saham *</label>
+              <div className="modal-body ipo-modal-body">
+                <div className="form-group ipo-margin-b16">
+                  <label className="form-label" htmlFor="ipo-event-stock-code">Kode Saham *</label>
                   <input
+                    id="ipo-event-stock-code"
                     className="form-input"
                     placeholder="Contoh: WBSA"
                     value={eventForm.stockCode}
@@ -848,10 +814,11 @@ export default function IpoDetailPage() {
                     required
                   />
                 </div>
-                <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div className="form-row ipo-grid-2 ipo-margin-b16">
                   <div className="form-group">
-                    <label className="form-label">Tanggal Penawaran</label>
+                    <label className="form-label" htmlFor="ipo-event-offering-date">Tanggal Penawaran</label>
                     <input
+                      id="ipo-event-offering-date"
                       type="date"
                       className="form-input"
                       value={eventForm.offeringDate}
@@ -859,8 +826,9 @@ export default function IpoDetailPage() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Tanggal IPO *</label>
+                    <label className="form-label" htmlFor="ipo-event-ipo-date">Tanggal IPO *</label>
                     <input
+                      id="ipo-event-ipo-date"
                       type="date"
                       className="form-input"
                       value={eventForm.ipoDate}
@@ -869,9 +837,10 @@ export default function IpoDetailPage() {
                     />
                   </div>
                 </div>
-                <div className="form-group" style={{ marginBottom: 16 }}>
-                  <label className="form-label">Harga Penawaran (Rp) *</label>
+                <div className="form-group ipo-margin-b16">
+                  <label className="form-label" htmlFor="ipo-event-offering-price">Harga Penawaran (Rp) *</label>
                   <input
+                    id="ipo-event-offering-price"
                     type="number"
                     step="any"
                     className="form-input"
@@ -882,8 +851,9 @@ export default function IpoDetailPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Catatan</label>
+                  <label className="form-label" htmlFor="ipo-event-notes">Catatan</label>
                   <input
+                    id="ipo-event-notes"
                     className="form-input"
                     placeholder="Catatan singkat tentang IPO ini..."
                     value={eventForm.notes}
@@ -891,7 +861,7 @@ export default function IpoDetailPage() {
                   />
                 </div>
               </div>
-              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 20px', borderTop: '1px solid var(--border-color)' }}>
+              <div className="modal-footer ipo-modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowEditEventModal(false)}>
                   Batal
                 </button>

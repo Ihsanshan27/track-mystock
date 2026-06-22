@@ -1,0 +1,104 @@
+.portfolio-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.portfolio-page-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.portfolio-page-subtitle {
+  color: var(--text-secondary);
+  margin: 4px 0 0 0;
+  font-size: 0.9rem;
+}
+
+.portfolio-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.portfolio-composer-card {
+  margin-bottom: 24px;
+  animation: fadeInUp 0.3s ease;
+}
+
+.portfolio-composer-card.is-editing {
+  border: 1px solid var(--accent-green);
+}
+
+.portfolio-form-note {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.portfolio-hero-card {
+  margin-bottom: 32px;
+  background: rgba(24, 24, 27, 0.4);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), var(--shadow-lg);
+  border-left: 4px solid var(--accent-green);
+}
+
+.portfolio-hero-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.portfolio-summary-card {
+  margin-bottom: 24px;
+  border: 1px solid rgba(59,130,246,0.18);
+}
+
+.portfolio-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.portfolio-card-item {
+  transition: all var(--transition-fast) !important;
+}
+
+.portfolio-card-item:active {
+  transform: scale(0.98) !important;
+}
+
+.portfolio-card-active {
+  transform: translateY(-2px);
+}
+
+.portfolio-card-dragging {
+  opacity: 0.6;
+}
+
+.portfolio-card-drag-over {
+  border-color: var(--accent-blue) !important;
+  box-shadow: 0 0 0 1px rgba(59,130,246,0.35), 0 10px 24px rgba(59,130,246,0.12) !important;
+}
+
+.portfolio-drag-handle {
+  cursor: grab;
+}
+
+.portfolio-drag-handle:active {
+  cursor: grabbing;
+}
+
+.btn-danger-text {
+  color: var(--accent-red) !important;
+}
+
+.btn-danger-text:hover {
+  background: var(--accent-red-dim) !important;
+}

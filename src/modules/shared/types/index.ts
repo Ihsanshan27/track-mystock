@@ -8,6 +8,7 @@ export interface Portfolio {
 
 export interface Trade {
   id: string;
+  assetType?: 'stock' | 'mutual_fund';
   market: 'ID' | 'US';
   stockCode: string;
   dateBuy: string;
@@ -102,4 +103,5 @@ export interface AppSettings {
   behaviorMaxPositionSizeWarning?: boolean;
   behaviorMaxPositionSizePercent?: number;
   behaviorDoubleConfirmExit?: boolean;
+  profileIncludedFinanceAccountIds?: string[];
 }

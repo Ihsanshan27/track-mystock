@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, ReactNode, ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, ReactNode } from 'react';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useAuth } from '@/modules/auth/AuthContext';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
@@ -9,6 +9,7 @@ import { ACCESS_LEVELS, listOwnedSharedAccess, revokeSharedAccess, upsertSharedA
 import { isSupabaseConfigured } from '@/modules/shared/services/supabaseClient';
 import { formatDateTime, formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
+import SelectionToggleCard from '@/modules/shared/components/SelectionToggleCard';
 import {
   Brain,
   Database,
@@ -99,7 +100,7 @@ interface ToggleRowProps {
   title: string;
   description: string;
   checked: boolean;
-  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onChange: (checked: boolean) => void;
   children?: ReactNode;
 }
 
@@ -112,20 +113,13 @@ function ToggleRow({
 }: ToggleRowProps) {
   return (
     <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
-        <div>
-          <strong style={{ fontSize: '0.95rem' }}>{title}</strong>
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{description}</div>
-        </div>
-        <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={!!checked}
-            onChange={onChange}
-            style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
-          />
-          <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
-        </label>
+      <div style={{ marginBottom: 8 }}>
+        <SelectionToggleCard
+          checked={!!checked}
+          onToggle={() => onChange(!checked)}
+          title={title}
+          description={description}
+        />
       </div>
       {children}
     </div>
@@ -642,10 +636,15 @@ export default function SettingsPage() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Mode Privasi Nominal</label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 10 }}>
-                      <input type="checkbox" checked={!!form.privacyMode} onChange={e => set('privacyMode', e.target.checked)} />
-                      <span>Sembunyikan nominal di area portofolio dan statistik</span>
-                    </label>
+                    <div style={{ paddingTop: 10 }}>
+                      <SelectionToggleCard
+                        checked={!!form.privacyMode}
+                        onToggle={() => set('privacyMode', !form.privacyMode)}
+                        title="Sembunyikan nominal"
+                        description="Nominal di area portofolio dan statistik akan diburamkan."
+                        compact
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="form-group">
@@ -696,7 +695,7 @@ export default function SettingsPage() {
                   title="Maksimal Transaksi Harian"
                   description="Membatasi jumlah pencatatan transaksi baru per hari untuk mencegah over-trading."
                   checked={!!form.behaviorDailyTradeLimitEnabled}
-                  onChange={e => set('behaviorDailyTradeLimitEnabled', e.target.checked)}
+                  onChange={(checked) => set('behaviorDailyTradeLimitEnabled', checked)}
                 >
                   {form.behaviorDailyTradeLimitEnabled ? (
                     <div className="form-group" style={{ maxWidth: 220, marginTop: 8 }}>
@@ -716,35 +715,35 @@ export default function SettingsPage() {
                   title="Peringatan Emosi Negatif"
                   description="Menampilkan pesan edukatif jika Anda memilih emosi negatif saat mencatat transaksi."
                   checked={!!form.behaviorNegativeEmotionWarning}
-                  onChange={e => set('behaviorNegativeEmotionWarning', e.target.checked)}
+                  onChange={(checked) => set('behaviorNegativeEmotionWarning', checked)}
                 />
 
                 <ToggleRow
                   title="Blokir Transaksi Emosi Negatif"
                   description="Mencegah Anda menyimpan transaksi baru jika memilih emosi negatif."
                   checked={!!form.behaviorBlockNegativeEmotion}
-                  onChange={e => set('behaviorBlockNegativeEmotion', e.target.checked)}
+                  onChange={(checked) => set('behaviorBlockNegativeEmotion', checked)}
                 />
 
                 <ToggleRow
                   title="Wajib Pilih Strategi"
                   description="Mencegah transaksi disimpan jika Anda tidak menentukan strategi trading."
                   checked={!!form.behaviorRequireStrategy}
-                  onChange={e => set('behaviorRequireStrategy', e.target.checked)}
+                  onChange={(checked) => set('behaviorRequireStrategy', checked)}
                 />
 
                 <ToggleRow
                   title="Wajib Isi Alasan Entry"
                   description="Mencegah transaksi disimpan jika kolom alasan entry dibiarkan kosong."
                   checked={!!form.behaviorRequireReason}
-                  onChange={e => set('behaviorRequireReason', e.target.checked)}
+                  onChange={(checked) => set('behaviorRequireReason', checked)}
                 />
 
                 <ToggleRow
                   title="Peringatan Ukuran Posisi Maksimal"
                   description="Memberikan warning jika nilai beli melebihi batas toleransi dari total modal awal."
                   checked={!!form.behaviorMaxPositionSizeWarning}
-                  onChange={e => set('behaviorMaxPositionSizeWarning', e.target.checked)}
+                  onChange={(checked) => set('behaviorMaxPositionSizeWarning', checked)}
                 >
                   {form.behaviorMaxPositionSizeWarning ? (
                     <div className="form-group" style={{ maxWidth: 220, marginTop: 8 }}>
@@ -763,21 +762,12 @@ export default function SettingsPage() {
                 </ToggleRow>
 
                 <div style={{ paddingBottom: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                    <div>
-                      <strong style={{ fontSize: '0.95rem' }}>Konfirmasi Batalkan Input</strong>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Menanyakan konfirmasi sebelum menutup halaman jika form transaksi telah diisi.</div>
-                    </div>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        checked={!!form.behaviorDoubleConfirmExit}
-                        onChange={e => set('behaviorDoubleConfirmExit', e.target.checked)}
-                        style={{ width: 18, height: 18, marginRight: 8, cursor: 'pointer' }}
-                      />
-                      <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>Aktifkan</span>
-                    </label>
-                  </div>
+                  <SelectionToggleCard
+                    checked={!!form.behaviorDoubleConfirmExit}
+                    onToggle={() => set('behaviorDoubleConfirmExit', !form.behaviorDoubleConfirmExit)}
+                    title="Konfirmasi Batalkan Input"
+                    description="Menanyakan konfirmasi sebelum menutup halaman jika form transaksi telah diisi."
+                  />
                 </div>
               </div>
             </SectionCard>

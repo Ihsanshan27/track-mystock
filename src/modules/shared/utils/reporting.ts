@@ -32,7 +32,7 @@ export function buildReportSnapshot({
       const tradeCalc = calculateTradePnL(trade);
       const currentPrice = Number(marketPrices?.[trade.stockCode] || 0);
       const unrealized = currentPrice > 0
-        ? calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID')
+        ? calculateUnrealizedPnL(trade.buyPrice, currentPrice, trade.lots, trade.buyFee, trade.market || 'ID', trade.assetType || 'stock')
         : { pnl: 0, pnlPercent: 0 };
 
       return {

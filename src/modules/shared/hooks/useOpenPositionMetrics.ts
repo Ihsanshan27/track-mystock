@@ -3,6 +3,7 @@ import { calculateUnrealizedPnL } from '@/modules/trades/calculations';
 
 interface Trade {
   id: string;
+  assetType?: 'stock' | 'mutual_fund';
   stockCode: string;
   market?: string;
   lots: number;
@@ -48,7 +49,7 @@ export function useOpenPositionMetrics(
   const totalInvested = useMemo(() => {
     return openTrades.reduce((sum, t) => {
       const isUS = t.market === 'US';
-      const shares = isUS ? t.lots : t.lots * 100;
+      const shares = t.assetType === 'mutual_fund' ? t.lots : (isUS ? t.lots : t.lots * 100);
       return sum + t.buyPrice * shares;
     }, 0);
   }, [openTrades]);
@@ -63,7 +64,8 @@ export function useOpenPositionMetrics(
           currentPrice,
           t.lots,
           t.buyFee,
-          t.market || 'ID'
+          t.market || 'ID',
+          t.assetType || 'stock'
         );
         return sum + unrealized.pnl;
       }

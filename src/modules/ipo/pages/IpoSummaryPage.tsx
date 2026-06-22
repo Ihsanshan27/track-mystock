@@ -8,6 +8,7 @@ import { formatRupiah } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import type { IpoEvent } from '@/modules/ipo/types/ipo';
+import '@/modules/ipo/ipo.css';
 
 export default function IpoSummaryPage() {
   const { ipoEvents, ipoEntries } = useData();
@@ -16,12 +17,14 @@ export default function IpoSummaryPage() {
 
   // Helper to calculate summary for a specific event
   const getEventSummary = (eventId: string) => {
+    const event = ipoEvents.find((item: IpoEvent) => item.id === eventId);
     const entries = ipoEntries.filter((e: any) => e.ipoEventId === eventId);
     let totalCapital = 0, totalReturn = 0, sellCount = 0, keepCount = 0;
     
     entries.forEach((e: any) => {
       const shares = e.lots * 100;
-      const buy = e.buyPrice * shares;
+      const buyPrice = event?.offeringPrice ?? e.buyPrice;
+      const buy = buyPrice * shares;
       const sell = e.sellPrice > 0 ? e.sellPrice * shares : buy;
       const profit = e.action === 'SELL' ? sell - buy : 0;
       totalCapital += buy;
