@@ -117,6 +117,19 @@ export default function IpoSummaryPage() {
       }))
       .sort((a, b) => b.totalCapital - a.totalCapital || a.accountName.localeCompare(b.accountName));
   }, [ipoEntries, ipoEvents]);
+  const {
+    sortConfig: accountSortConfig,
+    sortedItems: sortedAccountCapitalSummaries,
+    requestSort: requestAccountSort,
+  } = useTableSort(accountCapitalSummaries, {
+    initialKey: 'totalCapital',
+    initialDirection: 'desc',
+    getValue: (
+      item: any,
+      key: 'accountName' | 'email' | 'eventCount' | 'totalLots' | 'breakdown' | 'totalCapital'
+    ) => item[key] ?? '',
+    tieBreaker: (a: any, b: any) => b.totalCapital - a.totalCapital || a.accountName.localeCompare(b.accountName),
+  });
 
   // Calculate global summary metrics
   const globalMetrics = useMemo(() => {
@@ -297,23 +310,23 @@ export default function IpoSummaryPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Nama Akun</th>
-                  <th>Email</th>
-                  <th>Total IPO</th>
-                  <th>Total Lot</th>
-                  <th>Rincian IPO</th>
-                  <th>Total Modal Dibutuhkan</th>
+                  <th><SortableTableHeader label="Nama Akun" sortKey="accountName" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
+                  <th><SortableTableHeader label="Email" sortKey="email" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
+                  <th><SortableTableHeader label="Total IPO" sortKey="eventCount" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
+                  <th><SortableTableHeader label="Total Lot" sortKey="totalLots" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
+                  <th><SortableTableHeader label="Rincian IPO" sortKey="breakdown" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
+                  <th><SortableTableHeader label="Total Modal Dibutuhkan" sortKey="totalCapital" sortConfig={accountSortConfig} onSort={requestAccountSort} /></th>
                 </tr>
               </thead>
               <tbody>
-                {accountCapitalSummaries.length === 0 ? (
+                {sortedAccountCapitalSummaries.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 16px' }}>
                       Belum ada partisipasi akun IPO yang bisa dihitung.
                     </td>
                   </tr>
                 ) : (
-                  accountCapitalSummaries.map((account) => (
+                  sortedAccountCapitalSummaries.map((account) => (
                     <tr key={`${account.accountName}-${account.email}`}>
                       <td style={{ fontWeight: 700 }}>{account.accountName}</td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>{account.email || '-'}</td>
