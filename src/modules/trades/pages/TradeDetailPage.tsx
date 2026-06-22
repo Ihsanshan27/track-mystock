@@ -97,6 +97,7 @@ export default function TradeDetailPage() {
       lots: parseFloat(form.lots),
       portfolioId: form.portfolioId || 'default',
       tags: typeof form.tags === 'string' ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : form.tags,
+      setupImageUrl: form.setupImageUrl ? form.setupImageUrl.trim() : '',
     });
     setEditing(false);
     setTradeEditDraft(null);
@@ -254,6 +255,10 @@ export default function TradeDetailPage() {
                     <label className="form-label">Custom Tags</label>
                     <input className="form-input" value={Array.isArray(form.tags) ? form.tags.join(', ') : form.tags || ''} onChange={e => set('tags', e.target.value)} />
                   </div>
+                  <div className="form-group" style={{ marginBottom: 16 }}>
+                    <label className="form-label">Tautan Gambar Setup Chart (URL)</label>
+                    <input className="form-input" placeholder="Contoh: https://s3.tradingview.com/x/xxxxxx.png" value={form.setupImageUrl || ''} onChange={e => set('setupImageUrl', e.target.value)} />
+                  </div>
                   <div className="form-group">
                     <label className="form-label">Catatan</label>
                     <textarea className="form-textarea" value={form.notes || ''} onChange={e => set('notes', e.target.value)} />
@@ -321,6 +326,26 @@ export default function TradeDetailPage() {
                     <div style={{ fontSize: '0.9rem' }}>{trade.notes}</div>
                   </div>
                 ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {trade.setupImageUrl ? (
+            <div className="card" style={{ marginTop: 20 }}>
+              <div className="card-header"><h3 className="card-title">🖼 Setup Chart</h3></div>
+              <div className="card-body" style={{ padding: 12, textAlign: 'center' }}>
+                <a href={trade.setupImageUrl} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={trade.setupImageUrl}
+                    alt="Setup Chart"
+                    style={{ maxWidth: '100%', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', maxHeight: '350px', objectFit: 'contain' }}
+                  />
+                </a>
+                <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <a href={trade.setupImageUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-blue-light)', textDecoration: 'underline' }}>
+                    Buka Gambar di Tab Baru ↗
+                  </a>
+                </div>
               </div>
             </div>
           ) : null}

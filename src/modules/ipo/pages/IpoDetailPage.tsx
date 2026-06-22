@@ -328,6 +328,23 @@ export default function IpoDetailPage() {
     });
   };
 
+  const handleSyncToJournal = (entry: IpoEntryCalc) => {
+    if (!event) return;
+    const plan = {
+      stockCode: event.stockCode,
+      market: 'ID',
+      entryPrice: event.offeringPrice,
+      sellPrice: entry.sellPrice,
+      lots: entry.lots,
+      createdAt: event.ipoDate,
+      dateSell: event.ipoDate,
+      strategy: 'Value Investing',
+      reason: `Sinkronisasi dari akun IPO: ${entry.accountName}`,
+      tags: `ipo, ${entry.accountName.toLowerCase()}`,
+    };
+    navigate('/trades/new', { state: { plan } });
+  };
+
   const handleCopyTable = () => {
     const headers = [
       'No', 'Saham', 'Harga Beli', 'Total Lot', 'Total Harga (Rp)',
@@ -778,6 +795,16 @@ export default function IpoDetailPage() {
                               >
                                 <Icons.Edit size={13} />
                               </button>
+                              {entry.action === 'SELL' && (
+                                <button
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '2px 5px', height: 24, color: 'var(--accent-green)' }}
+                                  onClick={() => handleSyncToJournal(entry)}
+                                  title="Sinkronkan ke Jurnal Saham"
+                                >
+                                  <Icons.Share2 size={13} />
+                                </button>
+                              )}
                               <button
                                 className="btn btn-ghost btn-sm"
                                 style={{ padding: '2px 5px', height: 24, color: 'var(--accent-blue-light)' }}

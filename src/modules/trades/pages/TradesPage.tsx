@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
+import ImportCSVModal from '../components/ImportCSVModal';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
 import { calculateTradePnL, calculateUnrealizedPnL, getTradeAssetTypeLabel, getTradeQuantityLabel } from '@/modules/trades/calculations';
@@ -8,8 +9,9 @@ import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/sh
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 
 export default function TradesPage() {
-  const { trades, deleteTrade, marketPrices, settings } = useData();
+  const { trades, deleteTrade, marketPrices, settings, addTrade, showToast } = useData();
   const { confirm } = useDialog();
+  const [showImportModal, setShowImportModal] = useState(false);
   
   const [search, setSearch] = useState(() => sessionStorage.getItem('trades_filter_search') || '');
   const [filterStrategy, setFilterStrategy] = useState(() => sessionStorage.getItem('trades_filter_strategy') || '');
@@ -151,6 +153,7 @@ export default function TradesPage() {
           <p className="page-subtitle">{filtered.length} transaksi ditemukan</p>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowImportModal(true)}>📥 Impor CSV</button>
           <button className="btn btn-secondary btn-sm" onClick={exportCSV}>📥 Export CSV</button>
           <Link to="/trades/new" className="btn btn-primary">➕ Catat Transaksi</Link>
         </div>
@@ -285,6 +288,14 @@ export default function TradesPage() {
           )}
         </>
       )}
+      {/* Import CSV Modal */}
+      <ImportCSVModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={() => {}}
+        addTrade={addTrade}
+        showToast={showToast}
+      />
     </div>
   );
 }

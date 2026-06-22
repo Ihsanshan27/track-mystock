@@ -5,13 +5,14 @@
  *   <MarketTabBar activeTab={activeTab} onChange={setActiveTab} />
  */
 export interface MarketTabBarProps {
-  activeTab: 'ID' | 'US';
-  onChange: (tab: 'ID' | 'US') => void;
+  activeTab: 'ID' | 'US' | 'ALL';
+  onChange: (tab: 'ID' | 'US' | 'ALL') => void;
   /** Accent color for active tab underline. Defaults to var(--accent-green) */
   accentColor?: string;
+  showAll?: boolean;
 }
 
-export default function MarketTabBar({ activeTab, onChange, accentColor = 'var(--accent-green)' }: MarketTabBarProps) {
+export default function MarketTabBar({ activeTab, onChange, accentColor = 'var(--accent-green)', showAll = false }: MarketTabBarProps) {
   const baseStyle: React.CSSProperties = {
     padding: '12px 20px',
     background: 'none',
@@ -22,9 +23,11 @@ export default function MarketTabBar({ activeTab, onChange, accentColor = 'var(-
     fontSize: '0.9rem',
   };
 
+  const tabs = showAll ? (['ID', 'US', 'ALL'] as const) : (['ID', 'US'] as const);
+
   return (
     <div style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border-color)' }}>
-      {(['ID', 'US'] as const).map((tab) => (
+      {tabs.map((tab) => (
         <button
           key={tab}
           type="button"
@@ -36,7 +39,7 @@ export default function MarketTabBar({ activeTab, onChange, accentColor = 'var(-
           }}
           onClick={() => onChange(tab)}
         >
-          {tab === 'ID' ? 'Pasar Indonesia' : 'Pasar Amerika'}
+          {tab === 'ID' ? 'Pasar Indonesia' : tab === 'US' ? 'Pasar Amerika' : 'Semua Pasar'}
         </button>
       ))}
     </div>

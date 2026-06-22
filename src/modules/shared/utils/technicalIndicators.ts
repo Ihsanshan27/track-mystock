@@ -1,4 +1,4 @@
-import { MACD, EMA, Stochastic } from 'technicalindicators';
+import { MACD, EMA, Stochastic, RSI } from 'technicalindicators';
 
 export function calculateIndicators(ohlcv) {
     if (!ohlcv || ohlcv.length === 0) return {};
@@ -49,11 +49,20 @@ export function calculateIndicators(ohlcv) {
         stochResult = [];
     }
 
+    // RSI (14)
+    let rsiResult = [];
+    try {
+        rsiResult = RSI.calculate({ period: 14, values: closePrices });
+    } catch {
+        rsiResult = [];
+    }
+
     return {
         macd: macdResult,
         ema50: ema50Result,
         ema200: ema200Result,
         stochastic: stochResult,
+        rsi: rsiResult,
     };
 }
 
@@ -106,4 +115,15 @@ export function getLatestEmaValues(ema50Data, ema200Data) {
         ema50: ema50Data?.length ? ema50Data[ema50Data.length - 1] : null,
         ema200: ema200Data?.length ? ema200Data[ema200Data.length - 1] : null,
     };
+}
+
+export function getLatestRsi(rsiData) {
+    return rsiData?.length ? rsiData[rsiData.length - 1] : null;
+}
+
+export function getRsiStatus(rsiVal) {
+    if (rsiVal === null || rsiVal === undefined) return 'Normal';
+    if (rsiVal >= 70) return 'Overbought';
+    if (rsiVal <= 30) return 'Oversold';
+    return 'Normal';
 }

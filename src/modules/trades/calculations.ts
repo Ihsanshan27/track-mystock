@@ -79,6 +79,11 @@ export function calculateStats(trades) {
       expectancy: 0,
       winCount: 0,
       lossCount: 0,
+      sharpeRatio: 0,
+      winLossRatio: 0,
+      recoveryFactor: 0,
+      maxDrawdownPercent: 0,
+      maxDrawdownDuration: 0,
     };
   }
 
@@ -116,6 +121,26 @@ export function calculateStats(trades) {
   const winRate = (wins.length / closedTrades.length) * 100;
   const expectancy = (winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss;
 
+  // New Metrics Calculations
+  const winLossRatio = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0;
+
+  // Sharpe Ratio
+  const returns = results.map(r => r.pnlPercent).filter(val => val != null);
+  let sharpeRatio = 0;
+  if (returns.length > 1) {
+    const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+    const variance = returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / (returns.length - 1);
+    const stdDev = Math.sqrt(variance);
+    sharpeRatio = stdDev > 0 ? meanReturn / stdDev : 0;
+  }
+
+  // Drawdown metrics
+  const curve = calculateEquityCurve(closedTrades, 10000000);
+  const maxDrawdownValue = Math.max(...curve.map(point => point.drawdown), 0);
+  const maxDrawdownPercent = Math.max(...curve.map(point => point.drawdownPercent), 0);
+  const recoveryFactor = maxDrawdownValue > 0 ? totalPnL / maxDrawdownValue : totalPnL > 0 ? Infinity : 0;
+  const maxDrawdownDuration = calculateMaxDrawdownDuration(curve);
+
   return {
     totalTrades: closedTrades.length,
     totalPnL,
@@ -129,7 +154,51 @@ export function calculateStats(trades) {
     expectancy,
     winCount: wins.length,
     lossCount: losses.length,
+    sharpeRatio,
+    winLossRatio,
+    recoveryFactor,
+    maxDrawdownPercent,
+    maxDrawdownDuration,
   };
+}
+
+export function calculateMaxDrawdownDuration(curve) {
+  if (curve.length < 2) return 0;
+  
+  let maxDurationDays = 0;
+  let drawdownStartDate = null;
+  let currentPeak = curve[0].equity;
+  
+  for (let i = 1; i < curve.length; i++) {
+    const point = curve[i];
+    if (point.equity >= currentPeak) {
+      if (drawdownStartDate) {
+        const start = new Date(drawdownStartDate);
+        const end = new Date(point.date);
+        const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays > maxDurationDays) {
+          maxDurationDays = diffDays;
+        }
+        drawdownStartDate = null;
+      }
+      currentPeak = point.equity;
+    } else {
+      if (!drawdownStartDate) {
+        drawdownStartDate = curve[i - 1].date;
+      }
+    }
+  }
+  
+  if (drawdownStartDate) {
+    const start = new Date(drawdownStartDate);
+    const end = new Date(curve[curve.length - 1].date);
+    const diffDays = Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays > maxDurationDays) {
+      maxDurationDays = diffDays;
+    }
+  }
+  
+  return maxDurationDays;
 }
 
 // === Equity Curve ===

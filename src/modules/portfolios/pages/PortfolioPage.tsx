@@ -19,7 +19,7 @@ function isClosedTrade(trade: any) {
 }
 
 export default function PortfolioPage() {
-  const { trades, cashflows, dividends, settings, updateSettings, activePortfolioId, marketPrices, updateMarketPrice, canWrite } = useData();
+  const { trades, cashflows, dividends, settings, updateSettings, activePortfolioId, marketPrices, updateMarketPrice, fetchLivePrices, canWrite } = useData();
   const { isViewer } = usePermissions();
   const [activeTab, setActiveTab] = useState('ID');
 
@@ -105,6 +105,20 @@ export default function PortfolioPage() {
           <p className="page-subtitle">{openTrades.length} posisi terbuka</p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {canWrite && openTrades.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                const tickers = openTrades.map(t => t.stockCode).filter(Boolean);
+                fetchLivePrices(tickers);
+              }}
+              className="btn btn-secondary"
+              title="Perbarui harga dari Yahoo Finance"
+            >
+              <Icons.RefreshCw size={16} />
+              <span>Perbarui Harga Live</span>
+            </button>
+          ) : null}
           <Link to="/history" className="btn btn-secondary">
             <Icons.History size={16} />
             <span>History</span>

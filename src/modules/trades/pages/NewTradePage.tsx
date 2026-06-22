@@ -20,9 +20,9 @@ export default function NewTradePage() {
       market: plan?.market || 'ID',
       stockCode: plan?.stockCode || '',
       dateBuy: plan?.createdAt ? plan.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
-      dateSell: '',
+      dateSell: plan?.dateSell || '',
       buyPrice: plan?.entryPrice != null ? String(plan.entryPrice) : '',
-      sellPrice: '',
+      sellPrice: plan?.sellPrice != null && Number(plan.sellPrice) > 0 ? String(plan.sellPrice) : '',
       lots: plan?.lots != null ? String(plan.lots) : '',
       buyFee: settings.defaultBuyFee || 0.15,
       sellFee: settings.defaultSellFee || 0.25,
@@ -33,6 +33,7 @@ export default function NewTradePage() {
       rating: 0,
       tags: plan ? 'rencana-trading' : '',
       notes: '',
+      setupImageUrl: '',
       portfolioId: plan?.portfolioId || activePortfolioId || 'default',
     };
   });
@@ -74,6 +75,7 @@ export default function NewTradePage() {
       form.rating !== initialForm.rating ||
       form.tags !== initialForm.tags ||
       form.notes !== initialForm.notes ||
+      form.setupImageUrl !== initialForm.setupImageUrl ||
       form.portfolioId !== initialForm.portfolioId
     );
   };
@@ -162,6 +164,7 @@ export default function NewTradePage() {
       sellFee: parseFloat(form.sellFee),
       rating: form.rating,
       tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      setupImageUrl: form.setupImageUrl ? form.setupImageUrl.trim() : '',
     });
 
     const planId = location.state?.plan?.id;
@@ -451,6 +454,11 @@ export default function NewTradePage() {
                 <div className="form-group">
                   <label className="form-label">Custom Tags</label>
                   <input className="form-input" placeholder="Pisahkan dengan koma (contoh: bca, dividend)" value={form.tags} onChange={e => set('tags', e.target.value)} />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 16 }}>
+                  <label className="form-label">Tautan Gambar Setup Chart (URL)</label>
+                  <input className="form-input" placeholder="Contoh: https://s3.tradingview.com/x/xxxxxx.png" value={form.setupImageUrl} onChange={e => set('setupImageUrl', e.target.value)} />
                 </div>
 
                 <div className="form-group">

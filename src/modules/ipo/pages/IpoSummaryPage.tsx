@@ -7,7 +7,7 @@ import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { formatRupiah } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
-import type { IpoEvent } from '@/modules/ipo/types/ipo';
+import type { IpoEvent, IpoAccount } from '@/modules/ipo/types/ipo';
 import '@/modules/ipo/ipo.css';
 
 type IpoStatusFilter = 'active' | 'completed' | 'all';
@@ -111,8 +111,8 @@ export default function IpoSummaryPage() {
 
   const accountCapitalSummaries = useMemo(() => {
     const filteredEventIds = new Set(filteredEventSummaries.map((item) => item.event.id));
-    const eventMap = new Map(ipoEvents.map((event: IpoEvent) => [event.id, event]));
-    const accountMap = new Map((ipoAccounts || []).map((account: any) => [account.id, account]));
+    const eventMap = new Map<string, IpoEvent>(ipoEvents.map((event: IpoEvent) => [event.id, event]));
+    const accountMap = new Map<string, IpoAccount>((ipoAccounts || []).map((account: IpoAccount) => [account.id, account]));
     const groupedAccounts = new Map<string, {
       ipoAccountId: string;
       accountName: string;
@@ -188,10 +188,10 @@ export default function IpoSummaryPage() {
     [accountCapitalSummaries]
   );
   const highestCapitalAccountKey = useMemo(() => {
-    if (sortedAccountCapitalSummaries.length === 0) return null;
-    const highest = sortedAccountCapitalSummaries[0];
+    if (accountCapitalSummaries.length === 0) return null;
+    const highest = accountCapitalSummaries[0]; // accountCapitalSummaries is already sorted by simulatedCapital desc
     return highest.ipoAccountId || `${highest.accountName}-${highest.email}`;
-  }, [sortedAccountCapitalSummaries]);
+  }, [accountCapitalSummaries]);
   const exportSummaryCsv = () => {
     const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const metaRows = [
@@ -507,10 +507,10 @@ export default function IpoSummaryPage() {
                 Akun Dengan Modal Terbesar
               </div>
               <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>
-                {sortedAccountCapitalSummaries[0]?.accountName || 'Belum ada data'}
+                {accountCapitalSummaries[0]?.accountName || 'Belum ada data'}
               </div>
-              <div className="font-mono" style={{ fontWeight: 700, color: 'var(--accent-yellow)', ...(sortedAccountCapitalSummaries[0] ? blurStyle : {}) }}>
-                {sortedAccountCapitalSummaries[0] ? formatRupiah(sortedAccountCapitalSummaries[0].simulatedCapital) : 'Rp 0'}
+              <div className="font-mono" style={{ fontWeight: 700, color: 'var(--accent-yellow)', ...(accountCapitalSummaries[0] ? blurStyle : {}) }}>
+                {accountCapitalSummaries[0] ? formatRupiah(accountCapitalSummaries[0].simulatedCapital) : 'Rp 0'}
               </div>
             </div>
           </div>

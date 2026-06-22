@@ -8,6 +8,15 @@ import { formatRupiah, formatDate, formatPercent } from '@/modules/shared/utils/
 import { Eye, Plus, X, Trash2, Save, TrendingUp, TrendingDown, Edit3 } from 'lucide-react';
 import { fetchQuotesBatch, fetchStockOHLCV } from '@/modules/shared/services/yahooFinanceService';
 import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
+import { calculateIndicators, isMacdGoldenCross, isEmaGoldenCross, getLatestEmaValues } from '@/modules/shared/utils/technicalIndicators';
+
+const MANUAL_RECOMMENDATIONS = [
+  { value: 'NONE', label: 'Otomatis (Sinyal Teknikal)' },
+  { value: 'BUY', label: 'Beli (Buy)' },
+  { value: 'SELL', label: 'Jual (Sell)' },
+  { value: 'HOLD', label: 'Tahan (Hold)' },
+  { value: 'NEUTRAL', label: 'Netral' }
+];
 
 export default function WatchlistPage() {
   const { watchlist, addWatchlistItem, updateWatchlistItem, deleteWatchlistItem, watchlistFormDraft, setWatchlistFormDraft, showToast } = useData();
@@ -38,7 +47,7 @@ export default function WatchlistPage() {
         await Promise.all(
           tickers.map(async (ticker) => {
             try {
-              const data = await fetchStockOHLCV(ticker, '30d');
+              const data = await fetchStockOHLCV(ticker, '1y');
               ohlcvResults[ticker] = data;
             } catch (err) {
               console.error(`[WatchlistPage] Gagal mengambil OHLCV untuk ${ticker}:`, err);
@@ -69,7 +78,7 @@ export default function WatchlistPage() {
 
   const [form, setForm] = useState(() => {
     if (watchlistFormDraft) return { categories: [] as string[], ...watchlistFormDraft.form };
-    return { stockCode: '', targetPrice: '', reason: '', status: 'waiting', priority: 'medium', categories: [] as string[] };
+    return { stockCode: '', targetPrice: '', targetSellPrice: '', reason: '', status: 'waiting', priority: 'medium', categories: [] as string[], manualRecommendation: 'NONE' };
   });
 
   useEffect(() => {
@@ -81,7 +90,7 @@ export default function WatchlistPage() {
   const handleCancelOrToggle = () => {
     if (showForm) {
       setShowForm(false);
-      setForm({ stockCode: '', targetPrice: '', reason: '', status: 'waiting', priority: 'medium', categories: [] });
+      setForm({ stockCode: '', targetPrice: '', targetSellPrice: '', reason: '', status: 'waiting', priority: 'medium', categories: [], manualRecommendation: 'NONE' });
       setWatchlistFormDraft(null);
       setEditingId(null);
       setTagInput('');
@@ -104,10 +113,12 @@ export default function WatchlistPage() {
     const dataToSave = {
       stockCode: form.stockCode.toUpperCase(),
       targetPrice: parseFloat(form.targetPrice) || null,
+      targetSellPrice: parseFloat(form.targetSellPrice) || null,
       reason: form.reason,
       status: form.status,
       priority: form.priority,
       categories: finalCategories,
+      manualRecommendation: form.manualRecommendation || 'NONE'
     };
 
     if (editingId) {
@@ -117,7 +128,7 @@ export default function WatchlistPage() {
       addWatchlistItem(dataToSave);
     }
 
-    setForm({ stockCode: '', targetPrice: '', reason: '', status: 'waiting', priority: 'medium', categories: [] });
+    setForm({ stockCode: '', targetPrice: '', targetSellPrice: '', reason: '', status: 'waiting', priority: 'medium', categories: [], manualRecommendation: 'NONE' });
     setShowForm(false);
     setWatchlistFormDraft(null);
     setTagInput('');
@@ -195,10 +206,12 @@ export default function WatchlistPage() {
     setForm({
       stockCode: item.stockCode,
       targetPrice: item.targetPrice ? String(item.targetPrice) : '',
+      targetSellPrice: item.targetSellPrice ? String(item.targetSellPrice) : '',
       reason: item.reason || '',
       status: item.status || 'waiting',
       priority: item.priority || 'medium',
       categories: item.categories || [],
+      manualRecommendation: item.manualRecommendation || 'NONE'
     });
     setEditingId(item.id);
     setShowForm(true);
@@ -241,7 +254,7 @@ export default function WatchlistPage() {
   const { sortConfig, sortedItems: sortedWatchlist, requestSort } = useTableSort(filteredWatchlist, {
     initialKey: 'createdAt',
     initialDirection: 'desc',
-    getValue: (item: any, key: 'stockCode' | 'marketPrice' | 'trend' | 'targetPrice' | 'distanceToTarget' | 'reason' | 'priority' | 'status' | 'createdAt') => {
+    getValue: (item: any, key: 'stockCode' | 'marketPrice' | 'trend' | 'targetPrice' | 'distanceToTarget' | 'targetSellPrice' | 'distanceToSellTarget' | 'reason' | 'priority' | 'status' | 'createdAt') => {
       const quote = marketData[item.stockCode];
       if (key === 'marketPrice') return quote?.price ?? -1;
       if (key === 'trend') return quote?.changePct ?? -999;
@@ -249,9 +262,164 @@ export default function WatchlistPage() {
         if (!item.targetPrice || !quote?.price) return 999999;
         return ((item.targetPrice - quote.price) / quote.price) * 100;
       }
+      if (key === 'targetSellPrice') return item.targetSellPrice ?? -1;
+      if (key === 'distanceToSellTarget') {
+        if (!item.targetSellPrice || !quote?.price) return 999999;
+        return ((item.targetSellPrice - quote.price) / quote.price) * 100;
+      }
       return item[key] || '';
     },
   });
+
+  const renderTechnicalSignals = (item: any) => {
+    const ticker = item.stockCode;
+    
+    let manualRecBadge = null;
+    if (item.manualRecommendation && item.manualRecommendation !== 'NONE') {
+      let manualStyle = { background: 'rgba(100, 116, 139, 0.12)', color: 'var(--text-secondary)' };
+      let label = 'Neutral';
+      if (item.manualRecommendation === 'BUY') {
+        manualStyle = { background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' };
+        label = 'BUY';
+      } else if (item.manualRecommendation === 'SELL') {
+        manualStyle = { background: 'rgba(239, 68, 68, 0.15)', color: 'var(--accent-red)' };
+        label = 'SELL';
+      } else if (item.manualRecommendation === 'HOLD') {
+        manualStyle = { background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' };
+        label = 'HOLD';
+      } else if (item.manualRecommendation === 'NEUTRAL') {
+        manualStyle = { background: 'rgba(100, 116, 139, 0.15)', color: 'var(--text-secondary)' };
+        label = 'NEUTRAL';
+      }
+      
+      manualRecBadge = (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Manual:</span>
+          <span
+            className="badge"
+            style={{
+              fontSize: '0.68rem',
+              padding: '2px 6px',
+              fontWeight: 800,
+              borderRadius: 4,
+              ...manualStyle
+            }}
+          >
+            {label}
+          </span>
+        </div>
+      );
+    }
+
+    const ohlcv = ohlcvData[ticker];
+    if (!ohlcv || ohlcv.length < 14) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.72rem' }}>
+          {manualRecBadge}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Teknikal:</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{loadingMarket ? 'Loading...' : 'N/A'}</span>
+          </div>
+        </div>
+      );
+    }
+
+    const ind = calculateIndicators(ohlcv);
+    const latestRsi = ind.rsi?.length ? ind.rsi[ind.rsi.length - 1] : null;
+    const rsiStatus = latestRsi !== null ? (latestRsi >= 70 ? 'Overbought' : latestRsi <= 30 ? 'Oversold' : 'Normal') : 'Normal';
+
+    const macdVal = ind.macd;
+    const isMacdBullish = isMacdGoldenCross(macdVal);
+
+    const emaValues = getLatestEmaValues(ind.ema50, ind.ema200);
+    const isEmaBullish = isEmaGoldenCross(ind.ema50, ind.ema200);
+
+    const ema50Val = emaValues.ema50;
+    const ema200Val = emaValues.ema200;
+
+    let trendText = '';
+    if (ema50Val && ema200Val) {
+      trendText = ema50Val > ema200Val ? 'Bullish' : 'Bearish';
+    }
+
+    // Recommendation logic
+    let recommendation: 'STRONG BUY' | 'BUY' | 'STRONG SELL' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
+    let recStyle = { background: 'rgba(100, 116, 139, 0.12)', color: 'var(--text-secondary)' };
+
+    if (latestRsi !== null) {
+      if (latestRsi <= 30 && (isMacdBullish || isEmaBullish)) {
+        recommendation = 'STRONG BUY';
+        recStyle = { background: 'linear-gradient(135deg, #059669, #10B981)', color: '#ffffff' };
+      } else if (latestRsi <= 30 || isMacdBullish || isEmaBullish) {
+        recommendation = 'BUY';
+        recStyle = { background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' };
+      } else if (latestRsi >= 70 && trendText === 'Bearish') {
+        recommendation = 'STRONG SELL';
+        recStyle = { background: 'linear-gradient(135deg, #DC2626, #EF4444)', color: '#ffffff' };
+      } else if (latestRsi >= 70) {
+        recommendation = 'SELL';
+        recStyle = { background: 'rgba(244, 63, 94, 0.15)', color: 'var(--accent-red)' };
+      } else if (trendText === 'Bullish' && latestRsi > 30 && latestRsi < 45) {
+        // Pullback to support in uptrend
+        recommendation = 'BUY';
+        recStyle = { background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)' };
+      }
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.72rem' }}>
+        {manualRecBadge}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Teknikal:</span>
+          <span
+            className="badge"
+            style={{
+              fontSize: '0.68rem',
+              padding: '2px 6px',
+              fontWeight: 800,
+              borderRadius: 4,
+              ...recStyle
+            }}
+          >
+            {recommendation}
+          </span>
+        </div>
+        {latestRsi !== null && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>RSI:</span>
+            <span
+              className={`badge ${rsiStatus === 'Oversold' ? 'badge-green' : rsiStatus === 'Overbought' ? 'badge-red' : 'badge-blue'}`}
+              style={{ fontSize: '0.66rem', padding: '1px 5px', fontWeight: 700 }}
+            >
+              {latestRsi.toFixed(1)} {rsiStatus !== 'Normal' ? `(${rsiStatus})` : ''}
+            </span>
+          </div>
+        )}
+        {isMacdBullish && (
+          <span className="badge badge-green" style={{ fontSize: '0.65rem', alignSelf: 'flex-start', padding: '1px 5px', fontWeight: 700 }}>
+            MACD Golden Cross
+          </span>
+        )}
+        {trendText && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            <span
+              style={{
+                fontWeight: 700,
+                color: trendText === 'Bullish' ? 'var(--accent-green)' : 'var(--accent-red)'
+              }}
+            >
+              MA: {trendText}
+            </span>
+            {isEmaBullish && (
+              <span className="badge badge-green" style={{ fontSize: '0.65rem', padding: '1px 5px', fontWeight: 700 }}>
+                Golden Cross
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -297,7 +465,6 @@ export default function WatchlistPage() {
                     value={form.stockCode}
                     onChange={e => set('stockCode', e.target.value.toUpperCase())}
                     style={{ textTransform: 'uppercase' }}
-                    disabled={!!editingId}
                   />
                 </div>
                 <div className="form-group">
@@ -311,9 +478,34 @@ export default function WatchlistPage() {
                   />
                 </div>
                 <div className="form-group">
+                  <label className="form-label">Target Harga Jual</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="9500"
+                    value={form.targetSellPrice}
+                    onChange={e => set('targetSellPrice', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row" style={{ marginTop: 12 }}>
+                <div className="form-group">
                   <label className="form-label">Prioritas</label>
                   <select className="form-select" value={form.priority} onChange={e => set('priority', e.target.value)}>
                     {WATCHLIST_PRIORITY.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select className="form-select" value={form.status} onChange={e => set('status', e.target.value)}>
+                    {WATCHLIST_STATUS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Rekomendasi Manual</label>
+                  <select className="form-select" value={form.manualRecommendation} onChange={e => set('manualRecommendation', e.target.value)}>
+                    {MANUAL_RECOMMENDATIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -545,8 +737,9 @@ export default function WatchlistPage() {
                     <th><SortableTableHeader label="Kode" sortKey="stockCode" sortConfig={sortConfig} onSort={requestSort} /></th>
                     <th><SortableTableHeader label="Harga Pasar" sortKey="marketPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
                     <th><SortableTableHeader label="Tren (30 H)" sortKey="trend" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th>Rekomendasi / Sinyal</th>
                     <th><SortableTableHeader label="Target Beli" sortKey="targetPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
-                    <th><SortableTableHeader label="Jarak ke Target" sortKey="distanceToTarget" sortConfig={sortConfig} onSort={requestSort} /></th>
+                    <th><SortableTableHeader label="Target Jual" sortKey="targetSellPrice" sortConfig={sortConfig} onSort={requestSort} /></th>
                     <th><SortableTableHeader label="Alasan" sortKey="reason" sortConfig={sortConfig} onSort={requestSort} /></th>
                     <th><SortableTableHeader label="Prioritas" sortKey="priority" sortConfig={sortConfig} onSort={requestSort} /></th>
                     <th><SortableTableHeader label="Status" sortKey="status" sortConfig={sortConfig} onSort={requestSort} /></th>
@@ -627,33 +820,12 @@ export default function WatchlistPage() {
                             </div>
                           )}
                         </td>
-                        <td>{item.targetPrice ? formatRupiah(item.targetPrice) : '-'}</td>
                         <td>
-                          {item.targetPrice && marketData[item.stockCode]?.price ? (
-                            (() => {
-                              const currentPrice = marketData[item.stockCode].price;
-                              const targetPrice = item.targetPrice;
-                              const diffPct = ((targetPrice - currentPrice) / currentPrice) * 100;
-                              
-                              if (diffPct >= 0) {
-                                return (
-                                  <span className="badge badge-green" style={{ fontSize: '0.7rem' }}>
-                                    Buy Zone ({formatPercent(diffPct)})
-                                  </span>
-                                );
-                              } else {
-                                return (
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>
-                                    {diffPct.toFixed(1)}% lagi
-                                  </span>
-                                );
-                              }
-                            })()
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)' }}>-</span>
-                          )}
+                          {renderTechnicalSignals(item)}
                         </td>
-                        <td style={{ maxWidth: 250, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{item.reason || '-'}</td>
+                        <td>{item.targetPrice ? formatRupiah(item.targetPrice) : '-'}</td>
+                        <td>{item.targetSellPrice ? formatRupiah(item.targetSellPrice) : '-'}</td>
+                        <td style={{ maxWidth: 200, fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.reason}>{item.reason || '-'}</td>
                         <td><span className={`badge badge-${priority?.color || 'blue'}`}>{priority?.label || item.priority}</span></td>
                         <td>
                           <select

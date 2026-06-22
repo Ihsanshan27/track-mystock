@@ -17,18 +17,27 @@ Dokumen ini merangkum seluruh fitur utama yang saat ini tersedia di dalam sistem
 ### Kontrol akses
 - Protected route untuk halaman internal
 - Public route untuk login, register, verifikasi, dan reset password
-- Permission-based access control
-- Role-based restriction untuk fitur tertentu
-- Access denied state untuk user tanpa izin
+- Permission-based access control (menggunakan context izin akses granular)
+- Role-based restriction untuk seluruh halaman dan aksi di sistem
+- Access denied state untuk user yang tidak memiliki otorisasi fitur tertentu
+- **Matriks Peran (Role definitions)**:
+  - **Admin**: Akses penuh manajemen pengguna, pengelolaan workspace, dan audit logs aktivitas sistem.
+  - **Mentor**: Hak akses membaca jurnal yang dibagikan oleh Trader serta memberikan penilaian dan komentar (modul mentor saat ini dinonaktifkan).
+  - **Trader**: Akses penuh ke pencatatan transaksi pribadi, analisis portfolio, dividen, rencana trading, watchlist, kalkulator, dan pembuatan shared report.
+  - **Viewer**: Hak akses *read-only* ke dashboard, portofolio, analitik, dan laporan publik yang dibagikan.
 
 ## 2. Dashboard
 
 ### Dashboard utama
-- Ringkasan performa trading
-- Statistik profit/loss
-- Overview portofolio
-- Visual chart dan insight aktivitas
-- Recent data / aktivitas terbaru
+- Ringkasan performa trading & metrik portofolio aktif (ID / US market tab switcher)
+- Statistik profit/loss realized, win rate, dan rata-rata PnL per periode
+- Overview portofolio lengkap (Equity, Modal Aktif, Floating PnL, Total Invested, dan RDN Balance)
+- Grafik visual interaktif: Equity curve (performa portofolio vs IHSG) dan histogram PnL Harian
+- Insight aktivitas otomatis (Best Strategy, Emotional/Risk Guardrails, Worst Trading Day)
+- Recent data / daftar aktivitas transaksi terbaru yang diurutkan dinamis
+- **Integrasi Pasar**:
+  - Penarikan data real-time indeks IHSG (`^JKSE`) via Yahoo Finance API (grafik tren historis 30 hari & return periodik)
+  - Kalender performa bulanan dengan heat-map warna hijau/merah berdasarkan agregat PnL harian
 
 ## 3. Trading Journal
 
@@ -276,14 +285,16 @@ Dokumen ini merangkum seluruh fitur utama yang saat ini tersedia di dalam sistem
 - Privacy blur style
 
 ### Data layer
-- Local storage fallback
-- User-scoped persistence
-- Supabase persistence
-- Import/export structured data
-- Auto cache local data
+- **Dual-Engine Persistence**: Sinkronisasi otomatis ke Supabase database saat online, dan sandbox fallback ke Local Storage saat offline/standalone
+- User-scoped persistence (pemisahan penyimpanan data lokal & cache per akun user)
+- Row Level Security (RLS) pada tabel Supabase untuk keamanan data pengguna
+- Import/export data dalam format terstruktur (JSON/CSV)
+- Auto cache local data untuk mempercepat waktu muat aplikasi
 
 ## 17. Fitur yang Terlihat Dinonaktifkan
-- Mentor module ada di codebase tetapi saat ini disabled dari routing utama
+- **Mentor Module**: Terintegrasi di codebase (`src/modules/mentor`) tetapi dinonaktifkan dari routing utama dan sidebar.
+- **Screener Module**: Dinonaktifkan secara penuh dari menu navigasi dan routing utama.
+- **Per Komoditas (Category Module)**: Terintegrasi di codebase (`src/modules/category`) untuk penarikan batch quotes emiten sektoral komoditas secara real-time via Yahoo Finance, tetapi dinonaktifkan dari routing utama dan menu sidebar.
 
 ## Catatan
 - Dokumen ini berisi inventaris fitur yang sudah ada di sistem saat ini, bukan backlog fitur masa depan.

@@ -55,9 +55,12 @@ export interface WatchlistItem {
   id: string;
   stockCode: string;
   targetPrice?: number | null;
+  targetSellPrice?: number | null;
   reason?: string;
   status: 'waiting' | 'entered' | 'passed';
   priority: 'high' | 'medium' | 'low';
+  manualRecommendation?: 'BUY' | 'SELL' | 'HOLD' | 'NEUTRAL' | 'NONE';
+  categories?: string[];
   createdAt: string;
 }
 

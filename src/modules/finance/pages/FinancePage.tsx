@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Landmark, Plus, Pencil, Power, WalletCards, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
@@ -10,6 +11,9 @@ import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { FINANCE_ACCOUNT_TYPE_OPTIONS } from '@/modules/finance/utils/finance';
 import { calculatePortfolioBalance, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import '@/modules/finance/finance.css';
+
+const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#F43F5E', '#06B6D4', '#EC4899', '#84CC16'];
+
 
 function createInitialAccountForm() {
   return {
@@ -64,6 +68,86 @@ export default function FinancePage() {
     portfolios,
     getFinanceAccountCurrentBalance,
   ]);
+
+  const expenseCategoriesData = useMemo(() => {
+    const expenseTransactions = financeTransactions.filter((t: any) => t.type === 'expense');
+    const groups: Record<string, number> = {};
+    
+    expenseTransactions.forEach((t: any) => {
+      const category = t.category?.trim() ? t.category.trim() : 'Tanpa Kategori';
+      const amount = Math.abs(Number(t.amount) || 0);
+      groups[category] = (groups[category] || 0) + amount;
+    });
+
+    const rawData = Object.entries(groups).map(([name, value]) => ({ name, value }));
+    rawData.sort((a, b) => b.value - a.value);
+
+    if (rawData.length > 5) {
+      const top = rawData.slice(0, 4);
+      const others = rawData.slice(4).reduce((sum, item) => sum + item.value, 0);
+      top.push({ name: 'Lain-lain', value: others });
+      return top.filter(item => item.value > 0);
+    }
+    return rawData.filter(item => item.value > 0);
+  }, [financeTransactions]);
+
+  const savingsRateStats = useMemo(() => {
+    const income = summary.totalIncome;
+    const expense = summary.totalExpense;
+    const netSavings = income - expense;
+    const rate = income > 0 ? (netSavings / income) * 100 : 0;
+    return {
+      netSavings,
+      rate,
+      income,
+      expense
+    };
+  }, [summary]);
+
+  const savingTips = useMemo(() => {
+    const rate = savingsRateStats.rate;
+    const net = savingsRateStats.netSavings;
+    if (savingsRateStats.income === 0 && savingsRateStats.expense === 0) {
+      return {
+        title: "Mulai Catat Transaksi",
+        text: "Belum ada riwayat transaksi pemasukan atau pengeluaran di ledger. Catat mutasi kas Anda untuk melihat wawasan finansial pribadi.",
+        colorClass: "text-zinc-500",
+      };
+    }
+    if (net < 0) {
+      return {
+        title: "Peringatan Arus Kas Defisit!",
+        text: "Pengeluaran Anda melebihi pemasukan. Segera batasi pengeluaran non-primer dan lakukan audit keuangan pribadi agar terhindar dari hutang konsumtif.",
+        colorClass: "var(--accent-red)",
+      };
+    }
+    if (rate >= 50) {
+      return {
+        title: "Sangat Luar Biasa!",
+        text: "Anda menabung lebih dari 50% pendapatan. Pertahankan rasio ini dan alokasikan ke portfolio trading/investasi Anda untuk melipatgandakan aset secara optimal.",
+        colorClass: "var(--accent-green)",
+      };
+    }
+    if (rate >= 30) {
+      return {
+        title: "Kondisi Sangat Sehat",
+        text: "Tabungan Anda berada di kisaran 30-50%. Anda memiliki ketahanan finansial yang solid dan ruang investasi yang sangat baik.",
+        colorClass: "var(--accent-green)",
+      };
+    }
+    if (rate >= 10) {
+      return {
+        title: "Cukup Baik & Aman",
+        text: "Rasio tabungan 10-30% sudah sesuai standar minimal kesehatan keuangan. Coba kurangi pengeluaran gaya hidup untuk mempercepat kebebasan finansial.",
+        colorClass: "var(--accent-yellow)",
+      };
+    }
+    return {
+      title: "Perlu Peningkatan Arus Kas",
+      text: "Tingkat tabungan Anda di bawah 10%. Cari alternatif pemasukan tambahan atau kurangi pengeluaran yang tidak mendesak untuk memperbesar kapasitas investasi.",
+      colorClass: "var(--accent-orange)",
+    };
+  }, [savingsRateStats]);
 
   const totalTradingAssetsIDR = useMemo(() => {
     let total = 0;
@@ -227,6 +311,105 @@ export default function FinancePage() {
           <div className="finance-summary-note">Trading + saldo semua rekening finance</div>
         </div>
       </div>
+
+      {accountsWithStats.length > 0 && (
+        <div className="finance-insights-grid">
+          {/* Card 1: Alokasi Pengeluaran */}
+          <div className="card finance-insights-card">
+            <div className="card-header">
+              <h3 className="card-title">Alokasi Pengeluaran</h3>
+            </div>
+            <div className="card-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 240 }}>
+              {expenseCategoriesData.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', margin: 'auto' }}>
+                  Belum ada transaksi pengeluaran untuk dianalisis.
+                </div>
+              ) : (
+                <>
+                  <div style={{ height: 180, position: 'relative' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={expenseCategoriesData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={75}
+                          innerRadius={45}
+                          paddingAngle={3}
+                        >
+                          {expenseCategoriesData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value) => formatRupiah(Number(value))}
+                          contentStyle={{
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 8,
+                            fontSize: '0.8rem',
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="chart-legend-container">
+                    {expenseCategoriesData.map((item, index) => (
+                      <div key={item.name} className="chart-legend-item">
+                        <div className="chart-legend-color" style={{ background: COLORS[index % COLORS.length] }} />
+                        <span>{item.name} ({((item.value / summary.totalExpense) * 100).toFixed(1)}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Savings Rate & Wawasan */}
+          <div className="card finance-insights-card">
+            <div className="card-header">
+              <h3 className="card-title">Rasio Tabungan & Wawasan</h3>
+            </div>
+            <div className="card-body savings-rate-section">
+              <div className="savings-rate-metrics">
+                <div className="savings-rate-gauge">
+                  <div className="stat-card-label">Savings Rate</div>
+                  <div className="stat-card-value" style={{ color: savingTips.colorClass, fontSize: '1.8rem', margin: '8px 0', fontWeight: 700 }}>
+                    {savingsRateStats.rate.toFixed(1)}%
+                  </div>
+                  <div className="savings-progress-bar-bg">
+                    <div
+                      className="savings-progress-bar-fill"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, savingsRateStats.rate))}%`,
+                        background: savingTips.colorClass || 'var(--accent-blue)',
+                      }}
+                    />
+                  </div>
+                  <div className="finance-helper-text">Rekomendasi minimal: 10% - 20%</div>
+                </div>
+                <div className="savings-rate-gauge">
+                  <div className="stat-card-label">Sisa Tabungan Bersih</div>
+                  <div className="stat-card-value text-profit" style={{ fontSize: '1.4rem', margin: '12px 0', fontWeight: 700 }}>
+                    {formatRupiah(savingsRateStats.netSavings)}
+                  </div>
+                  <div className="finance-helper-text">Selisih Mutasi Income - Expense</div>
+                </div>
+              </div>
+
+              <div className="financial-tips-box">
+                <div className="financial-tips-title" style={{ color: savingTips.colorClass }}>
+                  {savingTips.title}
+                </div>
+                <div>{savingTips.text}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <div className="card" style={{ marginBottom: 24 }}>

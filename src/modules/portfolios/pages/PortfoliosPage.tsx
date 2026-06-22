@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
@@ -76,6 +76,7 @@ export default function PortfoliosPage() {
   const [activeMarketTab, setActiveMarketTab] = useState<'ID' | 'US'>('ID');
   const [draggedPortfolioId, setDraggedPortfolioId] = useState<string | null>(null);
   const [dragOverPortfolioId, setDragOverPortfolioId] = useState<string | null>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const activeFinanceAccounts = financeAccounts.filter((account: any) => account.isActive !== false);
 
   const portfolioMetrics = useMemo(() => {
@@ -156,6 +157,10 @@ export default function PortfoliosPage() {
       financeAccountId: portfolio.financeAccountId || '',
     });
     setComposerMode('edit');
+    // Scroll ke form edit setelah state selesai diset
+    setTimeout(() => {
+      composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   const movePortfolioCard = (sourceId: string, targetId: string) => {
@@ -198,7 +203,7 @@ export default function PortfoliosPage() {
       </div>
 
       {composerMode !== 'closed' ? (
-        <div className={`bento-card portfolio-composer-card ${composerMode === 'edit' ? 'is-editing' : ''}`}>
+        <div ref={composerRef} className={`bento-card portfolio-composer-card ${composerMode === 'edit' ? 'is-editing' : ''}`}>
           <h3 className="bento-card-title">{composerMode === 'edit' ? 'Edit Portofolio' : 'Buat Portofolio Baru'}</h3>
           <form onSubmit={composerMode === 'edit' ? handleUpdate : handleCreate}>
             <div className="form-group">

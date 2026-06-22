@@ -14,6 +14,7 @@ import { clearUserData, loadUserData, replaceAllUserData, saveUserData } from '@
 import { isMissingDatabaseSetupError } from '@/modules/shared/utils/errorMessages';
 import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { buildFinanceOverview, getFinanceAccountBalance, getFinanceTransactionDelta, isTransferTransaction } from '@/modules/finance/utils/finance';
+import { fetchQuotesBatch } from '@/modules/shared/services/yahooFinanceService';
 
 const DataContext = createContext(null);
 const DEFAULT_SETTINGS = {
@@ -111,7 +112,8 @@ export function DataProvider({ children }) {
     position: { capital: '', risk: '2', entry: '', stopLoss: '' },
     target: { buyPrice: '', targetPct: '', buyFee: '0.15', sellFee: '0.25' },
     compound: { principal: '10000000', rate: '5', months: '12' },
-    pension: { currentAge: '25', retireAge: '55', monthlyExpense: '5000000', currentSavings: '10000000', inflationPercent: '4', returnPercent: '10', swrPercent: '4' }
+    pension: { currentAge: '25', retireAge: '55', monthlyExpense: '5000000', currentSavings: '10000000', inflationPercent: '4', returnPercent: '10', swrPercent: '4' },
+    zakat: { goldPrice: '1400000', cash: '', gold: '', portfolio: '', business: '', receivables: '', debts: '' }
   });
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState('');
@@ -264,6 +266,48 @@ export function DataProvider({ children }) {
         });
     }
   }, [userId, showToast]);
+
+  const [initialPricesFetched, setInitialPricesFetched] = useState(false);
+
+  const fetchLivePrices = useCallback(async (stockCodes: string[]) => {
+    if (!stockCodes || stockCodes.length === 0) return;
+    try {
+      console.log('[DataContext] Auto-fetching live prices for tickers:', stockCodes);
+      const quotes = await fetchQuotesBatch(stockCodes);
+      let updated = false;
+      const pricesToMerge: Record<string, number> = {};
+      for (const ticker of stockCodes) {
+        if (quotes[ticker] && quotes[ticker].price != null) {
+          pricesToMerge[ticker] = quotes[ticker].price;
+          updated = true;
+        }
+      }
+      if (updated) {
+        setMarketPrices((prev) => {
+          const next = { ...prev, ...pricesToMerge };
+          persistData('marketPrices', next);
+          return next;
+        });
+      }
+    } catch (e) {
+      console.error('[DataContext] Failed to auto-fetch live prices:', e);
+    }
+  }, [persistData]);
+
+  useEffect(() => {
+    if (!userId) {
+      setInitialPricesFetched(false);
+      return;
+    }
+    if (dataLoading || initialPricesFetched) return;
+
+    const openTrades = allTrades.filter(t => !t.sellPrice || !t.dateSell);
+    const tickers = Array.from(new Set(openTrades.map(t => t.stockCode).filter(Boolean)));
+    if (tickers.length > 0) {
+      fetchLivePrices(tickers);
+      setInitialPricesFetched(true);
+    }
+  }, [dataLoading, userId, allTrades, fetchLivePrices, initialPricesFetched]);
 
   // Persist trades
   const saveTrades = useCallback((newTrades) => {
@@ -717,16 +761,22 @@ export function DataProvider({ children }) {
     const normalizedAmount = transaction.type === 'adjustment'
       ? Number(transaction.amount) || 0
       : Math.abs(Number(transaction.amount) || 0);
+    const isDepositRdn = transaction.category && transaction.category.trim().toLowerCase() === 'deposit rdn';
+    const isWithdrawRdn = transaction.category && transaction.category.trim().toLowerCase() === 'withdraw rdn';
+    const isRdnSync = isDepositRdn || isWithdrawRdn;
+    const rdnSyncMode = isDepositRdn ? 'transfer_to_portfolio' : 'transfer_from_portfolio';
+
     const baseTransaction = {
       ...transaction,
       id: generateId(),
       amount: normalizedAmount,
-      cashflowSyncMode: transaction.linkToCashflow ? (transaction.cashflowSyncMode || 'mirror') : undefined,
-      linkedPortfolioId: transaction.linkToCashflow ? transaction.linkedPortfolioId || activePortfolioId : undefined,
+      cashflowSyncMode: isRdnSync ? rdnSyncMode : (transaction.linkToCashflow ? (transaction.cashflowSyncMode || 'mirror') : undefined),
+      linkedPortfolioId: isRdnSync ? transaction.linkedPortfolioId || activePortfolioId || 'default' : (transaction.linkToCashflow ? transaction.linkedPortfolioId || activePortfolioId : undefined),
+      linkToCashflow: isRdnSync ? true : transaction.linkToCashflow,
       linkedCashflowId: undefined,
       createdAt: new Date().toISOString(),
     };
-    const finalTransaction = transaction.linkToCashflow
+    const finalTransaction = (baseTransaction.linkToCashflow || isRdnSync)
       ? upsertLinkedCashflowForFinanceTransaction(baseTransaction)
       : baseTransaction;
 
@@ -752,17 +802,23 @@ export function DataProvider({ children }) {
     }
 
     const nextType = updates.type || existingTransaction.type;
+    const nextCategory = updates.category !== undefined ? updates.category : existingTransaction.category;
+    const isDepositRdn = nextCategory && nextCategory.trim().toLowerCase() === 'deposit rdn';
+    const isWithdrawRdn = nextCategory && nextCategory.trim().toLowerCase() === 'withdraw rdn';
+    const isRdnSync = isDepositRdn || isWithdrawRdn;
+    const rdnSyncMode = isDepositRdn ? 'transfer_to_portfolio' : 'transfer_from_portfolio';
+
     const normalizedAmount = updates.amount != null
       ? (nextType === 'adjustment' ? Number(updates.amount) || 0 : Math.abs(Number(updates.amount) || 0))
       : existingTransaction.amount;
-    const wantsLink = updates.linkToCashflow != null
+    const wantsLink = isRdnSync ? true : (updates.linkToCashflow != null
       ? updates.linkToCashflow
-      : Boolean(existingTransaction.linkedCashflowId);
+      : Boolean(existingTransaction.linkedCashflowId));
     const linkedPortfolioId = wantsLink
       ? (updates.linkedPortfolioId || existingTransaction.linkedPortfolioId || activePortfolioId)
       : undefined;
     const cashflowSyncMode = wantsLink
-      ? (updates.cashflowSyncMode || existingTransaction.cashflowSyncMode || 'mirror')
+      ? (isRdnSync ? rdnSyncMode : (updates.cashflowSyncMode || existingTransaction.cashflowSyncMode || 'mirror'))
       : undefined;
 
     let updatedTransaction = {
@@ -771,6 +827,7 @@ export function DataProvider({ children }) {
       amount: normalizedAmount,
       linkedPortfolioId,
       cashflowSyncMode,
+      linkToCashflow: wantsLink,
       updatedAt: new Date().toISOString(),
     };
 
@@ -1395,6 +1452,7 @@ export function DataProvider({ children }) {
       updateSettings,
       marketPrices,
       updateMarketPrice,
+      fetchLivePrices,
       portfolios,
       activePortfolioId,
       addPortfolio,

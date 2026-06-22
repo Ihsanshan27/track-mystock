@@ -125,9 +125,9 @@ function isClosedTrade(trade: any) {
 
 export default function DashboardPage() {
    const { trades, cashflows, dividends, settings, marketPrices } = useData();
-   const [activeMarketTab, setActiveMarketTab] = useState<"ID" | "US">("ID");
+   const [activeMarketTab, setActiveMarketTab] = useState<"ID" | "US" | "ALL">("ID");
    const blurStyle = usePrivacyStyle();
-   const { formatMoney, isUS, formatPercent } = useMarketFormatter(activeMarketTab);
+   const { formatMoney, isUS, formatPercent } = useMarketFormatter(activeMarketTab === "ALL" ? "ID" : activeMarketTab);
    const [selectedRangeKey, setSelectedRangeKey] = useState<RangeKey>("mtd");
    const [performanceRangeKey, setPerformanceRangeKey] = useState<PerformanceRangeKey>("ytd");
    const [profitLossRangeKey, setProfitLossRangeKey] = useState<PerformanceRangeKey>("1m");
@@ -149,37 +149,73 @@ export default function DashboardPage() {
       return Array.from({ length: 12 }, (_, index) => currentYear - 10 + index);
    }, [now]);
 
-   const filteredTrades = useMemo(
-      () =>
-         trades.filter(
-            (trade) =>
-               trade.market === activeMarketTab || (!trade.market && activeMarketTab === "ID"),
-         ),
-      [trades, activeMarketTab],
-   );
-   const filteredCashflows = useMemo(
-      () =>
-         cashflows.filter(
-            (cashflow) =>
-               cashflow.market === activeMarketTab ||
-               (!cashflow.market && activeMarketTab === "ID"),
-         ),
-      [cashflows, activeMarketTab],
-   );
-   const filteredDividends = useMemo(
-      () =>
-         dividends.filter(
-            (dividend) =>
-               dividend.market === activeMarketTab ||
-               (!dividend.market && activeMarketTab === "ID"),
-         ),
-      [dividends, activeMarketTab],
-   );
+   const usdToIdrRate = settings.usdToIdrRate ?? 16200;
 
-   const initialCapitalForMarket =
-      activeMarketTab === "US"
+   const filteredTrades = useMemo(() => {
+      if (activeMarketTab === "ALL") {
+         return trades.map((trade) => {
+            if (trade.market === "US") {
+               return {
+                  ...trade,
+                  buyPrice: trade.buyPrice * usdToIdrRate,
+                  sellPrice: trade.sellPrice ? trade.sellPrice * usdToIdrRate : null,
+               };
+            }
+            return trade;
+         });
+      }
+      return trades.filter(
+         (trade) =>
+            trade.market === activeMarketTab || (!trade.market && activeMarketTab === "ID"),
+      );
+   }, [trades, activeMarketTab, usdToIdrRate]);
+
+   const filteredCashflows = useMemo(() => {
+      if (activeMarketTab === "ALL") {
+         return cashflows.map((cf) => {
+            if (cf.market === "US") {
+               return {
+                  ...cf,
+                  amount: cf.amount * usdToIdrRate,
+               };
+            }
+            return cf;
+         });
+      }
+      return cashflows.filter(
+         (cashflow) =>
+            cashflow.market === activeMarketTab ||
+            (!cashflow.market && activeMarketTab === "ID"),
+      );
+   }, [cashflows, activeMarketTab, usdToIdrRate]);
+
+   const filteredDividends = useMemo(() => {
+      if (activeMarketTab === "ALL") {
+         return dividends.map((d) => {
+            if (d.market === "US") {
+               return {
+                  ...d,
+                  totalAmount: (d.totalAmount || 0) * usdToIdrRate,
+               };
+            }
+            return d;
+         });
+      }
+      return dividends.filter(
+         (dividend) =>
+            dividend.market === activeMarketTab ||
+            (!dividend.market && activeMarketTab === "ID"),
+      );
+   }, [dividends, activeMarketTab, usdToIdrRate]);
+
+   const initialCapitalForMarket = useMemo(() => {
+      if (activeMarketTab === "ALL") {
+         return (settings.initialCapital ?? 10000000) + (settings.initialCapitalUS ?? 1000) * usdToIdrRate;
+      }
+      return activeMarketTab === "US"
          ? (settings.initialCapitalUS ?? 1000)
          : (settings.initialCapital ?? 10000000);
+   }, [activeMarketTab, settings, usdToIdrRate]);
 
    const stats = useMemo(() => calculateStats(filteredTrades), [filteredTrades]);
    const dashboardInsights = useMemo(
@@ -257,7 +293,6 @@ export default function DashboardPage() {
       [allUsTrades, allUsCashflows, allUsDividends, settings.initialCapitalUS],
    );
 
-   const usdToIdrRate = settings.usdToIdrRate ?? 16200;
    const totalCombinedEquityInIdr =
       indonesianMarketBalance.realizedEquity + usMarketBalance.realizedEquity * usdToIdrRate;
 
@@ -269,9 +304,19 @@ export default function DashboardPage() {
       );
    }, [trades, cashflows, dividends]);
 
+   const convertedMarketPrices = useMemo(() => {
+      if (activeMarketTab !== "ALL") return marketPrices;
+      const converted: Record<string, number> = {};
+      for (const [code, price] of Object.entries(marketPrices || {})) {
+         const isUsStock = trades.some((t) => t.stockCode === code && t.market === "US");
+         converted[code] = isUsStock ? (price as number) * usdToIdrRate : (price as number);
+      }
+      return converted;
+   }, [marketPrices, activeMarketTab, trades, usdToIdrRate]);
+
    const { openTrades, totalFloating, totalInvested, tradingBalance } = useOpenPositionMetrics(
       filteredTrades,
-      { market: activeMarketTab, marketPrices: marketPrices as Record<string, number> },
+      { market: activeMarketTab, marketPrices: convertedMarketPrices as Record<string, number> },
    );
 
    const recentTrades = filteredTrades
@@ -322,8 +367,7 @@ export default function DashboardPage() {
       return calendarDayCells;
    }, [calendarMonth, dailyPnL]);
 
-   const closedTrades = useMemo(
-      () =>
+   const closedTrades = useMemo(() =>
          filteredTrades
             .filter(isClosedTrade)
             .map((trade) => {
@@ -768,14 +812,14 @@ export default function DashboardPage() {
 
    return (
       <div>
-         <MarketTabBar activeTab={activeMarketTab} onChange={setActiveMarketTab} />
+         <MarketTabBar activeTab={activeMarketTab} onChange={setActiveMarketTab} showAll />
          {filteredTrades.length === 0 ? (
             <div className="empty-state dashboard-market-empty-state">
                <div className="empty-state-icon dashboard-empty-icon">
                   <Icons.LayoutDashboard size={48} />
                </div>
                <div className="empty-state-title">
-                  Belum ada transaksi di Pasar {isUS ? "Amerika" : "Indonesia"}
+                  Belum ada transaksi di {activeMarketTab === "ALL" ? "Pasar Indonesia maupun Amerika" : isUS ? "Pasar Amerika" : "Pasar Indonesia"}
                </div>
                <div className="empty-state-desc">
                   Catat transaksi pertama Anda untuk mulai memonitor performa.

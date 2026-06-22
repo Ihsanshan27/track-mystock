@@ -18,7 +18,8 @@ import {
   Settings,
   AlertTriangle,
   BookOpen,
-  ShieldAlert
+  ShieldAlert,
+  Heart
 } from 'lucide-react';
 
 const TABS = [
@@ -32,6 +33,7 @@ const TABS = [
   { id: 'target', label: 'Target Harga', icon: LineChart },
   { id: 'compound', label: 'Compounding', icon: Coins },
   { id: 'pension', label: 'Pensiun', icon: Coffee },
+  { id: 'zakat', label: 'Zakat Maal', icon: Heart },
 ];
 
 const CALCULATOR_GROUPS = [
@@ -55,9 +57,9 @@ const CALCULATOR_GROUPS = [
   },
   {
     id: 'growth',
-    label: 'Growth',
-    description: 'Proyeksi compounding dan target pensiun.',
-    tabs: ['compound', 'pension'],
+    label: 'Growth & Zakat',
+    description: 'Proyeksi pertumbuhan, target pensiun, dan zakat.',
+    tabs: ['compound', 'pension', 'zakat'],
   },
 ] as const;
 
@@ -72,6 +74,7 @@ const TAB_DESCRIPTIONS = {
   target: 'Hitung target harga jual sesuai target profit.',
   compound: 'Proyeksi pertumbuhan modal dari compounding.',
   pension: 'Hitung kebutuhan dana pensiun dan Coast FIRE.',
+  zakat: 'Hitung kewajiban Zakat Maal (2.5%) atas harta.',
 } as const;
 
 function ResultRow({ label, value, className, big }: { label: string; value: string; className?: string; big?: boolean }) {
@@ -981,6 +984,132 @@ function RiskRewardCalculator({ draft, setDraft }: CalcProps) {
   );
 }
 
+function ZakatCalculator({ draft, setDraft }: CalcProps) {
+  const { trades, cashflows, dividends, settings } = useData();
+  const { goldPrice, cash, gold, portfolio, business, receivables, debts } = draft;
+
+  const setGoldPrice = (val: string) => setDraft({ ...draft, goldPrice: val });
+  const setCash = (val: string) => setDraft({ ...draft, cash: val });
+  const setGold = (val: string) => setDraft({ ...draft, gold: val });
+  const setPortfolio = (val: string) => setDraft({ ...draft, portfolio: val });
+  const setBusiness = (val: string) => setDraft({ ...draft, business: val });
+  const setReceivables = (val: string) => setDraft({ ...draft, receivables: val });
+  const setDebts = (val: string) => setDraft({ ...draft, debts: val });
+
+  const fillPortfolioFromJournal = () => {
+    const balance = calculatePortfolioBalance(trades, cashflows, dividends, settings.initialCapital);
+    setPortfolio(Math.round(balance.realizedEquity).toString());
+  };
+
+  const gp = parseFloat(goldPrice) || 0;
+  const c = parseFloat(cash) || 0;
+  const g = parseFloat(gold) || 0;
+  const p = parseFloat(portfolio) || 0;
+  const b = parseFloat(business) || 0;
+  const r = parseFloat(receivables) || 0;
+  const d = parseFloat(debts) || 0;
+
+  const nisabThreshold = gp * 85;
+  const totalAssets = c + g + p + b + r;
+  const netWealth = Math.max(0, totalAssets - d);
+  const wajibZakat = netWealth >= nisabThreshold && nisabThreshold > 0;
+  const zakatAmount = wajibZakat ? netWealth * 0.025 : 0;
+
+  const reset = () => {
+    setDraft({ goldPrice: '1400000', cash: '', gold: '', portfolio: '', business: '', receivables: '', debts: '' });
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 12, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+        Hitung kewajiban Zakat Maal (2.5%) atas harta simpanan yang telah mencapai haul (1 tahun) dan nisab (setara 85g emas).
+      </div>
+      <div className="form-row">
+        <div className="form-group">
+          <label className="form-label">Harga Emas Antam (per gram)</label>
+          <CurrencyInput className="form-input" placeholder="1.400.000" value={goldPrice} onChange={e => setGoldPrice(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Kas &amp; Rekening Bank (Rp)</label>
+          <CurrencyInput className="form-input" placeholder="10.000.000" value={cash} onChange={e => setCash(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label className="form-label">Emas, Perak &amp; Permata (Rp)</label>
+          <CurrencyInput className="form-input" placeholder="5.000.000" value={gold} onChange={e => setGold(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Investasi (Saham &amp; Reksadana)</span>
+            <button
+              type="button"
+              onClick={fillPortfolioFromJournal}
+              style={{ fontSize: '0.7rem', padding: '2px 8px', background: 'var(--accent-green-dim)', color: 'var(--accent-green)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: 4, cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              <RotateCcw size={10} />
+              Pakai Saldo Jurnal
+            </button>
+          </label>
+          <CurrencyInput className="form-input" placeholder="15.000.000" value={portfolio} onChange={e => setPortfolio(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
+          <label className="form-label">Harta Dagangan &amp; Bisnis (Rp)</label>
+          <CurrencyInput className="form-input" placeholder="0" value={business} onChange={e => setBusiness(e.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Piutang Lancar (Rp)</label>
+          <CurrencyInput className="form-input" placeholder="0" value={receivables} onChange={e => setReceivables(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label">Hutang &amp; Kewajiban Jatuh Tempo (Rp)</label>
+        <CurrencyInput className="form-input" placeholder="Batas hutang yang mengurangi zakat" value={debts} onChange={e => setDebts(e.target.value)} />
+      </div>
+
+      <button className="btn btn-ghost btn-sm" onClick={reset} style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <RotateCcw size={14} />
+        Reset
+      </button>
+
+      {gp > 0 && (
+        <div className="calc-result">
+          <ResultRow label="Nisab Harta (85 gram Emas)" value={formatRupiah(nisabThreshold)} />
+          <ResultRow label="Total Harta Bersih (setelah hutang)" value={formatRupiah(netWealth)} big />
+
+          <div style={{ marginTop: 12, padding: '12px 16px', background: wajibZakat ? 'var(--accent-green-dim)' : 'var(--accent-yellow-dim)', borderRadius: 8, border: `1px solid ${wajibZakat ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: wajibZakat ? 'var(--accent-green)' : 'var(--accent-yellow)', marginBottom: 4 }}>
+              <ShieldAlert size={16} />
+              Status: {wajibZakat ? 'Wajib Mengeluarkan Zakat' : 'Belum Wajib Mengeluarkan Zakat'}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+              {wajibZakat
+                ? 'Harta bersih Anda telah melebihi ambang batas Nisab 85 gram emas. Kewajiban zakat maal adalah sebesar 2.5% dari harta bersih.'
+                : 'Harta bersih Anda masih di bawah ambang batas Nisab emas harian. Anda belum wajib mengeluarkan zakat maal.'}
+            </div>
+          </div>
+
+          {wajibZakat && (
+            <div style={{ marginTop: 14 }}>
+              <ResultRow
+                label="Jumlah Zakat Maal (2.5%)"
+                value={formatRupiah(zakatAmount)}
+                className="text-profit"
+                big
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CalculatorPage() {
   const { calculatorActiveTab, setCalculatorActiveTab, calculatorDrafts, setCalculatorDrafts } = useData();
 
@@ -1156,6 +1285,12 @@ export default function CalculatorPage() {
             <PensionCalculator
               draft={calculatorDrafts.pension}
               setDraft={(val) => updateDraft('pension', val)}
+            />
+          )}
+          {calculatorActiveTab === 'zakat' && (
+            <ZakatCalculator
+              draft={calculatorDrafts.zakat}
+              setDraft={(val) => updateDraft('zakat', val)}
             />
           )}
         </div>

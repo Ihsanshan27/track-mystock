@@ -39,7 +39,7 @@ export function useOpenPositionMetrics(
     return trades.filter((t) => {
       const isOpen = t.sellPrice == null || !t.dateSell;
       if (!isOpen) return false;
-      if (market) {
+      if (market && market !== 'ALL') {
         return market === 'US' ? t.market === 'US' : t.market !== 'US' || !t.market;
       }
       return true;
