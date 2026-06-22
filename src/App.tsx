@@ -10,6 +10,8 @@ import { DialogProvider } from '@/modules/shared/context/DialogContext';
 import LoginPage from '@/modules/auth/pages/LoginPage';
 import RegisterPage from '@/modules/auth/pages/RegisterPage';
 import VerifyEmailPage from '@/modules/auth/pages/VerifyEmailPage';
+import ForgotPasswordPage from '@/modules/auth/pages/ForgotPasswordPage';
+import ResetPasswordPage from '@/modules/auth/pages/ResetPasswordPage';
 import DashboardPage from '@/modules/dashboard/pages/DashboardPage';
 import TradesPage from '@/modules/trades/pages/TradesPage';
 import NewTradePage from '@/modules/trades/pages/NewTradePage';
@@ -129,6 +131,8 @@ function AppRoutes() {
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
       <Route path="/verify-email" element={<PublicRoute><VerifyEmailPage /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/shared/:shareId" element={<SharedReportPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<PermissionRoute permission="dashboard:read"><DashboardPage /></PermissionRoute>} />

@@ -4,6 +4,7 @@ import { isSupabaseConfigured, supabase } from '@/modules/shared/services/supaba
 import { updateProfileName } from '@/modules/shared/services/profileService';
 import { getAuthErrorMessage } from '@/modules/shared/utils/errorMessages';
 import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
+import { clearPasswordRecoveryReady, markPasswordRecoveryReady } from '@/modules/auth/passwordRecoveryStorage';
 
 const AuthContext = createContext(null);
 const SESSION_CACHE_KEY = 'supabase_session_cache';
@@ -35,6 +36,12 @@ export function AuthProvider({ children }) {
       });
 
       const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (_event === 'PASSWORD_RECOVERY') {
+          markPasswordRecoveryReady();
+        }
+        if (_event === 'SIGNED_OUT' || _event === 'USER_UPDATED') {
+          clearPasswordRecoveryReady();
+        }
         const sessionUser = mapSupabaseUser(session?.user);
         setUser(sessionUser);
         setItem(SESSION_CACHE_KEY, sessionUser);
@@ -255,6 +262,69 @@ export function AuthProvider({ children }) {
     return { success: true };
   };
 
+  const requestPasswordRecovery = async (email) => {
+    if (!isSupabaseConfigured) {
+      return {
+        success: false,
+        error: 'Lupa password via email hanya tersedia saat Supabase aktif.',
+      };
+    }
+
+    const redirectTo = new URL('/reset-password', window.location.origin).toString();
+    const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase(), {
+      redirectTo,
+    });
+
+    if (error) {
+      return { success: false, error: getAuthErrorMessage(error.message) };
+    }
+
+    return {
+      success: true,
+      message: 'Link reset password sudah dikirim. Cek inbox atau folder spam email Anda.',
+    };
+  };
+
+  const resetPassword = async (newPassword) => {
+    if (!isSupabaseConfigured) {
+      return {
+        success: false,
+        error: 'Reset password hanya tersedia saat Supabase aktif.',
+      };
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      return { success: false, error: getAuthErrorMessage(error.message) };
+    }
+
+    if (data.user) {
+      await createAuditLogSafe({
+        actorId: data.user.id,
+        action: 'auth.password_reset',
+        targetType: 'auth_user',
+        targetId: data.user.id,
+        metadata: {
+          email: data.user.email,
+          provider: 'supabase',
+        },
+      });
+    }
+
+    clearPasswordRecoveryReady();
+    await supabase.auth.signOut();
+    setItem(SESSION_CACHE_KEY, null);
+    setUser(null);
+
+    return {
+      success: true,
+      message: 'Password berhasil diperbarui. Silakan login dengan password baru Anda.',
+    };
+  };
+
   const logout = async () => {
     if (isSupabaseConfigured) {
       await createAuditLogSafe({
@@ -267,10 +337,11 @@ export function AuthProvider({ children }) {
         },
       });
       await supabase.auth.signOut();
-      setItem(SESSION_CACHE_KEY, null);
-      setUser(null);
-      return;
-    }
+    setItem(SESSION_CACHE_KEY, null);
+    setUser(null);
+    clearPasswordRecoveryReady();
+    return;
+  }
 
     await createAuditLogSafe({
       actorId: user?.id,
@@ -313,7 +384,18 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, register, login, logout, updateUsername, verifyEmailOtp, resendEmailOtp }}
+      value={{
+        user,
+        loading,
+        register,
+        login,
+        logout,
+        updateUsername,
+        verifyEmailOtp,
+        resendEmailOtp,
+        requestPasswordRecovery,
+        resetPassword,
+      }}
     >
       {children}
     </AuthContext.Provider>

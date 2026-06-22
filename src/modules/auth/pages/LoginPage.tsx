@@ -90,6 +90,10 @@ export default function LoginPage() {
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? 'Memproses...' : 'Masuk'}
           </button>
+
+          <div className="auth-form-links">
+            <Link to="/forgot-password">Lupa password?</Link>
+          </div>
         </form>
 
         {showVerificationAction && (

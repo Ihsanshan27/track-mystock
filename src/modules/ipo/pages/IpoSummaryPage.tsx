@@ -71,6 +71,53 @@ export default function IpoSummaryPage() {
     tieBreaker: (a: any, b: any) => new Date(b.event.ipoDate).getTime() - new Date(a.event.ipoDate).getTime(),
   });
 
+  const accountCapitalSummaries = useMemo(() => {
+    const eventMap = new Map(ipoEvents.map((event: IpoEvent) => [event.id, event]));
+    const groupedAccounts = new Map<string, {
+      accountName: string;
+      email: string;
+      joinedEvents: Set<string>;
+      totalLots: number;
+      totalCapital: number;
+      breakdown: string[];
+    }>();
+
+    ipoEntries.forEach((entry: any) => {
+      const event = eventMap.get(entry.ipoEventId);
+      if (!event) return;
+
+      const accountKey = `${(entry.accountName || '').trim().toLowerCase()}::${(entry.email || '').trim().toLowerCase()}`;
+      const lots = Number(entry.lots) || 0;
+      const totalCapital = (event.offeringPrice || entry.buyPrice || 0) * lots * 100;
+      const breakdownLabel = `${event.stockCode} (${lots} lot)`;
+
+      if (!groupedAccounts.has(accountKey)) {
+        groupedAccounts.set(accountKey, {
+          accountName: entry.accountName || 'Tanpa nama akun',
+          email: entry.email || '-',
+          joinedEvents: new Set(),
+          totalLots: 0,
+          totalCapital: 0,
+          breakdown: [],
+        });
+      }
+
+      const current = groupedAccounts.get(accountKey)!;
+      current.joinedEvents.add(event.id);
+      current.totalLots += lots;
+      current.totalCapital += totalCapital;
+      current.breakdown.push(breakdownLabel);
+    });
+
+    return Array.from(groupedAccounts.values())
+      .map((account) => ({
+        ...account,
+        eventCount: account.joinedEvents.size,
+        breakdown: account.breakdown.join(', '),
+      }))
+      .sort((a, b) => b.totalCapital - a.totalCapital || a.accountName.localeCompare(b.accountName));
+  }, [ipoEntries, ipoEvents]);
+
   // Calculate global summary metrics
   const globalMetrics = useMemo(() => {
     let totalCapital = 0;
@@ -241,6 +288,52 @@ export default function IpoSummaryPage() {
       )}
 
       {/* Detailed Table */}
+      <div className="card" style={{ marginBottom: 28 }}>
+        <div className="card-header">
+          <h3 className="card-title">💼 Estimasi Modal Total Per Akun IPO</h3>
+        </div>
+        <div className="card-body" style={{ padding: 0 }}>
+          <div className="table-container" style={{ border: 'none', margin: 0 }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Nama Akun</th>
+                  <th>Email</th>
+                  <th>Total IPO</th>
+                  <th>Total Lot</th>
+                  <th>Rincian IPO</th>
+                  <th>Total Modal Dibutuhkan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accountCapitalSummaries.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 16px' }}>
+                      Belum ada partisipasi akun IPO yang bisa dihitung.
+                    </td>
+                  </tr>
+                ) : (
+                  accountCapitalSummaries.map((account) => (
+                    <tr key={`${account.accountName}-${account.email}`}>
+                      <td style={{ fontWeight: 700 }}>{account.accountName}</td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>{account.email || '-'}</td>
+                      <td style={{ fontWeight: 600 }}>{account.eventCount} IPO</td>
+                      <td style={{ fontWeight: 600 }}>{account.totalLots} lot</td>
+                      <td style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: 320 }}>
+                        {account.breakdown}
+                      </td>
+                      <td className="font-mono" style={{ fontWeight: 800, ...blurStyle }}>
+                        {formatRupiah(account.totalCapital)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div className="card">
         <div className="card-header">
           <h3 className="card-title">📋 Rincian Performa Saham IPO</h3>
