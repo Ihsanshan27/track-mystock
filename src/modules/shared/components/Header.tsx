@@ -194,6 +194,9 @@ export default function Header({ pageTitle, onMenuToggle }) {
         </div>
       </div>
       <style>{`
+        .mobile-menu-btn {
+          display: none;
+        }
         .profile-menu-wrap {
           position: relative;
         }
