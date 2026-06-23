@@ -32,7 +32,7 @@ Dokumen ini merangkum backlog peningkatan sistem `Jurnal Saham` setelah penyeles
 | Prioritas 5 - IPO Module | `[Done]` | `██████████` | Field tambahan, chronological timeline, filter bar, dan stats underwriter selesai |
 | Prioritas 6 - Trading & Portfolio | `[Done]` | `██████████` | Selesai (rekonsiliasi posisi, audit logs detail, bulk actions) |
 | Prioritas 7 - Reporting & Insight | `[Todo]` | `█░░░░░░░░░` | Masih kandidat setelah fitur inti |
-| Prioritas 8 - Dokumentasi | `[In Progress]` | `█████░░░░░` | Dokumen progres dan quality note sudah ada |
+| Prioritas 8 - Dokumentasi | `[Done]` | `██████████` | Selesai (dokumentasi teknis lengkap dan changelog internal) |
 
 ## Current Board
 
@@ -40,7 +40,7 @@ Dokumen ini merangkum backlog peningkatan sistem `Jurnal Saham` setelah penyeles
 |---|---|---|---|
 | lint TypeScript / TSX aktif | audit persistence key lanjutan | | laporan performa periodik |
 | test runner `Vitest` aktif | visual consistency IPO | | insight lintas modul |
-| test trade calculations | dokumentasi arsitektur data flow | | |
+| test trade calculations | | | |
 | test util IPO status | | | |
 | test util finance | | | |
 | helper dashboard date/range dipisah | | | |
@@ -60,13 +60,15 @@ Dokumen ini merangkum backlog peningkatan sistem `Jurnal Saham` setelah penyeles
 | rekonsiliasi posisi & over-sell | | | |
 | histori perubahan transaksi (audit logs) | | | |
 | bulk action trade & IPO entries | | | |
+| dokumentasi arsitektur data flow | | | |
+| dokumentasi teknis & changelog | | | |
 
 ## Mini Kanban
 
 | Now | Next Up | Later |
 |---|---|---|
-| Rapikan dokumentasi arsitektur | Laporan performa periodik | Provider split finance/trade |
-| | Insight lintas modul | |
+| Laporan performa periodik | Insight lintas modul | Provider split finance/trade |
+| | | |
 
 ## Checklist Cepat
 
@@ -271,21 +273,20 @@ Langkah lanjutan yang mungkin:
 
 ## Prioritas 8 - Dokumentasi dan Operasional
 
-### 23. Rapikan dokumentasi teknis `[In Progress]`
-- arsitektur data flow
-- struktur context/provider
-- panduan penambahan modul baru
-- panduan naming dan typing
+### 23. Rapikan dokumentasi teknis `[Done]`
+- [x] arsitektur data flow
+- [x] struktur context/provider
+- [x] panduan penambahan modul baru
+- [x] panduan naming dan typing
 
-### 24. Tambah changelog internal `[Todo]`
-- perubahan fitur
-- perbaikan bug
-- breaking changes
-- migrasi data
+### 24. Tambah changelog internal `[Done]`
+- [x] perubahan fitur
+- [x] perbaikan bug
+- [x] breaking changes
+- [x] migrasi data
 
 ## Suggested Next Move
 
-Setelah `Prioritas 4` & `Prioritas 5` selesai, urutan paling efektif berikutnya:
+Setelah `Prioritas 6` dan `Prioritas 8` selesai, langkah berikutnya adalah:
 
-1. lanjut ke `Prioritas 6 - Trading dan Portfolio` (rekonsiliasi posisi, deteksi over-sell)
-2. bulk action untuk transaksi trading dan IPO entries
+1. Lanjut ke `Prioritas 7 - Reporting dan Insight` (Laporan performa periodik bulanan/mingguan, insight lintas modul).
