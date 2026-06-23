@@ -62,7 +62,6 @@ const brokerAliases: Record<string, Record<string, string[]>> = {
 
 export default function ImportCSVModal({ isOpen, onClose, onImportSuccess, addTrade, showToast }: ImportCSVModalProps) {
   const [fileData, setFileData] = useState<any[]>([]);
-  const [headers, setHeaders] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [brokerPreset, setBrokerPreset] = useState<'default' | 'ajaib' | 'mirae' | 'ipot'>('default');
   const [rawFileText, setRawFileText] = useState<string>('');
@@ -108,8 +107,6 @@ export default function ImportCSVModal({ isOpen, onClose, onImportSuccess, addTr
 
       // Split by commas, handling simple quotes
       const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
-      setHeaders(rawHeaders);
-
       // Find index of key columns (case insensitive, Indonesian & English)
       const getColIdx = (aliases: string[]) => {
         return rawHeaders.findIndex(h => aliases.some(alias => h.toLowerCase() === alias.toLowerCase()));
@@ -211,7 +208,7 @@ export default function ImportCSVModal({ isOpen, onClose, onImportSuccess, addTr
       try {
         addTrade(row);
         successCount++;
-      } catch (e) {
+      } catch {
         // ignore
       }
     });

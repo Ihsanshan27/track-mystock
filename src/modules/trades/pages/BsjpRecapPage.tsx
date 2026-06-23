@@ -234,7 +234,7 @@ export default function BsjpRecapPage() {
       let displayPnLPercent = calc.pnlPercent;
       let isEstimasi = false;
       
-      let totalKeluar = calc.totalBuy + calc.buyCommission;
+      const totalKeluar = calc.totalBuy + calc.buyCommission;
       let totalMasuk = isOpen ? 0 : calc.totalSell - calc.sellCommission;
 
       if (isOpen) {
@@ -529,7 +529,7 @@ export default function BsjpRecapPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pagedRows.map((row, idx) => {
+                    {pagedRows.map((row) => {
                       const isProfit = row.displayPnL > 0;
                       const isLoss = row.displayPnL < 0;
                       const showIncome = !row.isOpen;

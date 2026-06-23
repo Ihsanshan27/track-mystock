@@ -7,6 +7,7 @@ import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/modules/auth/AuthContext';
 import TradeReviewPanel from '@/modules/trades/components/TradeReviewPanel';
+import * as Icons from 'lucide-react';
 
 export default function TradeDetailPage() {
   const { id } = useParams();
@@ -351,6 +352,120 @@ export default function TradeDetailPage() {
           ) : null}
         </div>
       </div>
+
+      {trade.history && trade.history.length > 0 && (
+        <div className="card" style={{ marginTop: 24, marginBottom: 20 }}>
+          <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icons.History size={18} style={{ color: 'var(--accent-blue-light)' }} />
+            <h3 className="card-title">Histori Perubahan Transaksi</h3>
+          </div>
+          <div className="card-body" style={{ padding: 18 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {trade.history.map((log, index) => {
+                // Compute changed fields
+                const keys = Array.from(new Set([...Object.keys(log.before || {}), ...Object.keys(log.after || {})]));
+                const changes = [];
+                for (const key of keys) {
+                  if (key === 'history' || key === 'updatedAt' || key === 'createdAt') continue;
+                  const valBefore = log.before[key];
+                  const valAfter = log.after[key];
+                  
+                  if (Array.isArray(valBefore) || Array.isArray(valAfter)) {
+                    const strBefore = (valBefore || []).join(', ');
+                    const strAfter = (valAfter || []).join(', ');
+                    if (strBefore !== strAfter) {
+                      changes.push({ field: key, before: strBefore || '—', after: strAfter || '—' });
+                    }
+                  } else if (valBefore !== valAfter) {
+                    changes.push({ field: key, before: valBefore ?? '—', after: valAfter ?? '—' });
+                  }
+                }
+
+                const fieldLabels: Record<string, string> = {
+                  assetType: 'Jenis Aset',
+                  market: 'Pasar',
+                  stockCode: 'Kode Saham',
+                  dateBuy: 'Tanggal Beli',
+                  dateSell: 'Tanggal Jual',
+                  buyPrice: 'Harga Beli/NAB',
+                  sellPrice: 'Harga Jual/NAB',
+                  lots: 'Kuantitas (Lot/Shares/Unit)',
+                  buyFee: 'Fee Beli (%)',
+                  sellFee: 'Fee Jual (%)',
+                  strategy: 'Strategi',
+                  reasonEntry: 'Alasan Entry',
+                  reasonExit: 'Alasan Exit',
+                  emotion: 'Emosi',
+                  rating: 'Rating',
+                  tags: 'Tag',
+                  notes: 'Catatan',
+                  portfolioId: 'Portofolio',
+                  setupImageUrl: 'URL Setup Chart'
+                };
+
+                const formatValueForDisplay = (field: string, val: any) => {
+                  if (val === '—') return val;
+                  if (field === 'buyPrice' || field === 'sellPrice') {
+                    return typeof val === 'number' ? formatMoney(val) : val;
+                  }
+                  if (field === 'portfolioId') {
+                    const port = portfolios.find((p: any) => p.id === val);
+                    return port ? port.name : val;
+                  }
+                  if (field === 'emotion') {
+                    const em = emotionsList.find((e: any) => e.value === val);
+                    return em ? em.label : val;
+                  }
+                  return String(val);
+                };
+
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      borderBottom: index < (trade.history || []).length - 1 ? '1px solid var(--border-color)' : 'none',
+                      paddingBottom: index < (trade.history || []).length - 1 ? 16 : 0,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        👤 Penyunting: <span style={{ color: 'var(--accent-blue-light)' }}>{log.editedBy}</span>
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        📅 Waktu: {new Date(log.editedAt).toLocaleString('id-ID')}
+                      </div>
+                    </div>
+                    {changes.length === 0 ? (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Penyimpanan tanpa perubahan nilai field.</div>
+                    ) : (
+                      <div className="table-container" style={{ margin: 0, border: '1px solid rgba(255,255,255,0.05)', borderRadius: 6 }}>
+                        <table className="table" style={{ margin: 0, fontSize: '0.8rem' }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                              <th style={{ padding: '6px 12px' }}>Nama Kolom</th>
+                              <th style={{ padding: '6px 12px' }}>Sebelum</th>
+                              <th style={{ padding: '6px 12px' }}>Sesudah</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {changes.map((c, idx) => (
+                              <tr key={idx}>
+                                <td style={{ padding: '8px 12px', fontWeight: 600 }}>{fieldLabels[c.field] || c.field}</td>
+                                <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>{formatValueForDisplay(c.field, c.before)}</td>
+                                <td style={{ padding: '8px 12px', color: 'var(--accent-blue-light)', fontWeight: 600 }}>{formatValueForDisplay(c.field, c.after)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editing ? (
         <div className="mobile-sticky-actions">

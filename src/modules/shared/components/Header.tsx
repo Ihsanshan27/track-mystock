@@ -12,7 +12,7 @@ import { formatRupiah } from '@/modules/shared/utils/formatters';
 export default function Header({ pageTitle, onMenuToggle }) {
   const { user, logout } = useAuth();
   const { profile, role, roleLabel, roleError } = usePermissions();
-  const { availableWorkspaces, activeWorkspaceId, selectWorkspace, workspaceLoading } = useWorkspace();
+  useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const { portfolios, activePortfolioId: activePortId, selectPortfolio, allTrades, allCashflows, allDividends, settings } = useData();
   const [profileOpen, setProfileOpen] = useState(false);

@@ -4,6 +4,14 @@ export interface Portfolio {
   description?: string;
   createdAt: string;
   isDefault?: boolean;
+  financeAccountId?: string;
+}
+
+export interface TradeAuditLog {
+  editedBy: string;
+  editedAt: string;
+  before: Partial<Trade>;
+  after: Partial<Trade>;
 }
 
 export interface Trade {
@@ -28,7 +36,9 @@ export interface Trade {
   portfolioId?: string;
   createdAt?: string;
   updatedAt?: string;
+  history?: TradeAuditLog[];
 }
+
 
 export interface Cashflow {
   id: string;
@@ -38,6 +48,7 @@ export interface Cashflow {
   notes?: string;
   portfolioId?: string;
   createdAt?: string;
+  linkedFinanceTransactionId?: string;
 }
 
 export interface Dividend {

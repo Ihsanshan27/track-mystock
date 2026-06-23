@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { calcProfitLoss, calcBrokerFee, calcAveragePrice, calcPositionSize, calcTargetPrice, calcPensionFund, calcAverageDown, calcRiskReward } from '@/modules/trades/calculations';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah } from '@/modules/shared/utils/formatters';

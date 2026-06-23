@@ -1,7 +1,23 @@
 import { supabase } from '@/modules/shared/services/supabaseClient';
 
 const TABLE_NAME = 'journal_data';
-const DATA_KEYS = ['trades', 'watchlist', 'notes', 'cashflows', 'dividends', 'settings', 'marketPrices', 'portfolios', 'tradingPlans', 'ipoEvents', 'ipoEntries', 'bsjpTrades', 'financeAccounts', 'financeTransactions'];
+const DATA_KEYS = [
+  'trades',
+  'watchlist',
+  'notes',
+  'cashflows',
+  'dividends',
+  'settings',
+  'marketPrices',
+  'portfolios',
+  'tradingPlans',
+  'ipoEvents',
+  'ipoEntries',
+  'ipoAccounts',
+  'bsjpTrades',
+  'financeAccounts',
+  'financeTransactions',
+];
 
 export async function loadUserData(userId) {
   const ownerId = getRequiredUserId(userId);
@@ -21,28 +37,18 @@ export async function loadUserData(userId) {
 
 export async function saveUserData(dataKey, data, userId) {
   const ownerId = getRequiredUserId(userId);
-  const existingRow = await findUserDataRow(dataKey, ownerId);
-
-  if (existingRow?.id) {
-    const { error } = await supabase
-      .from(TABLE_NAME)
-      .update({
-        data,
-        user_id: ownerId,
-      })
-      .eq('id', existingRow.id);
-
-    if (error) throw error;
-    return;
-  }
-
   const { error } = await supabase
     .from(TABLE_NAME)
-    .insert({
-      user_id: ownerId,
-      data_key: dataKey,
-      data,
-    });
+    .upsert(
+      {
+        user_id: ownerId,
+        data_key: dataKey,
+        data,
+      },
+      {
+        onConflict: 'user_id,data_key',
+      },
+    );
 
   if (error) throw error;
 }
@@ -71,16 +77,4 @@ export { DATA_KEYS };
 function getRequiredUserId(userId) {
   if (!userId) throw new Error('User belum login');
   return userId;
-}
-
-async function findUserDataRow(dataKey, userId) {
-  const { data, error } = await supabase
-    .from(TABLE_NAME)
-    .select('id')
-    .eq('user_id', userId)
-    .eq('data_key', dataKey)
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
 }

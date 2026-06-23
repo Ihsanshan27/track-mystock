@@ -4,7 +4,7 @@ import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import { calculatePortfolioBalance } from '@/modules/trades/calculations';
 import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
-import { formatRupiah, formatUSD, formatPercent } from '@/modules/shared/utils/formatters';
+import { formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import * as Icons from 'lucide-react';

@@ -8,6 +8,7 @@ import { formatRupiah } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import type { IpoEvent, IpoAccount } from '@/modules/ipo/types/ipo';
+import { getIpoEventStatus } from '@/modules/ipo/utils/ipoStatus';
 import '@/modules/ipo/ipo.css';
 
 type IpoStatusFilter = 'active' | 'completed' | 'all';
@@ -24,20 +25,7 @@ export default function IpoSummaryPage() {
   const blurStyle = usePrivacyStyle();
   const [statusFilter, setStatusFilter] = useState<IpoStatusFilter>('active');
   const [allotmentRatio, setAllotmentRatio] = useState<AllotmentPreset>(1);
-
-  const getEventStatus = (event: IpoEvent) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const offeringDate = event.offeringDate ? new Date(event.offeringDate) : null;
-    const ipoDate = new Date(event.ipoDate);
-    if (offeringDate) offeringDate.setHours(0, 0, 0, 0);
-    ipoDate.setHours(0, 0, 0, 0);
-
-    if (offeringDate && today < offeringDate) return 'upcoming';
-    if (today <= ipoDate) return 'active';
-    return 'completed';
-  };
+  const [activeTab, setActiveTab] = useState<'performance' | 'underwriters'>('performance');
 
   // Helper to calculate summary for a specific event
   const getEventSummary = (eventId: string) => {
@@ -73,7 +61,7 @@ export default function IpoSummaryPage() {
       const summary = getEventSummary(event.id);
       return {
         event,
-        status: getEventStatus(event),
+        status: getIpoEventStatus(event),
         ...summary,
       };
     }).sort((a, b) => new Date(b.event.ipoDate).getTime() - new Date(a.event.ipoDate).getTime());
@@ -183,6 +171,88 @@ export default function IpoSummaryPage() {
     ) => item[key] ?? '',
     tieBreaker: (a: any, b: any) => b.simulatedCapital - a.simulatedCapital || a.accountName.localeCompare(b.accountName),
   });
+
+  // Underwriter list parsing helper
+  const parseUnderwriters = (uwStr?: string): string[] => {
+    if (!uwStr) return [];
+    return uwStr
+      .split(/[\/,;]/)
+      .map(u => u.trim())
+      .filter(u => u.length > 0);
+  };
+
+  const underwriterStats = useMemo(() => {
+    const statsMap = new Map<string, {
+      underwriter: string;
+      events: any[];
+      totalCapital: number;
+      totalReturn: number;
+      maxCapital: number;
+      ratedEventsCount: number;
+      winEventsCount: number;
+    }>();
+
+    eventSummaries.forEach((item) => {
+      const uws = parseUnderwriters(item.event.underwriter);
+      uws.forEach((uw) => {
+        if (!statsMap.has(uw)) {
+          statsMap.set(uw, {
+            underwriter: uw,
+            events: [],
+            totalCapital: 0,
+            totalReturn: 0,
+            maxCapital: 0,
+            ratedEventsCount: 0,
+            winEventsCount: 0,
+          });
+        }
+        const stat = statsMap.get(uw)!;
+        stat.events.push(item);
+        
+        const hasEntries = item.accountCount > 0;
+        if (hasEntries) {
+          stat.totalCapital += item.totalCapital;
+          stat.totalReturn += item.totalReturn;
+          if (item.totalCapital > stat.maxCapital) {
+            stat.maxCapital = item.totalCapital;
+          }
+          
+          if (item.status === 'completed') {
+            stat.ratedEventsCount++;
+            if (item.totalReturn > 0) {
+              stat.winEventsCount++;
+            }
+          }
+        }
+      });
+    });
+
+    return Array.from(statsMap.values()).map((stat) => {
+      const winRate = stat.ratedEventsCount > 0 ? (stat.winEventsCount / stat.ratedEventsCount) * 100 : 0;
+      const avgReturnPct = stat.totalCapital > 0 ? (stat.totalReturn / stat.totalCapital) * 100 : 0;
+      return {
+        underwriter: stat.underwriter,
+        eventCount: stat.events.length,
+        totalCapital: stat.totalCapital,
+        totalReturn: stat.totalReturn,
+        maxCapital: stat.maxCapital,
+        avgReturnPct,
+        winRate,
+        ratedEventsCount: stat.ratedEventsCount,
+      };
+    });
+  }, [eventSummaries]);
+
+  const {
+    sortConfig: uwSortConfig,
+    sortedItems: sortedUnderwriterStats,
+    requestSort: requestUwSort,
+  } = useTableSort(underwriterStats, {
+    initialKey: 'eventCount',
+    initialDirection: 'desc',
+    getValue: (item: any, key: 'underwriter' | 'eventCount' | 'avgReturnPct' | 'winRate' | 'maxCapital') => item[key] ?? 0,
+    tieBreaker: (a: any, b: any) => b.eventCount - a.eventCount || a.underwriter.localeCompare(b.underwriter),
+  });
   const accountCapitalGrandTotal = useMemo(
     () => accountCapitalSummaries.reduce((sum, account) => sum + account.simulatedCapital, 0),
     [accountCapitalSummaries]
@@ -209,9 +279,10 @@ export default function IpoSummaryPage() {
       account.breakdown,
       account.simulatedCapital,
     ]));
-    const eventHeaders = ['Kode Saham', 'Status', 'Tanggal IPO', 'Modal Aktual', 'PnL Realized', 'Rata-rata Return', 'Partisipasi Akun'];
+    const eventHeaders = ['Kode Saham', 'Underwriter', 'Status', 'Tanggal IPO', 'Modal Aktual', 'PnL Realized', 'Rata-rata Return', 'Partisipasi Akun'];
     const eventRows = sortedFilteredEventSummaries.map((item: any) => ([
       item.event.stockCode,
+      item.event.underwriter || '-',
       item.status,
       item.event.ipoDate,
       item.totalCapital,
@@ -342,7 +413,29 @@ export default function IpoSummaryPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 24 }}>
+      {/* Tab Navigation */}
+      <div className="ipo-tabs-nav">
+        <button
+          type="button"
+          className={`ipo-tab-btn${activeTab === 'performance' ? ' active' : ''}`}
+          onClick={() => setActiveTab('performance')}
+        >
+          <Icons.BarChart2 size={16} />
+          Ringkasan Performa
+        </button>
+        <button
+          type="button"
+          className={`ipo-tab-btn${activeTab === 'underwriters' ? ' active' : ''}`}
+          onClick={() => setActiveTab('underwriters')}
+        >
+          <Icons.Award size={16} />
+          Statistik Underwriter
+        </button>
+      </div>
+
+      {activeTab === 'performance' ? (
+        <>
+          <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-body" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', fontWeight: 700, marginBottom: 8 }}>
@@ -604,6 +697,7 @@ export default function IpoSummaryPage() {
               <thead>
                 <tr>
                   <th><SortableTableHeader label="Kode Saham" sortKey="stockCode" sortConfig={sortConfig} onSort={requestSort} /></th>
+                  <th>Underwriter</th>
                   <th><SortableTableHeader label="Tanggal IPO" sortKey="ipoDate" sortConfig={sortConfig} onSort={requestSort} /></th>
                   <th><SortableTableHeader label="Modal Beli" sortKey="totalCapital" sortConfig={sortConfig} onSort={requestSort} /></th>
                   <th><SortableTableHeader label="Realized PnL" sortKey="totalReturn" sortConfig={sortConfig} onSort={requestSort} /></th>
@@ -653,6 +747,9 @@ export default function IpoSummaryPage() {
                           </span>
                         </div>
                       </td>
+                      <td style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                        {item.event.underwriter || <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                      </td>
                       <td style={{ fontSize: '0.88rem' }}>
                         {new Date(item.event.ipoDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
@@ -688,6 +785,57 @@ export default function IpoSummaryPage() {
           </div>
         </div>
       </div>
+      </>
+      ) : (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">🏆 Statistik Performa Underwriter</h3>
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            <div className="table-container" style={{ border: 'none', margin: 0 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th><SortableTableHeader label="Underwriter" sortKey="underwriter" sortConfig={uwSortConfig} onSort={requestUwSort} /></th>
+                    <th><SortableTableHeader label="Jumlah IPO" sortKey="eventCount" sortConfig={uwSortConfig} onSort={requestUwSort} /></th>
+                    <th><SortableTableHeader label="Rata-rata Return" sortKey="avgReturnPct" sortConfig={uwSortConfig} onSort={requestUwSort} /></th>
+                    <th><SortableTableHeader label="Win Rate" sortKey="winRate" sortConfig={uwSortConfig} onSort={requestUwSort} /></th>
+                    <th><SortableTableHeader label="Modal Terbesar" sortKey="maxCapital" sortConfig={uwSortConfig} onSort={requestUwSort} /></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedUnderwriterStats.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 16px' }}>
+                        Belum ada data underwriter untuk dianalisis.
+                      </td>
+                    </tr>
+                  ) : (
+                    sortedUnderwriterStats.map((stat) => {
+                      const isProfit = stat.avgReturnPct >= 0;
+                      return (
+                        <tr key={stat.underwriter}>
+                          <td style={{ fontWeight: 700 }}>{stat.underwriter}</td>
+                          <td style={{ fontWeight: 600 }}>{stat.eventCount} Emiten</td>
+                          <td className={`font-mono ${isProfit ? 'text-profit' : 'text-loss'}`} style={{ fontWeight: 600 }}>
+                            {stat.totalCapital > 0 ? `${isProfit ? '+' : ''}${stat.avgReturnPct.toFixed(2)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                          </td>
+                          <td style={{ fontWeight: 600, color: stat.winRate >= 50 ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
+                            {stat.ratedEventsCount > 0 ? `${stat.winRate.toFixed(1)}%` : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                          </td>
+                          <td className="font-mono" style={{ fontWeight: 600, ...blurStyle }}>
+                            {stat.maxCapital > 0 ? formatRupiah(stat.maxCapital) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

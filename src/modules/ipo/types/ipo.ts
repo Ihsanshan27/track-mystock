@@ -1,11 +1,23 @@
 export interface IpoEvent {
   id: string;
   stockCode: string;       // e.g. "WBSA"
+  underwriter?: string;    // nama underwriter / penjamin emisi
   offeringDate?: string;   // ISO date string "2024-05-28"
   ipoDate: string;         // ISO date string "2024-06-01"
   offeringPrice: number;   // Harga penawaran resmi (Rp)
   notes?: string;
   createdAt: string;
+
+  // Properti Tambahan (Prioritas 5)
+  sector?: string;                // Sektor Industri
+  registrar?: string;             // Biro Administrasi Efek (BAE)
+  targetBoard?: string;           // Target Papan Pencatatan (Utama, Pengembangan, dll)
+  bookbuildingStartDate?: string; // Tanggal Mulai Bookbuilding
+  bookbuildingEndDate?: string;   // Tanggal Akhir Bookbuilding
+  lotPoolingAmount?: number;      // Lot Pooling / Penjatahan Terpusat (%)
+  allotmentDate?: string;         // Tanggal Penjatahan (Allotment)
+  refundDate?: string;            // Tanggal Refund (Pengembalian Dana)
+  distributionDate?: string;      // Tanggal Distribusi Saham
 }
 
 export interface IpoEntry {

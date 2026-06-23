@@ -14,10 +14,22 @@ import { clearUserData, loadUserData, replaceAllUserData, saveUserData } from '@
 import { isMissingDatabaseSetupError } from '@/modules/shared/utils/errorMessages';
 import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { buildFinanceOverview, getFinanceAccountBalance, getFinanceTransactionDelta, isTransferTransaction } from '@/modules/finance/utils/finance';
+import type { FinanceAccount, FinanceTransaction } from '@/modules/finance/types/finance';
+import type { IpoAccount, IpoEntry, IpoEvent } from '@/modules/ipo/types/ipo';
 import { fetchQuotesBatch } from '@/modules/shared/services/yahooFinanceService';
+import { buildIpoDomain } from '@/modules/shared/context/dataContextIpoDomain';
+import { migrateDataToCurrentVersion } from '@/modules/shared/utils/dataMigration';
+import { normalizeIpoCollections } from '@/modules/shared/context/dataContextIpoUtils';
+import {
+  cacheLocalData,
+  hasStoredData,
+  loadLocalData,
+  normalizeSettings,
+} from '@/modules/shared/context/dataContextStorageUtils';
+import type { AppSettings, Portfolio } from '@/modules/shared/types/index';
 
 const DataContext = createContext(null);
-const DEFAULT_SETTINGS = {
+const DEFAULT_SETTINGS: AppSettings = {
   initialCapital: 10000000,
   monthlyTarget: 5,
   defaultBuyFee: 0.15,
@@ -83,17 +95,17 @@ export function DataProvider({ children }) {
   const [notes, setNotes] = useState([]);
   const [allCashflows, setAllCashflows] = useState([]);
   const [allDividends, setAllDividends] = useState([]);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [marketPrices, setMarketPrices] = useState({});
-  const [portfolios, setPortfolios] = useState<any[]>([DEFAULT_PORTFOLIO]);
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([DEFAULT_PORTFOLIO]);
   const [activePortfolioId, setActivePortfolioId] = useState('default');
   const [tradingPlans, setTradingPlans] = useState([]);
-  const [ipoEvents, setIpoEvents] = useState<any[]>([]);
-  const [ipoEntries, setIpoEntries] = useState<any[]>([]);
-  const [ipoAccounts, setIpoAccounts] = useState<any[]>([]);
+  const [ipoEvents, setIpoEvents] = useState<IpoEvent[]>([]);
+  const [ipoEntries, setIpoEntries] = useState<IpoEntry[]>([]);
+  const [ipoAccounts, setIpoAccounts] = useState<IpoAccount[]>([]);
   const [bsjpTrades, setBsjpTrades] = useState<any[]>([]);
-  const [financeAccounts, setFinanceAccounts] = useState<any[]>([]);
-  const [financeTransactions, setFinanceTransactions] = useState<any[]>([]);
+  const [financeAccounts, setFinanceAccounts] = useState<FinanceAccount[]>([]);
+  const [financeTransactions, setFinanceTransactions] = useState<FinanceTransaction[]>([]);
   const [toasts, setToasts] = useState([]);
   const [tradeFormDraft, setTradeFormDraft] = useState<any>(null);
   const [tradeEditDraft, setTradeEditDraft] = useState<any>(null);
@@ -126,7 +138,7 @@ export function DataProvider({ children }) {
     setNotes(data.notes || []);
     setAllCashflows(data.cashflows || []);
     setAllDividends(data.dividends || []);
-    setSettings(normalizeSettings(data.settings));
+    setSettings(normalizeSettings(data.settings, DEFAULT_SETTINGS));
     setMarketPrices(data.marketPrices || {});
     setPortfolios(data.portfolios && data.portfolios.length > 0 ? data.portfolios : [DEFAULT_PORTFOLIO]);
     setTradingPlans(data.tradingPlans || []);
@@ -211,8 +223,11 @@ export function DataProvider({ children }) {
     let cancelled = false;
 
     async function loadData() {
-      const cachedLocalData = loadLocalData(userId);
-      const hasCachedLocalData = hasStoredData(cachedLocalData);
+      const cachedLocalData = loadLocalData(userId, {
+        defaultPortfolio: DEFAULT_PORTFOLIO,
+        defaultSettings: DEFAULT_SETTINGS,
+      });
+      const hasCachedLocalData = hasStoredData(cachedLocalData, LOCAL_DATA_KEYS);
 
       setDataLoading(true);
       setDataError('');
@@ -227,11 +242,14 @@ export function DataProvider({ children }) {
           const nextData = await migrateLocalDataToSupabase(userId, remoteData);
           if (cancelled) return;
           applyData(nextData);
-          cacheLocalData(userId, nextData);
+          cacheLocalData(userId, nextData, LOCAL_DATA_KEYS);
         } else {
           migrateGlobalToUser(userId);
           migrateWorkspaceScopeToUserScope(userId);
-          const localData = loadLocalData(userId);
+          const localData = loadLocalData(userId, {
+            defaultPortfolio: DEFAULT_PORTFOLIO,
+            defaultSettings: DEFAULT_SETTINGS,
+          });
           applyData(localData);
         }
       } catch (error) {
@@ -341,16 +359,31 @@ export function DataProvider({ children }) {
   const updateTrade = (id, updates) => {
     if (!ensureWritable()) return;
     const existingTrade = allTrades.find(t => t.id === id);
-    const updated = allTrades.map(t => t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t);
+    if (!existingTrade) return;
+
+    const auditEntry = {
+      editedBy: user?.email || 'User',
+      editedAt: new Date().toISOString(),
+      before: { ...existingTrade },
+      after: { ...existingTrade, ...updates }
+    };
+    delete auditEntry.before.history;
+    delete auditEntry.after.history;
+
+    const updated = allTrades.map(t => t.id === id ? {
+      ...t,
+      ...updates,
+      history: [...(t.history || []), auditEntry],
+      updatedAt: new Date().toISOString()
+    } : t);
+
     saveTrades(updated);
-    if (existingTrade) {
-      logUserActivity('trade.updated', 'trade', id, {
-        stockCode: updates.stockCode || existingTrade.stockCode,
-        market: updates.market || existingTrade.market || 'ID',
-        portfolioId: updates.portfolioId || existingTrade.portfolioId || 'default',
-        fieldsUpdated: Object.keys(updates || {}),
-      });
-    }
+    logUserActivity('trade.updated', 'trade', id, {
+      stockCode: updates.stockCode || existingTrade.stockCode,
+      market: updates.market || existingTrade.market || 'ID',
+      portfolioId: updates.portfolioId || existingTrade.portfolioId || 'default',
+      fieldsUpdated: Object.keys(updates || {}),
+    });
     showToast('Transaksi berhasil diperbarui');
   };
 
@@ -367,6 +400,54 @@ export function DataProvider({ children }) {
       });
     }
     showToast('Transaksi berhasil dihapus');
+  };
+
+  const updateTrades = (ids, updates) => {
+    if (!ensureWritable()) return;
+    const { tagsAppend, ...otherUpdates } = updates as any;
+    const updated = allTrades.map(t => {
+      if (ids.includes(t.id)) {
+        const finalUpdates = { ...otherUpdates };
+        if (tagsAppend && Array.isArray(tagsAppend)) {
+          const existingTags = t.tags || [];
+          finalUpdates.tags = Array.from(new Set([...existingTags, ...tagsAppend]));
+        }
+
+        const auditEntry = {
+          editedBy: user?.email || 'User',
+          editedAt: new Date().toISOString(),
+          before: { ...t },
+          after: { ...t, ...finalUpdates }
+        };
+        delete auditEntry.before.history;
+        delete auditEntry.after.history;
+
+        return {
+          ...t,
+          ...finalUpdates,
+          history: [...(t.history || []), auditEntry],
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return t;
+    });
+
+    saveTrades(updated);
+    logUserActivity('trade.batch_updated', 'trade', ids.join(','), {
+      count: ids.length,
+      fieldsUpdated: Object.keys(updates || {}),
+    });
+    showToast(`${ids.length} transaksi berhasil diperbarui`);
+  };
+
+  const deleteTrades = (ids) => {
+    if (!ensureWritable()) return;
+    const updated = allTrades.filter(t => !ids.includes(t.id));
+    saveTrades(updated);
+    logUserActivity('trade.batch_deleted', 'trade', ids.join(','), {
+      count: ids.length,
+    });
+    showToast(`${ids.length} transaksi berhasil dihapus`);
   };
 
   const getTradeById = (id) => allTrades.find(t => t.id === id);
@@ -387,9 +468,17 @@ export function DataProvider({ children }) {
 
   const updateWatchlistItem = (id, updates) => {
     if (!ensureWritable()) return;
+    const existingItem = watchlist.find(w => w.id === id);
     const updated = watchlist.map(w => w.id === id ? { ...w, ...updates } : w);
     setWatchlist(updated);
     persistData('watchlist', updated);
+    if (existingItem) {
+      logUserActivity('watchlist.updated', 'watchlist_item', id, {
+        stockCode: updates.stockCode || existingItem.stockCode || null,
+        market: updates.market || existingItem.market || 'ID',
+        fieldsUpdated: Object.keys(updates || {}),
+      });
+    }
   };
 
   const deleteWatchlistItem = (id) => {
@@ -422,9 +511,16 @@ export function DataProvider({ children }) {
 
   const updateNote = (id, updates) => {
     if (!ensureWritable()) return;
+    const existingNote = notes.find(n => n.id === id);
     const updated = notes.map(n => n.id === id ? { ...n, ...updates, updatedAt: new Date().toISOString() } : n);
     setNotes(updated);
     persistData('notes', updated);
+    if (existingNote) {
+      logUserActivity('note.updated', 'note', id, {
+        title: updates.title || existingNote.title || null,
+        fieldsUpdated: Object.keys(updates || {}),
+      });
+    }
   };
 
   const deleteNote = (id) => {
@@ -1134,132 +1230,38 @@ export function DataProvider({ children }) {
     showToast('Rencana trading dihapus');
   };
 
-  const getIpoOfferingPrice = (ipoEventId: string) => {
-    const event = ipoEvents.find((item: any) => item.id === ipoEventId);
-    return event?.offeringPrice;
-  };
-
-  const syncIpoCollections = useCallback((nextEntries: any[], nextAccounts = ipoAccounts) => {
-    const normalizedIpo = normalizeIpoCollections(nextEntries, nextAccounts);
-    setIpoEntries(normalizedIpo.entries);
-    setIpoAccounts(normalizedIpo.accounts);
-    persistData('ipoEntries', normalizedIpo.entries);
-    persistData('ipoAccounts', normalizedIpo.accounts);
-    return normalizedIpo;
-  }, [ipoAccounts, persistData]);
-
-  const normalizeIpoEntryBuyPrice = (entry: any) => {
-    const offeringPrice = getIpoOfferingPrice(entry.ipoEventId);
-    if (typeof offeringPrice !== 'number' || Number.isNaN(offeringPrice)) {
-      return entry;
-    }
-    return { ...entry, buyPrice: offeringPrice };
-  };
-
-  // === IPO EVENTS CRUD ===
-  const addIpoEvent = (event: any) => {
-    if (!ensureWritable()) return;
-    const newEvent = { ...event, id: generateId(), createdAt: new Date().toISOString() };
-    const updated = [newEvent, ...ipoEvents];
-    setIpoEvents(updated);
-    persistData('ipoEvents', updated);
-    logUserActivity('ipo_event.created', 'ipo_event', newEvent.id, {
-      name: newEvent.name || null,
-      stockCode: newEvent.stockCode || null,
-    });
-    showToast('IPO event berhasil dibuat');
-    return newEvent;
-  };
-
-  const updateIpoEvent = (id: string, updates: any) => {
-    if (!ensureWritable()) return;
-    const updated = ipoEvents.map(e => e.id === id ? { ...e, ...updates } : e);
-    setIpoEvents(updated);
-    persistData('ipoEvents', updated);
-    if (typeof updates.offeringPrice === 'number' && !Number.isNaN(updates.offeringPrice)) {
-      const updatedEntries = ipoEntries.map((entry: any) => (
-        entry.ipoEventId === id
-          ? { ...entry, buyPrice: updates.offeringPrice }
-          : entry
-      ));
-      setIpoEntries(updatedEntries);
-      persistData('ipoEntries', updatedEntries);
-    }
-    showToast('IPO event diperbarui');
-  };
-
-  const deleteIpoEvent = (id: string) => {
-    if (!ensureWritable()) return;
-    const existingEvent = ipoEvents.find(e => e.id === id);
-    const updatedEvents = ipoEvents.filter(e => e.id !== id);
-    setIpoEvents(updatedEvents);
-    persistData('ipoEvents', updatedEvents);
-    // Also delete all entries for this event
-    const updatedEntries = ipoEntries.filter((e: any) => e.ipoEventId !== id);
-    syncIpoCollections(updatedEntries);
-    if (existingEvent) {
-      logUserActivity('ipo_event.deleted', 'ipo_event', id, {
-        name: existingEvent.name || null,
-        stockCode: existingEvent.stockCode || null,
-      });
-    }
-    showToast('IPO event dihapus');
-  };
-
-  // === IPO ENTRIES CRUD ===
-  const addIpoEntry = (entry: any) => {
-    if (!ensureWritable()) return;
-    const newEntry = normalizeIpoEntryBuyPrice({ ...entry, id: generateId(), createdAt: new Date().toISOString() });
-    const updated = [...ipoEntries, newEntry];
-    const normalizedIpo = syncIpoCollections(updated);
-    const finalEntry = normalizedIpo.entries.find((item: any) => item.id === newEntry.id) || newEntry;
-    logUserActivity('ipo_entry.created', 'ipo_entry', finalEntry.id, {
-      ipoEventId: finalEntry.ipoEventId || null,
-      accountName: finalEntry.accountName || null,
-      ipoAccountId: finalEntry.ipoAccountId || null,
-    });
-    showToast('Entry akun ditambahkan');
-    return finalEntry;
-  };
-
-  const updateIpoEntry = (id: string, updates: any) => {
-    if (!ensureWritable()) return;
-    const updated = ipoEntries.map((e: any) => (
-      e.id === id
-        ? normalizeIpoEntryBuyPrice({ ...e, ...updates })
-        : e
-    ));
-    syncIpoCollections(updated);
-    showToast('Entry diperbarui');
-  };
-
-  const deleteIpoEntry = (id: string) => {
-    if (!ensureWritable()) return;
-    const existingEntry = ipoEntries.find((entry: any) => entry.id === id);
-    const updated = ipoEntries.filter((e: any) => e.id !== id);
-    syncIpoCollections(updated);
-    if (existingEntry) {
-      logUserActivity('ipo_entry.deleted', 'ipo_entry', id, {
-        ipoEventId: existingEntry.ipoEventId || null,
-        accountName: existingEntry.accountName || null,
-      });
-    }
-    showToast('Entry dihapus');
-  };
+  const {
+    addIpoEvent,
+    updateIpoEvent,
+    deleteIpoEvent,
+    addIpoEntry,
+    updateIpoEntry,
+    deleteIpoEntry,
+    batchAddIpoEntries,
+    batchDeleteIpoEntries,
+    batchUpdateIpoEntries,
+  } = useMemo(() => buildIpoDomain({
+    ensureWritable,
+    ipoAccounts,
+    ipoEntries,
+    ipoEvents,
+    logUserActivity,
+    persistData,
+    setIpoAccounts,
+    setIpoEntries,
+    setIpoEvents,
+    showToast,
+  }), [
+    ensureWritable,
+    ipoAccounts,
+    ipoEntries,
+    ipoEvents,
+    logUserActivity,
+    persistData,
+    showToast,
+  ]);
 
   // Batch add — used for duplicating; avoids stale-state bug of calling addIpoEntry in a loop
-  const batchAddIpoEntries = (entries: any[]) => {
-    if (!ensureWritable()) return;
-    const newEntries = entries.map(entry => normalizeIpoEntryBuyPrice({
-      ...entry,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-    }));
-    const updated = [...ipoEntries, ...newEntries];
-    syncIpoCollections(updated);
-    showToast(`${newEntries.length} entry berhasil disalin`);
-  };
-
   // === BSJP CRUD ===
   const addBsjpTrade = (trade) => {
     if (!ensureWritable()) return null;
@@ -1344,33 +1346,36 @@ export function DataProvider({ children }) {
     financeAccounts,
     financeTransactions,
     exportDate: new Date().toISOString(),
-    version: '2.1',
+    version: '2.2',
     storage: isSupabaseConfigured ? 'supabase' : 'localStorage',
   });
 
   const importData = async (data) => {
     if (!ensureWritable()) return;
-    if (!data || !data.version) throw new Error('Format data tidak valid');
+    
+    // Validasi dan Migrasi Data ke versi terbaru (2.2)
+    const migratedData = migrateDataToCurrentVersion(data);
+    
     const nextData = {
-      trades: data.trades || [],
-      watchlist: data.watchlist || [],
-      notes: data.notes || [],
-      cashflows: data.cashflows || [],
-      dividends: data.dividends || [],
-      settings: normalizeSettings(data.settings || settings),
-      marketPrices: data.marketPrices || {},
-      portfolios: data.portfolios || [DEFAULT_PORTFOLIO],
-      tradingPlans: data.tradingPlans || [],
-      ipoEvents: data.ipoEvents || [],
-      ipoEntries: data.ipoEntries || [],
-      ipoAccounts: data.ipoAccounts || [],
-      bsjpTrades: data.bsjpTrades || [],
-      financeAccounts: data.financeAccounts || [],
-      financeTransactions: data.financeTransactions || [],
+      trades: migratedData.trades || [],
+      watchlist: migratedData.watchlist || [],
+      notes: migratedData.notes || [],
+      cashflows: migratedData.cashflows || [],
+      dividends: migratedData.dividends || [],
+      settings: normalizeSettings(migratedData.settings || settings, DEFAULT_SETTINGS),
+      marketPrices: migratedData.marketPrices || {},
+      portfolios: migratedData.portfolios || [DEFAULT_PORTFOLIO],
+      tradingPlans: migratedData.tradingPlans || [],
+      ipoEvents: migratedData.ipoEvents || [],
+      ipoEntries: migratedData.ipoEntries || [],
+      ipoAccounts: migratedData.ipoAccounts || [],
+      bsjpTrades: migratedData.bsjpTrades || [],
+      financeAccounts: migratedData.financeAccounts || [],
+      financeTransactions: migratedData.financeTransactions || [],
     };
 
     applyData(nextData);
-    cacheLocalData(userId, nextData);
+    cacheLocalData(userId, nextData, LOCAL_DATA_KEYS);
 
     if (isSupabaseConfigured) {
       await replaceAllUserData(nextData, userId);
@@ -1430,6 +1435,8 @@ export function DataProvider({ children }) {
       addTrade,
       updateTrade,
       deleteTrade,
+      updateTrades,
+      deleteTrades,
       getTradeById,
       watchlist,
       addWatchlistItem,
@@ -1473,6 +1480,8 @@ export function DataProvider({ children }) {
       updateIpoEntry,
       deleteIpoEntry,
       batchAddIpoEntries,
+      batchDeleteIpoEntries,
+      batchUpdateIpoEntries,
       bsjpTrades,
       addBsjpTrade,
       updateBsjpTrade,
@@ -1524,140 +1533,21 @@ export function DataProvider({ children }) {
   );
 }
 
-function normalizeIpoText(value) {
-  return String(value || '').trim().replace(/\s+/g, ' ');
-}
-
-function normalizeIpoEmail(value) {
-  return normalizeIpoText(value).toLowerCase();
-}
-
-function buildIpoAccountKey(accountName) {
-  const normalizedName = normalizeIpoText(accountName).toLowerCase();
-  return normalizedName;
-}
-
-function normalizeIpoCollections(entries = [], accounts = []) {
-  const accountMap = new Map();
-
-  (accounts || []).forEach((account) => {
-    const normalizedName = normalizeIpoText(account.name);
-    const normalizedEmail = normalizeIpoEmail(account.email);
-    const normalizedKey = account.normalizedKey || buildIpoAccountKey(normalizedName);
-    if (!normalizedKey) return;
-    accountMap.set(normalizedKey, {
-      id: account.id || generateId(),
-      name: normalizedName || account.name || 'Tanpa nama akun',
-      email: normalizedEmail,
-      normalizedKey,
-      createdAt: account.createdAt || new Date().toISOString(),
-      lastUsedAt: account.lastUsedAt || account.createdAt || new Date().toISOString(),
-    });
-  });
-
-  const normalizedEntries = (entries || []).map((entry) => {
-    const normalizedName = normalizeIpoText(entry.accountName);
-    const normalizedEmail = normalizeIpoEmail(entry.email);
-    const normalizedKey = buildIpoAccountKey(normalizedName);
-
-    if (!normalizedKey) {
-      return {
-        ...entry,
-        accountName: normalizedName || entry.accountName || 'Tanpa nama akun',
-        email: normalizedEmail,
-      };
-    }
-
-    let account = accountMap.get(normalizedKey);
-    if (!account) {
-      account = {
-        id: entry.ipoAccountId || generateId(),
-        name: normalizedName || entry.accountName || 'Tanpa nama akun',
-        email: normalizedEmail,
-        normalizedKey,
-        createdAt: entry.createdAt || new Date().toISOString(),
-        lastUsedAt: entry.createdAt || new Date().toISOString(),
-      };
-      accountMap.set(normalizedKey, account);
-    } else {
-      account.lastUsedAt = entry.createdAt || account.lastUsedAt || new Date().toISOString();
-      if (normalizedName) {
-        account.name = normalizedName;
-      }
-    }
-
-    return {
-      ...entry,
-      ipoAccountId: account.id,
-      accountName: account.name,
-      email: normalizedEmail,
-    };
-  });
-
-  const normalizedAccounts = Array.from(accountMap.values())
-    .sort((a, b) => new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime());
-
-  return {
-    entries: normalizedEntries,
-    accounts: normalizedAccounts,
-  };
-}
-
-function normalizeSettings(settings) {
-  return { ...DEFAULT_SETTINGS, ...(settings || {}) };
-}
-
-function loadLocalData(userId) {
-  return {
-    trades: getScopedItem('trades', userId) || [],
-    watchlist: getScopedItem('watchlist', userId) || [],
-    notes: getScopedItem('notes', userId) || [],
-    cashflows: getScopedItem('cashflows', userId) || [],
-    dividends: getScopedItem('dividends', userId) || [],
-    settings: normalizeSettings(getScopedItem('settings', userId)),
-    marketPrices: getScopedItem('marketPrices', userId) || {},
-    portfolios: getScopedItem('portfolios', userId) || [DEFAULT_PORTFOLIO],
-    tradingPlans: getScopedItem('tradingPlans', userId) || [],
-    ipoEvents: getScopedItem('ipoEvents', userId) || [],
-    ipoEntries: getScopedItem('ipoEntries', userId) || [],
-    ipoAccounts: getScopedItem('ipoAccounts', userId) || [],
-    bsjpTrades: getScopedItem('bsjpTrades', userId) || [],
-    financeAccounts: getScopedItem('financeAccounts', userId) || [],
-    financeTransactions: getScopedItem('financeTransactions', userId) || [],
-  };
-}
-
-function cacheLocalData(userId, data) {
-  if (!userId || !data) return;
-
-  LOCAL_DATA_KEYS.forEach((key) => {
-    if (data[key] !== undefined) {
-      setScopedItem(key, userId, data[key]);
-    }
-  });
-}
-
-function hasStoredData(data) {
-  return LOCAL_DATA_KEYS.some((key) => {
-    const value = data[key];
-    if (Array.isArray(value)) return value.length > 0;
-    if (value && typeof value === 'object') return Object.keys(value).length > 0;
-    return value != null;
-  });
-}
-
 async function migrateLocalDataToSupabase(userId, remoteData) {
   const normalizedRemote = {
     ...remoteData,
-    settings: normalizeSettings(remoteData.settings),
+    settings: normalizeSettings(remoteData.settings, DEFAULT_SETTINGS),
   };
 
-  if (hasStoredData(remoteData)) return normalizedRemote;
+  if (hasStoredData(remoteData, LOCAL_DATA_KEYS)) return normalizedRemote;
 
   migrateGlobalToUser(userId);
   migrateWorkspaceScopeToUserScope(userId);
-  const localData = loadLocalData(userId);
-  if (!hasStoredData(localData)) return normalizedRemote;
+  const localData = loadLocalData(userId, {
+    defaultPortfolio: DEFAULT_PORTFOLIO,
+    defaultSettings: DEFAULT_SETTINGS,
+  });
+  if (!hasStoredData(localData, LOCAL_DATA_KEYS)) return normalizedRemote;
 
   await replaceAllUserData(localData, userId);
   return localData;

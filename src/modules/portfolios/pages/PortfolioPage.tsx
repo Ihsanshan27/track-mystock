@@ -10,6 +10,7 @@ import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { calculateUnrealizedPnL, calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent } from '@/modules/shared/utils/formatters';
+import ReconciliationNotice from '@/modules/trades/components/ReconciliationNotice';
 import * as Icons from 'lucide-react';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#F43F5E', '#06B6D4', '#EC4899', '#84CC16'];
@@ -137,6 +138,8 @@ export default function PortfolioPage() {
         onChange={(tab) => setActiveTab(tab)}
         accentColor="var(--accent-blue)"
       />
+
+      <ReconciliationNotice market={activeTab as 'ID' | 'US'} />
 
       {openTrades.length === 0 ? (
         <div className="empty-state">

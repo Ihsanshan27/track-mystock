@@ -4,15 +4,17 @@ import { useData } from '@/modules/shared/context/DataContext';
 import ImportCSVModal from '../components/ImportCSVModal';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
+import ReconciliationNotice from '../components/ReconciliationNotice';
 import { calculateTradePnL, calculateUnrealizedPnL, getTradeAssetTypeLabel, getTradeQuantityLabel } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
+import * as Icons from 'lucide-react';
 
 export default function TradesPage() {
-  const { trades, deleteTrade, marketPrices, settings, addTrade, showToast } = useData();
+  const { trades, deleteTrade, deleteTrades, updateTrades, marketPrices, settings, addTrade, fetchLivePrices, showToast } = useData();
   const { confirm } = useDialog();
   const [showImportModal, setShowImportModal] = useState(false);
-  
+
   const [search, setSearch] = useState(() => sessionStorage.getItem('trades_filter_search') || '');
   const [filterStrategy, setFilterStrategy] = useState(() => sessionStorage.getItem('trades_filter_strategy') || '');
   const [filterStatus, setFilterStatus] = useState(() => sessionStorage.getItem('trades_filter_status') || '');
@@ -24,6 +26,14 @@ export default function TradesPage() {
   });
   const [sortDir, setSortDir] = useState(() => sessionStorage.getItem('trades_sort_dir') || 'desc');
   const [page, setPage] = useState(() => parseInt(sessionStorage.getItem('trades_filter_page') || '1') || 1);
+
+  // Checkbox selection state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Bulk Edit Modal states
+  const [bulkModalType, setBulkModalType] = useState<'strategy' | 'tags' | null>(null);
+  const [bulkStrategy, setBulkStrategy] = useState('');
+  const [bulkTags, setBulkTags] = useState('');
 
   // Sync to sessionStorage
   useEffect(() => {
@@ -104,6 +114,14 @@ export default function TradesPage() {
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
+
+  // Clear page selection if paged is empty
+  useEffect(() => {
+    if (paged.length === 0 && page > 1) {
+      setPage(1);
+    }
+  }, [paged, page]);
+
   const requestSort = (key: string) => {
     if (sortBy === key) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -122,11 +140,62 @@ export default function TradesPage() {
     });
     if (isConfirmed) {
       deleteTrade(id);
+      setSelectedIds(prev => prev.filter(item => item !== id));
     }
   };
 
+  // Bulk Actions handlers
+  const isAllSelected = paged.length > 0 && paged.every(t => selectedIds.includes(t.id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(prev => prev.filter(id => !paged.some(p => p.id === id)));
+    } else {
+      const newIds = paged.map(p => p.id).filter(id => !selectedIds.includes(id));
+      setSelectedIds(prev => [...prev, ...newIds]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const isConfirmed = await confirm(`Apakah Anda yakin ingin menghapus ${selectedIds.length} transaksi yang dipilih?`, {
+      title: 'Hapus Transaksi Massal',
+      severity: 'danger',
+      confirmText: 'Hapus Semua'
+    });
+    if (isConfirmed) {
+      deleteTrades(selectedIds);
+      setSelectedIds([]);
+    }
+  };
+
+  const handleBulkUpdateLivePrice = async () => {
+    const selectedTrades = trades.filter(t => selectedIds.includes(t.id));
+    const tickers = Array.from(new Set(selectedTrades.map(t => t.stockCode).filter(Boolean)));
+    if (tickers.length > 0) {
+      fetchLivePrices(tickers);
+      showToast(`Memperbarui harga live untuk ${tickers.length} ticker...`);
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSaveBulkStrategy = () => {
+    updateTrades(selectedIds, { strategy: bulkStrategy || undefined });
+    setBulkModalType(null);
+    setBulkStrategy('');
+    setSelectedIds([]);
+  };
+
+  const handleSaveBulkTags = () => {
+    if (!bulkTags.trim()) return;
+    const tagsAppend = bulkTags.split(',').map(t => t.trim()).filter(Boolean);
+    updateTrades(selectedIds, { tagsAppend });
+    setBulkModalType(null);
+    setBulkTags('');
+    setSelectedIds([]);
+  };
+
   const exportCSV = () => {
-      const headers = ['Kode', 'Jenis', 'Pasar', 'Tgl Beli', 'Tgl Jual', 'Harga Beli', 'Harga Jual', 'Qty', 'P/L', '%', 'Strategi', 'Emosi'];
+    const headers = ['Kode', 'Jenis', 'Pasar', 'Tgl Beli', 'Tgl Jual', 'Harga Beli', 'Harga Jual', 'Qty', 'P/L', '%', 'Strategi', 'Emosi'];
     const rows = trades.map(t => {
       const calc = calculateTradePnL(t);
       const em = EMOTIONS.find(e => e.value === t.emotion);
@@ -158,6 +227,10 @@ export default function TradesPage() {
           <Link to="/trades/new" className="btn btn-primary">➕ Catat Transaksi</Link>
         </div>
       </div>
+
+      {/* Warnings & Reconciliation Notice */}
+      <ReconciliationNotice market="ID" />
+      <ReconciliationNotice market="US" />
 
       {/* Filters */}
       <div className="filter-bar">
@@ -198,6 +271,14 @@ export default function TradesPage() {
             <table className="table">
               <thead>
                 <tr>
+                  <th style={{ width: 40, textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={handleSelectAll}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  </th>
                   <th><SortableTableHeader label="Kode" sortKey="stockCode" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
                   <th><SortableTableHeader label="Tgl Beli" sortKey="dateBuy" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
                   <th><SortableTableHeader label="Tgl Jual" sortKey="dateSell" sortConfig={{ key: sortBy as any, direction: sortDir as any }} onSort={requestSort as any} /></th>
@@ -213,13 +294,13 @@ export default function TradesPage() {
               </thead>
               <tbody>
                 {paged.map(trade => {
-                  let calc = calculateTradePnL(trade);
+                  const calc = calculateTradePnL(trade);
                   const isOpen = !trade.sellPrice || !trade.dateSell;
                   const isUS = trade.market === 'US';
                   const isMutualFund = trade.assetType === 'mutual_fund';
                   const formatMoney = isUS ? formatUSD : formatRupiah;
                   const quantityLabel = getTradeQuantityLabel(trade);
-                  
+
                   let displayPnL = calc.pnl;
                   let displayPnLPercent = calc.pnlPercent;
                   let isEstimasi = false;
@@ -235,9 +316,24 @@ export default function TradesPage() {
                   }
 
                   const hasPnL = !isOpen || isEstimasi;
+                  const isRowChecked = selectedIds.includes(trade.id);
 
                   return (
-                    <tr key={trade.id}>
+                    <tr key={trade.id} style={isRowChecked ? { background: 'rgba(59, 130, 246, 0.05)' } : undefined}>
+                      <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                        <input
+                          type="checkbox"
+                          checked={isRowChecked}
+                          onChange={() => {
+                            setSelectedIds(prev =>
+                              prev.includes(trade.id)
+                                ? prev.filter(id => id !== trade.id)
+                                : [...prev, trade.id]
+                            );
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </td>
                       <td>
                         <strong>{trade.stockCode}</strong> {isUS && <span style={{fontSize: '0.8em'}}>🇺🇸</span>}
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{getTradeAssetTypeLabel(trade)}</div>
@@ -288,6 +384,144 @@ export default function TradesPage() {
           )}
         </>
       )}
+
+      {/* Floating Bulk Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="floating-bulk-bar">
+          <style>{`
+            .floating-bulk-bar {
+              position: fixed;
+              bottom: 24px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: rgba(17, 24, 39, 0.85);
+              backdrop-filter: blur(12px);
+              -webkit-backdrop-filter: blur(12px);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+              padding: 12px 24px;
+              border-radius: var(--radius-md, 8px);
+              z-index: 100;
+              animation: slideUpBulk 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+              width: max-content;
+              max-width: 90vw;
+            }
+            @keyframes slideUpBulk {
+              from { transform: translate(-50%, 40px); opacity: 0; }
+              to { transform: translate(-50%, 0); opacity: 1; }
+            }
+            .floating-bulk-bar-content {
+              display: flex;
+              align-items: center;
+              gap: 20px;
+              flex-wrap: wrap;
+            }
+            .selected-count {
+              font-size: 0.88rem;
+              font-weight: 600;
+              color: #F3F4F6;
+            }
+            .floating-bulk-actions {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              flex-wrap: wrap;
+            }
+            .btn-bulk {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+            }
+          `}</style>
+          <div className="floating-bulk-bar-content">
+            <span className="selected-count">{selectedIds.length} transaksi terpilih</span>
+            <div className="floating-bulk-actions">
+              <button className="btn btn-secondary btn-sm btn-bulk" onClick={() => setBulkModalType('strategy')}>
+                <Icons.Bookmark size={14} />
+                <span>Strategi</span>
+              </button>
+              <button className="btn btn-secondary btn-sm btn-bulk" onClick={() => setBulkModalType('tags')}>
+                <Icons.Tag size={14} />
+                <span>Tambah Tag</span>
+              </button>
+              <button className="btn btn-secondary btn-sm btn-bulk" onClick={handleBulkUpdateLivePrice}>
+                <Icons.RefreshCw size={14} />
+                <span>Update Harga</span>
+              </button>
+              <button className="btn btn-danger btn-sm btn-bulk" onClick={handleBulkDelete}>
+                <Icons.Trash2 size={14} />
+                <span>Hapus</span>
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setSelectedIds([])}
+                style={{ color: 'var(--text-secondary)', padding: '0 8px', fontSize: '0.8rem' }}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Update Modals */}
+      {bulkModalType && (
+        <div className="modal-overlay" onClick={() => setBulkModalType(null)}>
+          <div className="modal modal-md" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="card-title">
+                {bulkModalType === 'strategy' ? 'Ubah Strategi Massal' : 'Tambah Tag Massal'}
+              </h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setBulkModalType(null)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '20px 0' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+                Menerapkan perubahan ke <strong>{selectedIds.length}</strong> transaksi terpilih.
+              </p>
+              {bulkModalType === 'strategy' ? (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="bulk-strategy-select">Pilih Strategi</label>
+                  <select
+                    id="bulk-strategy-select"
+                    className="form-select"
+                    value={bulkStrategy}
+                    onChange={e => setBulkStrategy(e.target.value)}
+                  >
+                    <option value="">Kosongkan / Tanpa Strategi</option>
+                    {(settings.customStrategies || STRATEGIES).map((s: string) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label" htmlFor="bulk-tags-input">Tambahkan Tag (pisahkan dengan koma)</label>
+                  <input
+                    id="bulk-tags-input"
+                    className="form-input"
+                    placeholder="Misal: swing, bluechip"
+                    value={bulkTags}
+                    onChange={e => setBulkTags(e.target.value)}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                    Tag ini akan ditambahkan ke daftar tag yang sudah ada pada masing-masing transaksi.
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button className="btn btn-secondary" onClick={() => setBulkModalType(null)}>Batal</button>
+              <button
+                className="btn btn-primary"
+                onClick={bulkModalType === 'strategy' ? handleSaveBulkStrategy : handleSaveBulkTags}
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Import CSV Modal */}
       <ImportCSVModal
         isOpen={showImportModal}
