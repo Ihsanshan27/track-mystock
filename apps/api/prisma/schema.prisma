@@ -1,0 +1,659 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  active
+  suspended
+  invited
+}
+
+enum UserRole {
+  admin
+  mentor
+  trader
+  viewer
+}
+
+enum AccessLevel {
+  read
+  review
+  admin
+}
+
+enum AssetType {
+  stock
+  mutual_fund
+}
+
+enum MarketCode {
+  ID
+  US
+}
+
+enum CashflowType {
+  deposit
+  withdraw
+}
+
+enum WatchlistStatus {
+  waiting
+  entered
+  passed
+}
+
+enum WatchlistPriority {
+  high
+  medium
+  low
+}
+
+enum ManualRecommendation {
+  BUY
+  SELL
+  HOLD
+  NEUTRAL
+  NONE
+}
+
+enum FinanceAccountType {
+  bank
+  ewallet
+}
+
+enum FinanceTransactionType {
+  income
+  expense
+  transfer_in
+  transfer_out
+  adjustment
+}
+
+enum CurrencyCode {
+  IDR
+}
+
+enum CashflowSyncMode {
+  mirror
+  transfer_to_portfolio
+  transfer_from_portfolio
+}
+
+enum StopTakeLabel {
+  SL
+  TL
+  NONE
+}
+
+enum IpoAction {
+  SELL
+  KEEP
+}
+
+enum ShareType {
+  portfolio_summary
+  monthly_performance
+  trade_journal
+  custom
+}
+
+enum ThemePreference {
+  light
+  dark
+  system
+}
+
+model User {
+  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                   String                   @unique @db.VarChar(255)
+  passwordHash            String                   @map("password_hash")
+  emailVerifiedAt         DateTime?                @map("email_verified_at") @db.Timestamptz(6)
+  status                  UserStatus               @default(active)
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile                 Profile?
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  ownedWorkspaces         Workspace[]              @relation("WorkspaceOwner")
+  workspaceMemberships    WorkspaceMember[]
+  grantedAccess           SharedAccess[]           @relation("SharedAccessGrantee")
+  sharedAccess            SharedAccess[]           @relation("SharedAccessOwner")
+  auditLogs               AuditLog[]
+  portfolios              Portfolio[]
+  trades                  Trade[]
+  tradeAuditLogs          TradeAuditLog[]
+  cashflows               Cashflow[]
+  dividends               Dividend[]
+  watchlistItems          WatchlistItem[]
+  notes                   Note[]
+  financeAccounts         FinanceAccount[]
+  financeTransactions     FinanceTransaction[]
+  ipoEvents               IpoEvent[]
+  ipoAccounts             IpoAccount[]
+  ipoEntries              IpoEntry[]
+  tradeReviewsOwned       TradeReview[]            @relation("TradeReviewOwner")
+  tradeReviewsMentored    TradeReview[]            @relation("TradeReviewMentor")
+  reportShares            ReportShare[]
+  appSettings             AppSetting[]
+
+  @@map("users")
+}
+
+model Profile {
+  userId       String    @id @map("user_id") @db.Uuid
+  displayName  String    @map("display_name") @db.VarChar(255)
+  defaultRole  UserRole  @default(trader) @map("default_role")
+  avatarUrl    String?   @map("avatar_url")
+  timezone     String?   @db.VarChar(100)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model RefreshToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt     DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @map("token_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt     DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model Workspace {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String            @db.VarChar(255)
+  ownerUserId String            @map("owner_user_id") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner       User              @relation("WorkspaceOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  members     WorkspaceMember[]
+  auditLogs   AuditLog[]
+  portfolios  Portfolio[]
+  trades      Trade[]
+  cashflows   Cashflow[]
+  dividends   Dividend[]
+  watchlist   WatchlistItem[]
+  notes       Note[]
+  financeAccounts      FinanceAccount[]
+  financeTransactions  FinanceTransaction[]
+  ipoEvents            IpoEvent[]
+  ipoAccounts          IpoAccount[]
+  ipoEntries           IpoEntry[]
+  reportShares         ReportShare[]
+  appSettings          AppSetting[]
+
+  @@index([ownerUserId])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  role        UserRole
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model SharedAccess {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId   String      @map("owner_user_id") @db.Uuid
+  granteeUserId String      @map("grantee_user_id") @db.Uuid
+  accessLevel   AccessLevel @map("access_level")
+  expiresAt     DateTime?   @map("expires_at") @db.Timestamptz(6)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  owner         User        @relation("SharedAccessOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  grantee       User        @relation("SharedAccessGrantee", fields: [granteeUserId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId])
+  @@index([granteeUserId])
+  @@map("shared_access")
+}
+
+model AuditLog {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorUserId String?   @map("actor_user_id") @db.Uuid
+  workspaceId String?   @map("workspace_id") @db.Uuid
+  action      String    @db.VarChar(100)
+  targetType  String    @map("target_type") @db.VarChar(100)
+  targetId    String?   @map("target_id") @db.Uuid
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor       User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([workspaceId])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+model Portfolio {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId     String      @map("owner_user_id") @db.Uuid
+  workspaceId     String?     @map("workspace_id") @db.Uuid
+  name            String      @db.VarChar(255)
+  description     String?
+  isDefault       Boolean     @default(false) @map("is_default")
+  displayOrder    Int         @default(0) @map("display_order")
+  financeAccountId String?    @map("finance_account_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner           User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace       Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  trades          Trade[]
+  cashflows       Cashflow[]
+  dividends       Dividend[]
+  reportShares    ReportShare[]
+
+  @@index([ownerUserId])
+  @@index([workspaceId])
+  @@map("portfolios")
+}
+
+model Trade {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId String      @map("owner_user_id") @db.Uuid
+  workspaceId String?     @map("workspace_id") @db.Uuid
+  portfolioId String      @map("portfolio_id") @db.Uuid
+  assetType   AssetType   @default(stock) @map("asset_type")
+  market      MarketCode
+  stockCode   String      @map("stock_code") @db.VarChar(20)
+  dateBuy     DateTime    @map("date_buy") @db.Date
+  dateSell    DateTime?   @map("date_sell") @db.Date
+  buyPrice    Decimal     @map("buy_price") @db.Decimal(18, 4)
+  sellPrice   Decimal?    @map("sell_price") @db.Decimal(18, 4)
+  lots        Int
+  buyFee      Decimal     @map("buy_fee") @db.Decimal(18, 4)
+  sellFee     Decimal     @map("sell_fee") @db.Decimal(18, 4)
+  strategy    String?     @db.VarChar(255)
+  reasonEntry String?     @map("reason_entry")
+  reasonExit  String?     @map("reason_exit")
+  emotion     String?     @db.VarChar(100)
+  rating      Int?
+  notes       String?
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace   Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  portfolio   Portfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  tags        TradeTag[]
+  auditLogs   TradeAuditLog[]
+  reviews     TradeReview[]
+
+  @@index([ownerUserId])
+  @@index([workspaceId])
+  @@index([portfolioId])
+  @@index([stockCode])
+  @@map("trades")
+}
+
+model TradeTag {
+  id      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tradeId String  @map("trade_id") @db.Uuid
+  tag     String  @db.VarChar(100)
+  trade   Trade   @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@unique([tradeId, tag])
+  @@map("trade_tags")
+}
+
+model TradeAuditLog {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tradeId        String    @map("trade_id") @db.Uuid
+  editedByUserId String?   @map("edited_by_user_id") @db.Uuid
+  beforeData     Json      @map("before_data")
+  afterData      Json      @map("after_data")
+  editedAt       DateTime  @default(now()) @map("edited_at") @db.Timestamptz(6)
+  trade          Trade     @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  editedBy       User?     @relation(fields: [editedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tradeId])
+  @@map("trade_audit_logs")
+}
+
+model Cashflow {
+  id                         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId                String        @map("owner_user_id") @db.Uuid
+  workspaceId                String?       @map("workspace_id") @db.Uuid
+  portfolioId                String        @map("portfolio_id") @db.Uuid
+  type                       CashflowType
+  amount                     Decimal       @db.Decimal(18, 2)
+  entryDate                  DateTime      @map("entry_date") @db.Date
+  notes                      String?
+  linkedFinanceTransactionId String?       @map("linked_finance_transaction_id") @db.Uuid
+  createdAt                  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner                      User          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace                  Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  portfolio                  Portfolio     @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId])
+  @@index([workspaceId])
+  @@index([portfolioId])
+  @@map("cashflows")
+}
+
+model Dividend {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId    String      @map("owner_user_id") @db.Uuid
+  workspaceId    String?     @map("workspace_id") @db.Uuid
+  portfolioId    String      @map("portfolio_id") @db.Uuid
+  stockCode      String      @map("stock_code") @db.VarChar(20)
+  amountPerShare Decimal     @map("amount_per_share") @db.Decimal(18, 4)
+  lots           Int
+  totalAmount    Decimal     @map("total_amount") @db.Decimal(18, 2)
+  dateReceived   DateTime    @map("date_received") @db.Date
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner          User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace      Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  portfolio      Portfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([ownerUserId])
+  @@index([portfolioId])
+  @@map("dividends")
+}
+
+model WatchlistItem {
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId          String               @map("owner_user_id") @db.Uuid
+  workspaceId          String?              @map("workspace_id") @db.Uuid
+  stockCode            String               @map("stock_code") @db.VarChar(20)
+  targetPrice          Decimal?             @map("target_price") @db.Decimal(18, 4)
+  targetSellPrice      Decimal?             @map("target_sell_price") @db.Decimal(18, 4)
+  reason               String?
+  status               WatchlistStatus
+  priority             WatchlistPriority
+  manualRecommendation ManualRecommendation? @map("manual_recommendation")
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner                User                 @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace            Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  categories           WatchlistCategory[]
+
+  @@index([ownerUserId])
+  @@index([stockCode])
+  @@map("watchlist_items")
+}
+
+model WatchlistCategory {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  watchlistItemId String        @map("watchlist_item_id") @db.Uuid
+  category        String        @db.VarChar(100)
+  watchlistItem   WatchlistItem @relation(fields: [watchlistItemId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistItemId, category])
+  @@map("watchlist_categories")
+}
+
+model Note {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId String      @map("owner_user_id") @db.Uuid
+  workspaceId String?     @map("workspace_id") @db.Uuid
+  title       String      @db.VarChar(255)
+  content     String
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace   Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([ownerUserId])
+  @@map("notes")
+}
+
+model FinanceAccount {
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId      String                @map("owner_user_id") @db.Uuid
+  workspaceId      String?               @map("workspace_id") @db.Uuid
+  name             String                @db.VarChar(255)
+  institutionName  String                @map("institution_name") @db.VarChar(255)
+  type             FinanceAccountType
+  currency         CurrencyCode          @default(IDR)
+  openingBalance   Decimal               @map("opening_balance") @db.Decimal(18, 2)
+  isActive         Boolean               @default(true) @map("is_active")
+  notes            String?
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner            User                  @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace        Workspace?            @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  transactions     FinanceTransaction[]  @relation("FinanceAccountTransactions")
+  counterpartyFor  FinanceTransaction[]  @relation("FinanceCounterpartyAccount")
+
+  @@index([ownerUserId])
+  @@map("finance_accounts")
+}
+
+model FinanceTransaction {
+  id                   String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId          String                  @map("owner_user_id") @db.Uuid
+  workspaceId          String?                 @map("workspace_id") @db.Uuid
+  accountId            String                  @map("account_id") @db.Uuid
+  type                 FinanceTransactionType
+  amount               Decimal                 @db.Decimal(18, 2)
+  entryDate            DateTime                @map("entry_date") @db.Date
+  description          String
+  counterpartyAccountId String?                @map("counterparty_account_id") @db.Uuid
+  linkedCashflowId     String?                 @map("linked_cashflow_id") @db.Uuid
+  linkedPortfolioId    String?                 @map("linked_portfolio_id") @db.Uuid
+  cashflowSyncMode     CashflowSyncMode?       @map("cashflow_sync_mode")
+  category             String?                 @db.VarChar(100)
+  transferGroupId      String?                 @map("transfer_group_id") @db.Uuid
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner                User                    @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace            Workspace?              @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  account              FinanceAccount          @relation("FinanceAccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  counterpartyAccount  FinanceAccount?         @relation("FinanceCounterpartyAccount", fields: [counterpartyAccountId], references: [id], onDelete: SetNull)
+  tags                 FinanceTransactionTag[]
+
+  @@index([ownerUserId])
+  @@index([accountId])
+  @@index([linkedPortfolioId])
+  @@index([transferGroupId])
+  @@map("finance_transactions")
+}
+
+model FinanceTransactionTag {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  financeTransactionId String              @map("finance_transaction_id") @db.Uuid
+  tag                  String              @db.VarChar(100)
+  financeTransaction   FinanceTransaction  @relation(fields: [financeTransactionId], references: [id], onDelete: Cascade)
+
+  @@unique([financeTransactionId, tag])
+  @@map("finance_transaction_tags")
+}
+
+model IpoEvent {
+  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId           String      @map("owner_user_id") @db.Uuid
+  workspaceId           String?     @map("workspace_id") @db.Uuid
+  stockCode             String      @map("stock_code") @db.VarChar(20)
+  underwriter           String?     @db.VarChar(255)
+  offeringDate          DateTime?   @map("offering_date") @db.Date
+  ipoDate               DateTime    @map("ipo_date") @db.Date
+  offeringPrice         Decimal     @map("offering_price") @db.Decimal(18, 2)
+  notes                 String?
+  sector                String?     @db.VarChar(100)
+  registrar             String?     @db.VarChar(255)
+  targetBoard           String?     @map("target_board") @db.VarChar(100)
+  bookbuildingStartDate DateTime?   @map("bookbuilding_start_date") @db.Date
+  bookbuildingEndDate   DateTime?   @map("bookbuilding_end_date") @db.Date
+  lotPoolingAmount      Decimal?    @map("lot_pooling_amount") @db.Decimal(8, 2)
+  allotmentDate         DateTime?   @map("allotment_date") @db.Date
+  refundDate            DateTime?   @map("refund_date") @db.Date
+  distributionDate      DateTime?   @map("distribution_date") @db.Date
+  createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner                 User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace             Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  entries               IpoEntry[]
+
+  @@index([ownerUserId])
+  @@index([stockCode])
+  @@map("ipo_events")
+}
+
+model IpoAccount {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId   String      @map("owner_user_id") @db.Uuid
+  workspaceId   String?     @map("workspace_id") @db.Uuid
+  name          String      @db.VarChar(255)
+  email         String      @db.VarChar(255)
+  normalizedKey String      @map("normalized_key") @db.VarChar(255)
+  lastUsedAt    DateTime    @map("last_used_at") @db.Timestamptz(6)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner         User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace     Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  entries       IpoEntry[]
+
+  @@index([ownerUserId])
+  @@index([normalizedKey])
+  @@map("ipo_accounts")
+}
+
+model IpoEntry {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId  String      @map("owner_user_id") @db.Uuid
+  workspaceId  String?     @map("workspace_id") @db.Uuid
+  ipoEventId   String      @map("ipo_event_id") @db.Uuid
+  ipoAccountId String?     @map("ipo_account_id") @db.Uuid
+  rowNo        Int         @map("row_no")
+  accountName  String      @map("account_name") @db.VarChar(255)
+  email        String      @db.VarChar(255)
+  buyPrice     Decimal     @map("buy_price") @db.Decimal(18, 2)
+  lots         Int
+  sellPrice    Decimal     @map("sell_price") @db.Decimal(18, 2)
+  slTl         StopTakeLabel @map("sl_tl")
+  action       IpoAction
+  notes        String?
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner        User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace    Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  ipoEvent     IpoEvent    @relation(fields: [ipoEventId], references: [id], onDelete: Cascade)
+  ipoAccount   IpoAccount? @relation(fields: [ipoAccountId], references: [id], onDelete: SetNull)
+
+  @@index([ownerUserId])
+  @@index([ipoEventId])
+  @@index([ipoAccountId])
+  @@map("ipo_entries")
+}
+
+model TradeReview {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tradeId         String            @map("trade_id") @db.Uuid
+  ownerUserId     String            @map("owner_user_id") @db.Uuid
+  mentorUserId    String            @map("mentor_user_id") @db.Uuid
+  comment         String?
+  disciplineScore Int?              @map("discipline_score")
+  psychologyScore Int?              @map("psychology_score")
+  riskScore       Int?              @map("risk_score")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  trade           Trade             @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  owner           User              @relation("TradeReviewOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  mentor          User              @relation("TradeReviewMentor", fields: [mentorUserId], references: [id], onDelete: Cascade)
+  tags            TradeReviewTag[]
+
+  @@index([tradeId])
+  @@index([mentorUserId])
+  @@map("trade_reviews")
+}
+
+model TradeReviewTag {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tradeReviewId String       @map("trade_review_id") @db.Uuid
+  tag           String       @db.VarChar(100)
+  tradeReview   TradeReview  @relation(fields: [tradeReviewId], references: [id], onDelete: Cascade)
+
+  @@unique([tradeReviewId, tag])
+  @@map("trade_review_tags")
+}
+
+model ReportShare {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId String      @map("owner_user_id") @db.Uuid
+  workspaceId String?     @map("workspace_id") @db.Uuid
+  portfolioId String?     @map("portfolio_id") @db.Uuid
+  shareKey    String      @unique @map("share_key") @db.VarChar(255)
+  title       String      @db.VarChar(255)
+  shareType   ShareType   @map("share_type")
+  isPublic    Boolean     @default(false) @map("is_public")
+  expiresAt   DateTime?   @map("expires_at") @db.Timestamptz(6)
+  snapshot    Json?       @map("snapshot")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace   Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  portfolio   Portfolio?  @relation(fields: [portfolioId], references: [id], onDelete: SetNull)
+
+  @@index([ownerUserId])
+  @@index([shareKey])
+  @@map("report_shares")
+}
+
+model AppSetting {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerUserId        String           @map("owner_user_id") @db.Uuid
+  workspaceId        String?          @map("workspace_id") @db.Uuid
+  initialCapital     Decimal          @map("initial_capital") @db.Decimal(18, 2)
+  monthlyTarget      Decimal          @map("monthly_target") @db.Decimal(18, 2)
+  defaultBuyFee      Decimal          @map("default_buy_fee") @db.Decimal(8, 4)
+  defaultSellFee     Decimal          @map("default_sell_fee") @db.Decimal(8, 4)
+  themePreference    ThemePreference  @default(system) @map("theme_preference")
+  privacyMode        Boolean          @default(false) @map("privacy_mode")
+  defaultRiskPercent Decimal?         @map("default_risk_percent") @db.Decimal(8, 4)
+  defaultTargetRr    Decimal?         @map("default_target_rr") @db.Decimal(8, 4)
+  extra              Json             @default("{}")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner              User             @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  workspace          Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@unique([ownerUserId, workspaceId])
+  @@map("app_settings")
+}

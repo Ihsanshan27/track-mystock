@@ -11,7 +11,7 @@ export default defineConfig({
   cacheDir: '.vitest',
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
+      '@': resolve(__dirname, './apps/web/src'),
     },
   },
   test: {

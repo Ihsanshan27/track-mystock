@@ -1,6 +1,9 @@
 # Jurnal Saham
 
-Aplikasi jurnal trading saham berbasis React, Vite, dan Supabase.
+Aplikasi jurnal trading saham dengan struktur proyek yang sudah dipisah jelas:
+
+- `apps/web` untuk frontend React + Vite
+- `apps/api` untuk backend NestJS + Prisma
 
 ## Setup
 
@@ -16,34 +19,35 @@ npm install
 cp .env.example .env
 ```
 
-3. Isi kredensial Supabase:
+3. Isi environment frontend:
 
 ```env
-VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-SUPABASE_FIRST_ADMIN_EMAIL=admin@your-domain.com
+VITE_API_BASE_URL=http://127.0.0.1:3001/api/v1
 ```
 
-4. Link project Supabase:
+4. Jalankan PostgreSQL lokal:
 
 ```bash
-npm run db:link
+docker compose -f docker-compose.backend.yml up -d
 ```
 
-5. Jalankan setup Supabase:
+5. Siapkan backend database:
 
 ```bash
-npm run db:setup
+npm run api:prisma:generate
+npm run api:prisma:migrate
 ```
 
-Script ini akan:
-- push semua migration
-- deploy Edge Function `admin-create-user`
-- verifikasi tabel penting
-- bootstrap admin pertama jika `SUPABASE_FIRST_ADMIN_EMAIL` sudah diisi
+Catatan:
+- backend lokal default memakai `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/jurnal_saham?schema=public`
 
-6. Jalankan aplikasi:
+6. Jalankan backend lokal:
+
+```bash
+npm run api:dev
+```
+
+7. Jalankan frontend:
 
 ```bash
 npm run dev
@@ -51,31 +55,25 @@ npm run dev
 
 Lalu buka `http://127.0.0.1:5174`.
 
-Jika `.env` Supabase belum diisi, aplikasi tetap berjalan memakai localStorage sebagai fallback.
-Untuk project Supabase lama yang masih memakai anon key, aplikasi juga masih membaca `VITE_SUPABASE_ANON_KEY`.
-
-## Supabase
-
-Integrasi menggunakan:
-
-- Supabase Auth untuk register, login, logout, dan profil.
-- Tabel `public.journal_data` untuk menyimpan data jurnal per user dalam format JSON.
-- Row Level Security dengan `auth.uid()` agar user hanya dapat mengakses datanya sendiri.
-
-Di Supabase Dashboard, pastikan email/password provider aktif di Authentication settings. Jika email confirmation aktif, user perlu konfirmasi email sebelum login.
-
-Operasional Supabase seperti verifikasi setup, bootstrap admin, dan troubleshooting rate limit ada di `docs/supabase-operations.md`.
-
 ## Scripts
 
 ```bash
 npm run dev
-npm run db:setup
-npm run db:push
-npm run db:deploy:functions
-npm run db:verify
-npm run db:bootstrap-admin -- email@contoh.com
+npm run api:dev
+npm run api:prisma:generate
+npm run api:prisma:migrate
+npm run api:seed
 npm run lint
 npm run build
 npm run preview
+```
+
+## Struktur Folder
+
+```bash
+apps/
+  api/   # backend NestJS
+  web/   # frontend React + Vite
+docs/
+scripts/
 ```

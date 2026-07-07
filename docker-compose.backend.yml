@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jurnal-saham-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: jurnal_saham
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - jurnal_saham_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jurnal_saham"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  jurnal_saham_postgres_data:

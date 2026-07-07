@@ -1,0 +1,2 @@
+ALTER TABLE "report_shares"
+ADD COLUMN IF NOT EXISTS "snapshot" JSONB NULL;

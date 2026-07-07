@@ -7,10 +7,45 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Build output and caches
 node_modules
 dist
 dist-ssr
+.vitest
+*.tsbuildinfo
 *.local
+
+# Sensitive environment files
+.env
+.env.*
+apps/api/.env
+apps/api/.env.*
+!.env.example
+!apps/api/.env.example
+
+# Local secrets, keys, and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.csr
+*.der
+*.jks
+*.keystore
+secrets/
+secret/
+private/
+
+# Database dumps and local backups
+*.sql.gz
+*.dump
+*.bak
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
 
 # Editor directories and files
 .vscode/*

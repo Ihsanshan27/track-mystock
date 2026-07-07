@@ -240,7 +240,7 @@ Dokumen ini merangkum seluruh fitur utama yang saat ini tersedia di dalam sistem
 - Tema / theme preference
 - Privacy mode
 - Behavior rules / trading guardrails
-- Registrasi publik enable/disable
+- Registrasi publik enable/disable yang disimpan di backend dan dipatuhi oleh flow register
 
 ### Data management
 - Export data
@@ -285,9 +285,9 @@ Dokumen ini merangkum seluruh fitur utama yang saat ini tersedia di dalam sistem
 - Privacy blur style
 
 ### Data layer
-- **Dual-Engine Persistence**: Sinkronisasi otomatis ke Supabase database saat online, dan sandbox fallback ke Local Storage saat offline/standalone
-- User-scoped persistence (pemisahan penyimpanan data lokal & cache per akun user)
-- Row Level Security (RLS) pada tabel Supabase untuk keamanan data pengguna
+- **Backend-First Persistence**: Backend NestJS + PostgreSQL menjadi source of truth utama untuk runtime aplikasi aktif
+- User-scoped persistence (pemisahan cache lokal per akun user untuk draft, import/export, dan bootstrap data)
+- Kontrol akses berbasis user, role, dan workspace di backend
 - Import/export data dalam format terstruktur (JSON/CSV)
 - Auto cache local data untuk mempercepat waktu muat aplikasi
 
