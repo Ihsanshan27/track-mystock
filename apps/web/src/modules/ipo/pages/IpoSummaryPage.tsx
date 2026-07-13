@@ -562,7 +562,7 @@ export default function IpoSummaryPage() {
       {chartData.length > 0 && (
         <div className="card" style={{ marginBottom: 28 }}>
           <div className="card-header">
-            <h3 className="card-title">📊 Analisis Profitabilitas Per Emiten</h3>
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.BarChart2 size={20} /> Analisis Profitabilitas Per Emiten</h3>
           </div>
           <div className="card-body">
             <div style={{ width: '100%', height: 300 }}>
@@ -587,7 +587,7 @@ export default function IpoSummaryPage() {
       {/* Detailed Table */}
       <div className="card" style={{ marginBottom: 28 }}>
         <div className="card-header">
-          <h3 className="card-title">💼 Estimasi Modal Total Per Akun IPO</h3>
+          <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Briefcase size={20} /> Estimasi Modal Total Per Akun IPO</h3>
         </div>
         <div className="card-body" style={{ borderBottom: '1px solid var(--border-color)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
@@ -793,7 +793,7 @@ export default function IpoSummaryPage() {
       ) : (
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">🏆 Statistik Performa Underwriter</h3>
+            <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Trophy size={20} /> Statistik Performa Underwriter</h3>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
             <div className="table-container" style={{ border: 'none', margin: 0 }}>

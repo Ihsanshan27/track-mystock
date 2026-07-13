@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { EMITEN_DATA, SECTORS, SECTOR_META, getTickersBySector } from '@/modules/shared/utils/commodityData';
 import { fetchQuotesBatch } from '@/modules/shared/services/yahooFinanceService';
-import { TrendingUp, TrendingDown, Loader2, RefreshCw, Layers, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { TrendingUp, TrendingDown, Loader2, RefreshCw, Layers, ChevronDown, ChevronUp, Search, Activity, CornerRightDown, Folder, ClipboardList } from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 interface QuoteData {
     ticker: string;
@@ -260,10 +261,10 @@ const CategoryPage = () => {
                 {/* Stats bar */}
                 <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
                     {[
-                        { label: 'Sektor', value: SECTORS.length, icon: '📂' },
-                        { label: 'Total Emiten', value: [...new Set(EMITEN_DATA.map(e => e.ticker))].length, icon: '📋' },
-                        { label: 'Naik Hari Ini', value: totalGainers, icon: '📈', color: 'var(--accent-green)' },
-                        { label: 'Turun Hari Ini', value: totalLosers, icon: '📉', color: 'var(--accent-red)' },
+                        { label: 'Sektor', value: SECTORS.length, icon: <Folder size={20} color="var(--text-muted)"/> },
+                        { label: 'Total Emiten', value: [...new Set(EMITEN_DATA.map(e => e.ticker))].length, icon: <ClipboardList size={20} color="var(--text-muted)"/> },
+                        { label: 'Naik Hari Ini', value: totalGainers, icon: <Activity size={20} />, color: 'var(--accent-green)' },
+                        { label: 'Turun Hari Ini', value: totalLosers, icon: <CornerRightDown size={20} />, color: 'var(--accent-red)' },
                     ].map(stat => (
                         <div key={stat.label} className="stat-card" style={{ padding: '11px 16px', flex: '0 1 auto', minWidth: '100px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontSize: '1rem' }}>{stat.icon}</span>
@@ -287,7 +288,7 @@ const CategoryPage = () => {
                         />
                         <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                     </div>
-                    <select
+                    <CustomSelect
                         value={sortBy}
                         onChange={e => setSortBy(e.target.value)}
                         className="form-select"
@@ -295,7 +296,7 @@ const CategoryPage = () => {
                     >
                         <option value="sector">Urut: Sektor (Default)</option>
                         <option value="change">Urut: % Perubahan ↓</option>
-                    </select>
+                    </CustomSelect>
                 </div>
             </div>
 

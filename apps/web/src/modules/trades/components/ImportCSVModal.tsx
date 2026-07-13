@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { getTradeAssetTypeLabel } from '@/modules/trades/calculations';
+import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 interface ImportCSVModalProps {
   isOpen: boolean;
@@ -235,7 +237,7 @@ export default function ImportCSVModal({ isOpen, onClose, onImportSuccess, addTr
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label className="form-label" htmlFor="broker-preset-select" style={{ fontSize: '0.78rem', marginBottom: 0 }}>Preset Broker / Sekuritas</label>
-              <select
+              <CustomSelect
                 id="broker-preset-select"
                 className="form-select"
                 style={{ minWidth: 150, padding: '4px 8px', fontSize: '0.8rem', height: '32px' }}
@@ -246,7 +248,7 @@ export default function ImportCSVModal({ isOpen, onClose, onImportSuccess, addTr
                 <option value="ajaib">Ajaib</option>
                 <option value="mirae">Mirae Asset</option>
                 <option value="ipot">IPOT</option>
-              </select>
+              </CustomSelect>
             </div>
             
             <div style={{ display: 'flex', gap: 12, alignSelf: 'flex-end' }}>
@@ -272,7 +274,7 @@ export default function ImportCSVModal({ isOpen, onClose, onImportSuccess, addTr
               color: 'var(--accent-red)', padding: '10px 14px', borderRadius: 'var(--radius-md)',
               fontSize: '0.82rem', marginBottom: '16px'
             }}>
-              ⚠️ {errorMsg}
+              <Icons.AlertTriangle size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> {errorMsg}
             </div>
           )}
 

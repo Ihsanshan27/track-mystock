@@ -10,6 +10,7 @@ import { formatDate, formatRupiah } from '@/modules/shared/utils/formatters';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { FINANCE_ACCOUNT_TYPE_OPTIONS } from '@/modules/finance/utils/finance';
 import { calculatePortfolioBalance, calculateUnrealizedPnL } from '@/modules/trades/calculations';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 import '@/modules/finance/finance.css';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#F43F5E', '#06B6D4', '#EC4899', '#84CC16'];
@@ -433,11 +434,11 @@ export default function FinancePage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="finance-account-type">Tipe Akun</label>
-                  <select id="finance-account-type" className="form-select" value={form.type} onChange={(event) => setValue('type', event.target.value)}>
+                  <CustomSelect id="finance-account-type" className="form-select" value={form.type} onChange={(event) => setValue('type', event.target.value)}>
                     {FINANCE_ACCOUNT_TYPE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="finance-account-opening">Saldo Awal (IDR)</label>

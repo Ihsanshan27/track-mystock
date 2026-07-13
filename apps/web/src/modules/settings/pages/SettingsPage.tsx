@@ -10,6 +10,7 @@ import { ACCESS_LEVELS, listOwnedSharedAccess, revokeSharedAccess, upsertSharedA
 import { formatDateTime, formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
 import SelectionToggleCard from '@/modules/shared/components/SelectionToggleCard';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 import {
   Brain,
   Database,
@@ -565,9 +566,9 @@ export default function SettingsPage() {
                 </div>
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label className="form-label">Preset Broker Indonesia (IDR)</label>
-                  <select className="form-select" value={form.selectedBrokerID || 'Custom'} onChange={e => handleBrokerIDChange(e.target.value)}>
+                  <CustomSelect className="form-select" value={form.selectedBrokerID || 'Custom'} onChange={e => handleBrokerIDChange(e.target.value)}>
                     {BROKERS_ID.map((broker) => <option key={broker.name} value={broker.name}>{broker.name}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -584,9 +585,9 @@ export default function SettingsPage() {
               <SectionCard title="Pengaturan Trading Amerika" description="Atur modal dan broker default untuk transaksi USD." actionLabel="Simpan Pengaturan US" onAction={handleSaveSettings}>
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label className="form-label">Preset Broker Amerika (USD)</label>
-                  <select className="form-select" value={form.selectedBrokerUS || 'Custom'} onChange={e => handleBrokerUSChange(e.target.value)}>
+                  <CustomSelect className="form-select" value={form.selectedBrokerUS || 'Custom'} onChange={e => handleBrokerUSChange(e.target.value)}>
                     {BROKERS_US.map((broker) => <option key={broker.name} value={broker.name}>{broker.name}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-row">
                   <div className="form-group">
@@ -629,11 +630,11 @@ export default function SettingsPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Tema Aplikasi</label>
-                    <select className="form-select" value={form.themePreference || 'system'} onChange={e => handleThemePreferenceChange(e.target.value as any)}>
+                    <CustomSelect className="form-select" value={form.themePreference || 'system'} onChange={e => handleThemePreferenceChange(e.target.value as any)}>
                       <option value="system">Ikuti Sistem</option>
                       <option value="light">Light Mode</option>
                       <option value="dark">Dark Mode</option>
-                    </select>
+                    </CustomSelect>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Mode Privasi Nominal</label>
@@ -833,7 +834,7 @@ export default function SettingsPage() {
                     <div className="form-row">
                       <div className="form-group">
                         <label className="form-label">Pilih User</label>
-                        <select
+                        <CustomSelect
                           className="form-select"
                           value={shareForm.granteeId}
                           onChange={(event) => setShareForm((prev) => ({ ...prev, granteeId: event.target.value }))}
@@ -846,11 +847,11 @@ export default function SettingsPage() {
                                 {item.displayName} ({item.role})
                               </option>
                             ))}
-                        </select>
+                        </CustomSelect>
                       </div>
                       <div className="form-group">
                         <label className="form-label">Level Akses</label>
-                        <select
+                        <CustomSelect
                           className="form-select"
                           value={shareForm.accessLevel}
                           onChange={(event) => setShareForm((prev) => ({ ...prev, accessLevel: event.target.value }))}
@@ -858,7 +859,7 @@ export default function SettingsPage() {
                           {ACCESS_LEVELS.map((level) => (
                             <option key={level} value={level}>{ACCESS_LABELS[level] || level}</option>
                           ))}
-                        </select>
+                        </CustomSelect>
                       </div>
                     </div>
                     <div className="form-group">

@@ -9,6 +9,7 @@ import { createReportShare, deleteReportShare, listReportShares, updateReportSha
 import { isApiConfigured } from '@/modules/shared/services/apiClient';
 import { buildReportSnapshot } from '@/modules/shared/utils/reporting';
 import { formatDateTime } from '@/modules/shared/utils/formatters';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 export default function ReportsPage() {
   const sharingAvailable = isApiConfigured;
@@ -150,8 +151,8 @@ export default function ReportsPage() {
     }
   };
 
-  const handleCopyLink = async (shareKey) => {
-    const shareUrl = `${window.location.origin}/shared/${shareKey}`;
+  const handleCopyLink = async (shareId, shareKey) => {
+    const shareUrl = `${window.location.origin}/shared/${shareKey || shareId}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       await createAuditLogSafe({
@@ -182,10 +183,10 @@ export default function ReportsPage() {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Market</label>
-              <select className="form-input" value={market} onChange={(event) => setMarket(event.target.value)}>
+              <CustomSelect className="form-select" value={market} onChange={(event) => setMarket(event.target.value)}>
                 <option value="ID">Pasar Indonesia</option>
                 <option value="US">Pasar Amerika</option>
-              </select>
+              </CustomSelect>
             </div>
             <div className="form-group">
               <label className="form-label">Judul Share</label>
@@ -257,7 +258,7 @@ export default function ReportsPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopyLink(row.share_key || row.id)}>Salin Link</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleCopyLink(row.id, row.share_key)}>Salin Link</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => handleRefreshShare(row.id)}>Refresh Snapshot</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => handleToggleShare(row.id, !row.is_active)}>
                       {row.is_active ? 'Nonaktifkan' : 'Aktifkan'}

@@ -18,6 +18,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
 import { AppSettingsService } from '../app-settings/app-settings.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly authTokens: AuthTokensService,
     private readonly appSettingsService: AppSettingsService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(payload: RegisterDto) {
@@ -86,13 +88,14 @@ export class AuthService {
       return createdUser;
     });
 
+    this.mailService.sendOtpEmail(email, verification.otp).catch(() => {});
+
     return {
       userId: user.id,
       email,
       needsConfirmation: true,
       needsOtpVerification: true,
-      verificationCode: verification.otp,
-      message: 'Akun dibuat. Gunakan kode verifikasi untuk mengaktifkan akun.',
+      message: 'Akun dibuat. Kode verifikasi telah dikirim ke email Anda.',
     };
   }
 
@@ -243,10 +246,11 @@ export class AuthService {
       });
     });
 
+    this.mailService.sendPasswordResetEmail(email, reset.token).catch(() => {});
+
     return {
       email,
-      resetToken: reset.token,
-      message: 'Kode reset password sudah dibuat. Lanjutkan ke halaman reset password.',
+      message: 'Kode reset password telah dikirim ke email Anda. Lanjutkan ke halaman reset password.',
     };
   }
 
@@ -401,9 +405,10 @@ export class AuthService {
       },
     });
 
+    this.mailService.sendOtpEmail(email, verification.otp).catch(() => {});
+
     return {
       email,
-      verificationCode: verification.otp,
       message: 'Kode OTP baru sudah dikirim ke email Anda.',
     };
   }

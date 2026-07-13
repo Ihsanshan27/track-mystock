@@ -27,16 +27,16 @@ import {
 import { isApiConfigured } from '@/modules/shared/services/apiClient';
 
 const DEFAULT_AUTH_CONTEXT = {
-  user: null,
+  user: null as any,
   loading: false,
-  register: async () => ({ success: false, error: 'Auth context belum siap.' }),
-  login: async () => ({ success: false, error: 'Auth context belum siap.' }),
-  logout: async () => {},
-  updateUsername: async () => ({ success: false, error: 'Auth context belum siap.' }),
-  verifyEmailOtp: async () => ({ success: false, error: 'Auth context belum siap.' }),
-  resendEmailOtp: async () => ({ success: false, error: 'Auth context belum siap.' }),
-  requestPasswordRecovery: async () => ({ success: false, error: 'Auth context belum siap.' }),
-  resetPassword: async () => ({ success: false, error: 'Auth context belum siap.' }),
+  register: async (username?: string, password?: string): Promise<{ success: boolean; error?: string; email?: string; needsConfirmation?: boolean; needsOtpVerification?: boolean; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
+  login: async (username?: string, password?: string): Promise<{ success: boolean; error?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
+  logout: async (): Promise<void> => {},
+  updateUsername: async (newUsername?: string): Promise<{ success: boolean; error?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
+  verifyEmailOtp: async (email?: string, token?: string): Promise<{ success: boolean; error?: string; hasSession?: boolean; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
+  resendEmailOtp: async (email?: string): Promise<{ success: boolean; error?: string; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
+  requestPasswordRecovery: async (email?: string): Promise<{ success: boolean; error?: string; email?: string; resetToken?: string; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
+  resetPassword: async (newPassword?: string, options?: any): Promise<{ success: boolean; error?: string; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
 };
 
 const AuthContext = createContext(DEFAULT_AUTH_CONTEXT);
@@ -275,7 +275,7 @@ export function AuthProvider({ children }) {
     };
   };
 
-  const resetPassword = async (newPassword, options = {}) => {
+  const resetPassword = async (newPassword, options: any = {}) => {
     if (isApiConfigured) {
       try {
         const data = await backendResetPassword(options.email, options.token, newPassword);

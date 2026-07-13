@@ -8,6 +8,7 @@ import { CheckCircle, AlertCircle } from 'lucide-react';
 
 const PAGE_TITLES = {
   '/': 'Dashboard',
+  '/wealth': 'Kekayaan (Wealth Dashboard)',
   '/trades': 'Daftar Transaksi',
   '/trades/new': 'Catat Transaksi',
   '/analytics': 'Analitik & Statistik',
@@ -30,13 +31,14 @@ const PAGE_TITLES = {
   '/admin/audit-logs': 'Audit Logs',
 };
 
+
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { toasts } = useData();
   useScrollRestoration();
 
-  let pageTitle = PAGE_TITLES[location.pathname] || 'Jurnal Saham';
+  let pageTitle = PAGE_TITLES[location.pathname] || 'StockLife';
   if (location.pathname.startsWith('/mentor/traders/')) {
     pageTitle = 'Detail Trader Share';
   }

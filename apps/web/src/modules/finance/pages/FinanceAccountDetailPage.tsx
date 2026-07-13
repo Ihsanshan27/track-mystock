@@ -11,6 +11,7 @@ import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { formatDate, formatRupiah } from '@/modules/shared/utils/formatters';
 import { FINANCE_TRANSACTION_TYPE_OPTIONS, getFinanceTransactionAmountForDisplay, getFinanceTransactionTypeLabel } from '@/modules/finance/utils/finance';
 import { calculatePortfolioAssetIdrEquivalent, calculatePortfolioAssetMetrics } from '@/modules/trades/calculations';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 import '@/modules/finance/finance.css';
 
 function createInitialTransactionForm(activePortfolioId: string, defaultPortfolioId: string) {
@@ -393,11 +394,11 @@ export default function FinanceAccountDetailPage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="finance-transaction-type">Jenis Transaksi</label>
-                  <select id="finance-transaction-type" className="form-select" value={transactionForm.type} onChange={(event) => handleTransactionChange('type', event.target.value)}>
+                  <CustomSelect id="finance-transaction-type" className="form-select" value={transactionForm.type} onChange={(event) => handleTransactionChange('type', event.target.value)}>
                     {FINANCE_TRANSACTION_TYPE_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="finance-transaction-amount">Nominal *</label>
@@ -417,10 +418,10 @@ export default function FinanceAccountDetailPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label" htmlFor="finance-adjustment-direction">Arah Adjustment</label>
-                    <select id="finance-adjustment-direction" className="form-select" value={transactionForm.adjustmentDirection} onChange={(event) => handleTransactionChange('adjustmentDirection', event.target.value)}>
+                    <CustomSelect id="finance-adjustment-direction" className="form-select" value={transactionForm.adjustmentDirection} onChange={(event) => handleTransactionChange('adjustmentDirection', event.target.value)}>
                       <option value="increase">Tambah Saldo</option>
                       <option value="decrease">Kurangi Saldo</option>
-                    </select>
+                    </CustomSelect>
                   </div>
                 </div>
               ) : null}
@@ -457,11 +458,11 @@ export default function FinanceAccountDetailPage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label" htmlFor="finance-transaction-portfolio">Portofolio Trading</label>
-                    <select id="finance-transaction-portfolio" className="form-select" value={transactionForm.linkedPortfolioId} onChange={(event) => handleTransactionChange('linkedPortfolioId', event.target.value)}>
+                    <CustomSelect id="finance-transaction-portfolio" className="form-select" value={transactionForm.linkedPortfolioId} onChange={(event) => handleTransactionChange('linkedPortfolioId', event.target.value)}>
                       {portfolios.map((portfolio: any) => (
                         <option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>
                       ))}
-                    </select>
+                    </CustomSelect>
                   </div>
                 </div>
               ) : null}
@@ -491,12 +492,12 @@ export default function FinanceAccountDetailPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="finance-transfer-target">Ke Rekening *</label>
-                  <select id="finance-transfer-target" className="form-select" value={transferForm.toAccountId} onChange={(event) => handleTransferChange('toAccountId', event.target.value)} required>
+                  <CustomSelect id="finance-transfer-target" className="form-select" value={transferForm.toAccountId} onChange={(event) => handleTransferChange('toAccountId', event.target.value)} required>
                     <option value="">Pilih rekening tujuan</option>
                     {counterpartyOptions.map((item: any) => (
                       <option key={item.id} value={item.id}>{item.name} • {item.institutionName}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
               </div>
               <div className="form-row">
@@ -544,7 +545,7 @@ export default function FinanceAccountDetailPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="finance-portfolio-transfer-target">Ke Dompet *</label>
-                  <select
+                  <CustomSelect
                     id="finance-portfolio-transfer-target"
                     className="form-select"
                     value={portfolioTransferForm.portfolioId}
@@ -554,7 +555,7 @@ export default function FinanceAccountDetailPage() {
                     {portfolios.map((portfolio: any) => (
                       <option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
               </div>
               <div className="form-row">
@@ -612,7 +613,7 @@ export default function FinanceAccountDetailPage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="finance-portfolio-withdrawal-source">Dari Dompet *</label>
-                  <select
+                  <CustomSelect
                     id="finance-portfolio-withdrawal-source"
                     className="form-select"
                     value={portfolioWithdrawalForm.portfolioId}
@@ -622,7 +623,7 @@ export default function FinanceAccountDetailPage() {
                     {portfolios.map((portfolio: any) => (
                       <option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Ke Rekening</label>
@@ -686,14 +687,14 @@ export default function FinanceAccountDetailPage() {
             <div className="finance-inline-form">
               <div className="form-group" style={{ minWidth: 170 }}>
                 <label className="form-label" htmlFor="finance-filter-type">Filter Tipe</label>
-                <select id="finance-filter-type" className="form-select" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+                <CustomSelect id="finance-filter-type" className="form-select" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
                   <option value="all">Semua</option>
                   <option value="income">Pemasukan</option>
                   <option value="expense">Pengeluaran</option>
                   <option value="adjustment">Adjustment</option>
                   <option value="transfer_in">Transfer Masuk</option>
                   <option value="transfer_out">Transfer Keluar</option>
-                </select>
+                </CustomSelect>
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="finance-filter-from">Dari</label>

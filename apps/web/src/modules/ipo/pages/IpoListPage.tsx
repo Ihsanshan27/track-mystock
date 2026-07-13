@@ -7,6 +7,7 @@ import { formatRupiah, formatDate } from "@/modules/shared/utils/formatters";
 import type { IpoEvent, IpoSummary } from "@/modules/ipo/types/ipo";
 import { getIpoEventStatus, parseDateOnly } from "@/modules/ipo/utils/ipoStatus";
 import * as Icons from "lucide-react";
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 import "@/modules/ipo/ipo.css";
 
 const DRAFT_KEY = "ipo_list_form_draft";
@@ -58,12 +59,12 @@ function getCountdownInfo(event: IpoEvent): { label: string; cls: string } | nul
 
    // Cek apakah IPO hari ini
    if (ipoDate.getTime() === today.getTime()) {
-      return { label: "🔥 IPO Hari Ini!", cls: "today-label" };
+      return { label: "IPO Hari Ini!", cls: "today-label" };
    }
 
    // Cek apakah penawaran hari ini
    if (offeringDate && offeringDate.getTime() === today.getTime()) {
-      return { label: "⚡ Penawaran Hari Ini", cls: "urgent" };
+      return { label: "Penawaran Hari Ini", cls: "urgent" };
    }
 
    // Hitung countdown penawaran (jika belum lewat) atau IPO
@@ -421,7 +422,7 @@ export default function IpoListPage() {
                </div>
                <div className="form-group">
                   <label className="form-label" htmlFor="ipo-list-target-board">Papan Pencatatan</label>
-                  <select
+                  <CustomSelect
                      id="ipo-list-target-board"
                      className="form-input"
                      value={form.targetBoard}
@@ -431,11 +432,11 @@ export default function IpoListPage() {
                      <option value="Pengembangan">Pengembangan</option>
                      <option value="Akselerasi">Akselerasi</option>
                      <option value="Ekonomi Baru">Ekonomi Baru</option>
-                  </select>
+                  </CustomSelect>
                </div>
                <div className="form-group">
                   <label className="form-label" htmlFor="ipo-list-sector">Sektor Industri</label>
-                  <select
+                  <CustomSelect
                      id="ipo-list-sector"
                      className="form-input"
                      value={form.sector}
@@ -454,7 +455,7 @@ export default function IpoListPage() {
                      <option value="Infrastruktur">Infrastruktur</option>
                      <option value="Transportasi & Logistik">Transportasi & Logistik</option>
                      <option value="Lainnya">Lainnya</option>
-                  </select>
+                  </CustomSelect>
                </div>
             </div>
          </div>
@@ -697,7 +698,7 @@ export default function IpoListPage() {
                </div>
                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.72rem' }}>Status</label>
-                  <select
+                  <CustomSelect
                      className="form-input"
                      value={statusFilter}
                      onChange={(e) => setStatusFilter(e.target.value)}
@@ -706,11 +707,11 @@ export default function IpoListPage() {
                      <option value="active">Active</option>
                      <option value="upcoming">Upcoming</option>
                      <option value="completed">Completed</option>
-                  </select>
+                  </CustomSelect>
                </div>
                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.72rem' }}>Underwriter</label>
-                  <select
+                  <CustomSelect
                      className="form-input"
                      value={underwriterFilter}
                      onChange={(e) => setUnderwriterFilter(e.target.value)}
@@ -721,11 +722,11 @@ export default function IpoListPage() {
                            {uw}
                         </option>
                      ))}
-                  </select>
+                  </CustomSelect>
                </div>
                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.72rem' }}>Tahun</label>
-                  <select
+                  <CustomSelect
                      className="form-input"
                      value={yearFilter}
                      onChange={(e) => setYearFilter(e.target.value)}
@@ -736,7 +737,7 @@ export default function IpoListPage() {
                            {yr}
                         </option>
                      ))}
-                  </select>
+                  </CustomSelect>
                </div>
             </div>
          )}

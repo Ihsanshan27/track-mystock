@@ -51,11 +51,15 @@ export function buildReportSnapshot({
 
   const totalInvested = openPositions.reduce((sum, position) => sum + position.totalBuy, 0);
   const totalFloating = openPositions.reduce((sum, position) => sum + position.floatingPnL, 0);
+  const totalCurrentValue = openPositions.reduce((sum, position) => sum + (position.totalBuy + position.floatingPnL), 0);
 
-  const portfolioSummary = openPositions.map((position) => ({
-    ...position,
-    allocationPercent: totalInvested > 0 ? (position.totalBuy / totalInvested) * 100 : 0,
-  }));
+  const portfolioSummary = openPositions.map((position) => {
+    const positionCurrentValue = position.totalBuy + position.floatingPnL;
+    return {
+      ...position,
+      allocationPercent: totalCurrentValue > 0 ? (positionCurrentValue / totalCurrentValue) * 100 : 0,
+    };
+  });
 
   return {
     generatedAt: new Date().toISOString(),

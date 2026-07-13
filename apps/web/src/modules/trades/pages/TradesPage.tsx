@@ -9,6 +9,7 @@ import { calculateTradePnL, calculateUnrealizedPnL, getTradeAssetTypeLabel, getT
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 export default function TradesPage() {
   const { trades, deleteTrade, deleteTrades, updateTrades, marketPrices, settings, addTrade, fetchLivePrices, showToast } = useData();
@@ -218,13 +219,13 @@ export default function TradesPage() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">📝 Daftar Transaksi</h1>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.FileText size={24} /> Daftar Transaksi</h1>
           <p className="page-subtitle">{filtered.length} transaksi ditemukan</p>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowImportModal(true)}>📥 Impor CSV</button>
-          <button className="btn btn-secondary btn-sm" onClick={exportCSV}>📥 Export CSV</button>
-          <Link to="/trades/new" className="btn btn-primary">➕ Catat Transaksi</Link>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowImportModal(true)}><Icons.Download size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> Impor CSV</button>
+          <button className="btn btn-secondary btn-sm" onClick={exportCSV}><Icons.Download size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> Export CSV</button>
+          <Link to="/trades/new" className="btn btn-primary"><Icons.Plus size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> Catat Transaksi</Link>
         </div>
       </div>
 
@@ -235,23 +236,23 @@ export default function TradesPage() {
       {/* Filters */}
       <div className="filter-bar">
         <div className="search-bar" style={{ flex: 1, minWidth: 200 }}>
-          <span className="search-bar-icon">🔍</span>
+          <span className="search-bar-icon"><Icons.Search size={16} /></span>
           <input placeholder="Cari kode saham..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         </div>
-        <select className="form-select" style={{ width: 160 }} value={filterStrategy} onChange={e => { setFilterStrategy(e.target.value); setPage(1); }}>
+        <CustomSelect className="form-select" style={{ width: 160 }} value={filterStrategy} onChange={e => { setFilterStrategy(e.target.value); setPage(1); }}>
           <option value="">Semua Strategi</option>
           {(settings.customStrategies || STRATEGIES).map((s: string) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select className="form-select" style={{ width: 140 }} value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}>
+        </CustomSelect>
+        <CustomSelect className="form-select" style={{ width: 140 }} value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }}>
           <option value="">Semua Status</option>
           <option value="open">Open</option>
           <option value="closed">Closed</option>
-        </select>
-        <select className="form-select" style={{ width: 140 }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+        </CustomSelect>
+        <CustomSelect className="form-select" style={{ width: 140 }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
           <option value="dateBuy">Sort: Tanggal</option>
           <option value="stockCode">Sort: Kode</option>
           <option value="pnl">Sort: P/L</option>
-        </select>
+        </CustomSelect>
         <button className="btn btn-ghost btn-sm" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
           {sortDir === 'desc' ? '↓' : '↑'}
         </button>
@@ -260,10 +261,10 @@ export default function TradesPage() {
       {/* Table */}
       {paged.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📋</div>
-          <div className="empty-state-title">Belum ada transaksi</div>
-          <div className="empty-state-desc">Mulai catat transaksi saham atau reksadana Anda</div>
-          <Link to="/trades/new" className="btn btn-primary">➕ Catat Transaksi</Link>
+          <div className="empty-state-icon"><Icons.ClipboardList size={48} /></div>
+          <div className="empty-state-title">Tidak ada transaksi ditemukan</div>
+          <div className="empty-state-desc">Belum ada catatan yang sesuai dengan filter Anda.</div>
+          <Link to="/trades/new" className="btn btn-primary"><Icons.Plus size={14} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> Catat Transaksi</Link>
         </div>
       ) : (
         <>
@@ -335,7 +336,9 @@ export default function TradesPage() {
                         />
                       </td>
                       <td>
-                        <strong>{trade.stockCode}</strong> {isUS && <span style={{fontSize: '0.8em'}}>🇺🇸</span>}
+                        <div>
+                          <strong>{trade.stockCode}</strong> {isUS && <span style={{fontSize: '0.8em'}}>(US)</span>}
+                        </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{getTradeAssetTypeLabel(trade)}</div>
                       </td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{formatDate(trade.dateBuy)}</td>
@@ -359,8 +362,8 @@ export default function TradesPage() {
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <Link to={`/trades/${trade.id}`} className="btn btn-ghost btn-sm" title="Detail">👁</Link>
-                          <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(trade.id, trade.stockCode)} title="Hapus">🗑</button>
+                          <Link to={`/trades/${trade.id}`} className="btn btn-ghost btn-sm" title="Detail"><Icons.Eye size={14}/></Link>
+                          <button className="btn btn-ghost btn-sm" onClick={() => handleDelete(trade.id, trade.stockCode)} title="Hapus"><Icons.Trash2 size={14}/></button>
                         </div>
                       </td>
                     </tr>
@@ -481,7 +484,7 @@ export default function TradesPage() {
               {bulkModalType === 'strategy' ? (
                 <div className="form-group">
                   <label className="form-label" htmlFor="bulk-strategy-select">Pilih Strategi</label>
-                  <select
+                  <CustomSelect
                     id="bulk-strategy-select"
                     className="form-select"
                     value={bulkStrategy}
@@ -491,7 +494,7 @@ export default function TradesPage() {
                     {(settings.customStrategies || STRATEGIES).map((s: string) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
               ) : (
                 <div className="form-group">

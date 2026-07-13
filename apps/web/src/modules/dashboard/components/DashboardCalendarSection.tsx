@@ -1,5 +1,6 @@
 import * as Icons from 'lucide-react';
 import type { ClosedDashboardTrade, DashboardCalendarDay } from '@/modules/dashboard/types/dashboard';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 type DashboardCalendarSectionProps = {
   calendarDays: Array<DashboardCalendarDay | null>;
@@ -58,7 +59,7 @@ export default function DashboardCalendarSection({
           <label className="sr-only" htmlFor="dashboard-calendar-month">
             Pilih bulan kalender performa
           </label>
-          <select
+          <CustomSelect
             id="dashboard-calendar-month"
             className="form-select dashboard-calendar-month-input"
             aria-label="Pilih bulan kalender performa"
@@ -71,11 +72,11 @@ export default function DashboardCalendarSection({
                 {new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(2026, index, 1))}
               </option>
             ))}
-          </select>
+          </CustomSelect>
           <label className="sr-only" htmlFor="dashboard-calendar-year">
             Pilih tahun kalender performa
           </label>
-          <select
+          <CustomSelect
             id="dashboard-calendar-year"
             className="form-select dashboard-calendar-year-input"
             aria-label="Pilih tahun kalender performa"
@@ -88,7 +89,7 @@ export default function DashboardCalendarSection({
                 {year}
               </option>
             ))}
-          </select>
+          </CustomSelect>
           <button
             type="button"
             className="btn btn-secondary btn-sm dashboard-calendar-nav-btn"

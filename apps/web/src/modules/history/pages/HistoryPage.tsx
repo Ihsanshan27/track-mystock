@@ -17,6 +17,7 @@ import { calculateTradePnL } from '@/modules/trades/calculations';
 import { getTradeQuantityLabel } from '@/modules/trades/calculations';
 import { formatCompactNumber, formatDate, formatPercent, formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 type MarketTab = 'ID' | 'US';
 
@@ -537,7 +538,7 @@ export default function HistoryPage() {
               <h3 className="card-title">Trade Summary</h3>
               <div className="history-filter-row">
                 <label className="sr-only" htmlFor="history-range-select">Pilih periode trade summary</label>
-                <select
+                <CustomSelect
                   id="history-range-select"
                   title="Pilih periode trade summary"
                   aria-label="Pilih periode trade summary"
@@ -548,7 +549,7 @@ export default function HistoryPage() {
                   {rangeSummaries.map((range) => (
                     <option key={range.key} value={range.key}>{range.label}</option>
                   ))}
-                </select>
+                </CustomSelect>
                 {isCustomRangeSelected && (
                   <>
                     <input

@@ -81,26 +81,53 @@ export function migrateDataToCurrentVersion(data: any): JurnalSahamBackup {
   const migrated = { ...data };
   const originalVersion = data.version;
 
-  // Jika versi di bawah 2.2, migrasi struktur data IPO baru
   if (parseFloat(originalVersion) < 2.2) {
     if (Array.isArray(migrated.ipoEvents)) {
       migrated.ipoEvents = migrated.ipoEvents.map((event: any) => {
-        // Berikan nilai default pada field-field baru
         return {
           ...event,
           sector: event.sector || '',
           registrar: event.registrar || '',
           targetBoard: event.targetBoard || 'Utama',
-          bookbuildingStartDate: event.bookbuildingStartDate || '',
-          bookbuildingEndDate: event.bookbuildingEndDate || '',
+          bookbuildingStartDate: event.bookbuildingStartDate || null,
+          bookbuildingEndDate: event.bookbuildingEndDate || null,
           lotPoolingAmount: event.lotPoolingAmount != null ? Number(event.lotPoolingAmount) : undefined,
-          allotmentDate: event.allotmentDate || '',
-          refundDate: event.refundDate || '',
-          distributionDate: event.distributionDate || '',
+          allotmentDate: event.allotmentDate || null,
+          refundDate: event.refundDate || null,
+          distributionDate: event.distributionDate || null,
         };
       });
     }
   }
+
+  // Clean up empty strings for date fields across all major arrays
+  // backend class-validator @IsDateString fails if value is ""
+  const dateFields = [
+    'dateBuy', 'dateSell', 'date', 'exDate', 'paymentDate', 
+    'offeringDate', 'ipoDate', 'bookbuildingStartDate', 
+    'bookbuildingEndDate', 'allotmentDate', 'refundDate', 'distributionDate'
+  ];
+
+  const sanitizeDates = (items: any[]) => {
+    if (!Array.isArray(items)) return items;
+    return items.map(item => {
+      const sanitized = { ...item };
+      for (const field of dateFields) {
+        if (sanitized[field] === '') {
+          sanitized[field] = null;
+        }
+      }
+      return sanitized;
+    });
+  };
+
+  migrated.trades = sanitizeDates(migrated.trades);
+  migrated.cashflows = sanitizeDates(migrated.cashflows);
+  migrated.dividends = sanitizeDates(migrated.dividends);
+  migrated.ipoEvents = sanitizeDates(migrated.ipoEvents);
+  migrated.financeTransactions = sanitizeDates(migrated.financeTransactions);
+  migrated.bsjpTrades = sanitizeDates(migrated.bsjpTrades);
+  migrated.tradingPlans = sanitizeDates(migrated.tradingPlans);
 
   // Naikkan ke versi target terbaru
   migrated.version = '2.2';

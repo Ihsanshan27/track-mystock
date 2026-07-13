@@ -3,11 +3,11 @@ import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, Newspaper, ChevronDown, ChevronUp, Brain } from 'lucide-react';
 
 const SIGNAL_BADGES = {
-    BOW: { label: '🎯 Buy on Weakness', color: '#10B981', dim: 'rgba(16,185,129,0.15)' },
-    BOB: { label: '💥 Buy on Breakout', color: '#6366F1', dim: 'rgba(99,102,241,0.15)' },
-    ACCUMULATION: { label: '📦 Accumulation', color: '#F59E0B', dim: 'rgba(245,158,11,0.15)' },
-    OVERSOLD_BOUNCE: { label: '🔄 Oversold Bounce', color: '#8B5CF6', dim: 'rgba(139,92,246,0.15)' },
-    MOMENTUM: { label: '🚀 Momentum', color: '#3B82F6', dim: 'rgba(59,130,246,0.15)' },
+    BOW: { label: 'Buy on Weakness', color: '#10B981', dim: 'rgba(16,185,129,0.15)' },
+    BOB: { label: 'Buy on Breakout', color: '#6366F1', dim: 'rgba(99,102,241,0.15)' },
+    ACCUMULATION: { label: 'Accumulation', color: '#F59E0B', dim: 'rgba(245,158,11,0.15)' },
+    OVERSOLD_BOUNCE: { label: 'Oversold Bounce', color: '#8B5CF6', dim: 'rgba(139,92,246,0.15)' },
+    MOMENTUM: { label: 'Momentum', color: '#3B82F6', dim: 'rgba(59,130,246,0.15)' },
 };
 
 const PATTERN_BADGES = {
@@ -84,7 +84,7 @@ const StockCard = ({ stock, indicators, patterns, signals = [] }) => {
                             })}
                             {indicators.isEmaGoldenCross && (
                                 <span style={{ fontSize: '0.58rem', fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--radius-full)', background: 'rgba(245,158,11,0.15)', color: '#F59E0B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                    EMA ⭐
+                                    EMA Cross
                                 </span>
                             )}
                         </div>
@@ -115,9 +115,9 @@ const StockCard = ({ stock, indicators, patterns, signals = [] }) => {
                 {/* Indicators Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
                     {[
-                        { label: 'MACD', active: indicators.isMacdGoldenCross, activeText: '⚡ Cross', color: '#10B981', dim: 'rgba(16,185,129,0.12)' },
-                        { label: 'Stoch', active: indicators.isStochasticOversold, activeText: '🔔 OB', color: '#8B5CF6', dim: 'rgba(139,92,246,0.12)' },
-                        { label: 'EMA', active: indicators.isEmaGoldenCross, activeText: '⭐ Cross', color: '#F59E0B', dim: 'rgba(245,158,11,0.12)', neutralText: hasEma ? (emaValues.ema50 > emaValues.ema200 ? '↑ Bull' : '↓ Bear') : 'N/A' },
+                        { label: 'MACD', active: indicators.isMacdGoldenCross, activeText: 'Cross', color: '#10B981', dim: 'rgba(16,185,129,0.12)' },
+                        { label: 'Stoch', active: indicators.isStochasticOversold, activeText: 'OB', color: '#8B5CF6', dim: 'rgba(139,92,246,0.12)' },
+                        { label: 'EMA', active: indicators.isEmaGoldenCross, activeText: 'Cross', color: '#F59E0B', dim: 'rgba(245,158,11,0.12)', neutralText: hasEma ? (emaValues.ema50 > emaValues.ema200 ? '↑ Bull' : '↓ Bear') : 'N/A' },
                     ].map(ind => (
                         <div key={ind.label} style={{ background: ind.active ? ind.dim : 'rgba(30,41,59,0.5)', border: `1px solid ${ind.active ? ind.color + '44' : 'var(--border-color)'}`, borderRadius: 'var(--radius-md)', padding: '7px', textAlign: 'center' }}>
                             <div style={{ fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: ind.active ? ind.color : 'var(--text-muted)', marginBottom: '2px' }}>{ind.label}</div>

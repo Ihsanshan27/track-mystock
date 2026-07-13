@@ -6,6 +6,7 @@ import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
 import { Coins, Plus, X, Trash2, Save, TrendingUp, Sparkles, Pencil } from 'lucide-react';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 export default function DividendPage() {
   const { dividends, addDividend, updateDividend, deleteDividend, trades, dividendFormDraft, setDividendFormDraft } = useData();
@@ -219,12 +220,12 @@ export default function DividendPage() {
               </h3>
 
               {portfolioStocks.length > 0 && (
-                <select className="form-select" style={{ width: 'auto', minWidth: 200 }} onChange={handleSelectPortfolio} defaultValue="">
+                <CustomSelect className="form-select" style={{ width: 'auto', minWidth: 200 }} onChange={handleSelectPortfolio} defaultValue="">
                   <option value="">Isi otomatis dari Portfolio...</option>
                   {portfolioStocks.map(s => (
                     <option key={s.code} value={s.code}>{s.code} ({s.shares.toLocaleString(isUS ? 'en-US' : 'id-ID')} lbr)</option>
                   ))}
-                </select>
+                </CustomSelect>
               )}
             </div>
 

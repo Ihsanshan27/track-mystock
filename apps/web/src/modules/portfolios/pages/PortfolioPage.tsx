@@ -69,7 +69,11 @@ export default function PortfolioPage() {
   const { sortConfig, sortedItems: sortedOpenTrades, requestSort } = useTableSort(openTrades, {
     initialKey: 'stockCode',
     getValue: (trade: any, key: 'stockCode' | 'buyPrice' | 'lots' | 'totalBuy' | 'currentPrice' | 'floatingPnL' | 'allocationPercent') => {
-      if (key === 'allocationPercent') return totalInvested > 0 ? (trade.totalBuy / totalInvested) * 100 : 0;
+      if (key === 'allocationPercent') {
+        const totalCurrentValue = openTrades.reduce((sum: number, t: any) => sum + (t.totalBuy + t.floatingPnL), 0);
+        const positionCurrentValue = trade.totalBuy + trade.floatingPnL;
+        return totalCurrentValue > 0 ? (positionCurrentValue / totalCurrentValue) * 100 : 0;
+      }
       return trade[key] || 0;
     },
   });
@@ -143,7 +147,7 @@ export default function PortfolioPage() {
 
       {openTrades.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">💼</div>
+          <div className="empty-state-icon"><Icons.Briefcase size={48} /></div>
           <div className="empty-state-title">Tidak ada posisi terbuka di {activeTab === 'US' ? 'Pasar US' : 'Pasar Indonesia'}</div>
           <div className="empty-state-desc">
             {isViewer ? 'Tidak ada posisi terbuka pada data yang bisa Anda lihat.' : 'Semua transaksi sudah ditutup, atau belum ada transaksi'}

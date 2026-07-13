@@ -1,0 +1,36 @@
+{
+  "nav": {
+    "dashboard": "Dasbor",
+    "wealth": "Kekayaan",
+    "trades": "Transaksi",
+    "portfolio": "Portofolio",
+    "history": "Riwayat",
+    "cashflow": "Saldo Kas",
+    "finance": "Keuangan",
+    "dividends": "Dividen",
+    "analytics": "Analitik",
+    "reports": "Laporan",
+    "portfolios": "Dompet",
+    "ipo": "Perjalanan IPO",
+    "ipoAccounts": "Akun IPO",
+    "bsjp": "Rekap BSJP",
+    "notes": "Catatan",
+    "calculator": "Kalkulator",
+    "watchlist": "Pantauan",
+    "plans": "Rencana Trading",
+    "users": "Pengguna",
+    "workspaces": "Ruang Kerja",
+    "auditLogs": "Log Audit",
+    "profile": "Profil Saya",
+    "settings": "Pengaturan"
+  },
+  "section": {
+    "menu": "MENU UTAMA",
+    "tools": "ALAT BANTU",
+    "admin": "ADMINISTRATOR",
+    "other": "LAINNYA"
+  },
+  "header": {
+    "language": "Bahasa"
+  }
+}

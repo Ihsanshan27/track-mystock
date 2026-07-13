@@ -7,6 +7,7 @@ import { formatRupiah, formatDate } from '@/modules/shared/utils/formatters';
 import type { IpoEntry, IpoEntryCalc } from '@/modules/ipo/types/ipo';
 import { getIpoEventStatus, parseDateOnly } from '@/modules/ipo/utils/ipoStatus';
 import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 import '@/modules/ipo/ipo.css';
 
 const SLTL_OPTIONS = ['-', 'SL', 'TL'] as const;
@@ -645,17 +646,17 @@ export default function IpoDetailPage() {
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor={`ipo-sl-tl-${isInline ? 'inline' : 'main'}`}>SL / TL</label>
-          <select id={`ipo-sl-tl-${isInline ? 'inline' : 'main'}`} className="form-select" value={form.slTl} onChange={e => set('slTl', e.target.value)}>
+          <CustomSelect id={`ipo-sl-tl-${isInline ? 'inline' : 'main'}`} className="form-select" value={form.slTl} onChange={e => set('slTl', e.target.value)}>
             {SLTL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
+          </CustomSelect>
         </div>
       </div>
       <div className="form-row">
         <div className="form-group">
           <label className="form-label" htmlFor={`ipo-action-${isInline ? 'inline' : 'main'}`}>Aksi</label>
-          <select id={`ipo-action-${isInline ? 'inline' : 'main'}`} className="form-select" value={form.action} onChange={e => setAction(e.target.value as 'SELL' | 'KEEP')}>
+          <CustomSelect id={`ipo-action-${isInline ? 'inline' : 'main'}`} className="form-select" value={form.action} onChange={e => setAction(e.target.value as 'SELL' | 'KEEP')}>
             {ACTION_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-          </select>
+          </CustomSelect>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor={`ipo-notes-${isInline ? 'inline' : 'main'}`}>Catatan</label>
@@ -808,7 +809,7 @@ export default function IpoDetailPage() {
               const daysToOffering = diffDaysFromToday(event.offeringDate);
               const daysToIpo = diffDaysFromToday(event.ipoDate);
               if (daysToIpo === 0) {
-                return <span className="ipo-countdown today-label" style={{ marginLeft: 8 }}><Icons.Timer size={12} />🔥 IPO Hari Ini!</span>;
+                return <span className="ipo-countdown today-label" style={{ marginLeft: 8 }}><Icons.Timer size={12} />IPO Hari Ini!</span>;
               }
               if (daysToOffering !== null && daysToOffering > 0) {
                 return <span className="ipo-countdown" style={{ marginLeft: 8 }}><Icons.Timer size={12} />{daysToOffering} hari lagi penawaran</span>;
@@ -1344,7 +1345,7 @@ export default function IpoDetailPage() {
                       </div>
                       <div className="form-group">
                          <label className="form-label" htmlFor="ipo-event-target-board">Papan Pencatatan</label>
-                         <select
+                         <CustomSelect
                             id="ipo-event-target-board"
                             className="form-input"
                             value={eventForm.targetBoard}
@@ -1354,11 +1355,11 @@ export default function IpoDetailPage() {
                             <option value="Pengembangan">Pengembangan</option>
                             <option value="Akselerasi">Akselerasi</option>
                             <option value="Ekonomi Baru">Ekonomi Baru</option>
-                         </select>
+                         </CustomSelect>
                       </div>
                       <div className="form-group">
                          <label className="form-label" htmlFor="ipo-event-sector">Sektor Industri</label>
-                         <select
+                         <CustomSelect
                             id="ipo-event-sector"
                             className="form-input"
                             value={eventForm.sector}
@@ -1377,7 +1378,7 @@ export default function IpoDetailPage() {
                             <option value="Infrastruktur">Infrastruktur</option>
                             <option value="Transportasi & Logistik">Transportasi & Logistik</option>
                             <option value="Lainnya">Lainnya</option>
-                         </select>
+                         </CustomSelect>
                       </div>
                    </div>
                 </div>

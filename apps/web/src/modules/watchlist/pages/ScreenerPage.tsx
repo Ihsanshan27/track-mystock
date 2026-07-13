@@ -19,7 +19,8 @@ import {
 } from '@/modules/shared/utils/patternRecognition';
 import { generateAnalysis } from '@/modules/shared/utils/generateAnalysis';
 import { EMITEN_DATA, SECTORS, getTickersBySector } from '@/modules/shared/utils/commodityData';
-import { Search, RefreshCw, AlertTriangle, Zap } from 'lucide-react';
+import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 const Skeleton = () => (
     <div className="card" style={{ overflow: 'hidden', opacity: 0.6 }}>
@@ -220,7 +221,7 @@ const ScreenerPage = () => {
             <div style={{ marginBottom: '28px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
                     <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow-green)', flexShrink: 0 }}>
-                        <Zap size={22} color="white" />
+                        <Icons.Zap size={22} color="white" />
                     </div>
                     <div>
                         <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
@@ -243,10 +244,10 @@ const ScreenerPage = () => {
                             className="form-input"
                             style={{ paddingLeft: '40px', fontSize: '0.875rem' }}
                         />
-                        <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                        <Icons.Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                     </div>
 
-                    <select
+                    <CustomSelect
                         onChange={e => {
                             if (!e.target.value) return;
                             const sectorTickers = getTickersBySector(e.target.value).map(t => t.ticker).join(', ');
@@ -258,10 +259,10 @@ const ScreenerPage = () => {
                     >
                         <option value="">📂 Pilih Sektor...</option>
                         {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                    </CustomSelect>
 
                     <button onClick={handleScan} disabled={loading} className="btn btn-primary" style={{ flexShrink: 0 }}>
-                        <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+                        <Icons.RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
                         {loading ? 'Scanning...' : 'Scan'}
                     </button>
                 </div>
@@ -269,13 +270,13 @@ const ScreenerPage = () => {
                 {/* Stats */}
                 <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
                     {[
-                        { label: 'Mode Scan Aktif', value: scanMode, icon: scanMode.includes('Top') ? '🔥' : '📡', accent: 'blue' },
-                        { label: 'Total Saham Di-scan', value: stocks.length, icon: '📋' },
-                        { label: 'Memenuhi Filter', value: filteredStocks.length, icon: '✅', accent: 'green' },
-                        { label: 'Filter Aktif', value: activeFilterCount, icon: '🎯', accent: activeFilterCount > 0 ? 'yellow' : null },
+                        { label: 'Mode Scan Aktif', value: scanMode, icon: scanMode.includes('Top') ? <Icons.Flame size={20} /> : <Icons.Radio size={20} />, accent: 'blue' },
+                        { label: 'Total Saham Di-scan', value: stocks.length, icon: <Icons.ClipboardList size={20} /> },
+                        { label: 'Memenuhi Filter', value: filteredStocks.length, icon: <Icons.CheckCircle size={20} />, accent: 'green' },
+                        { label: 'Filter Aktif', value: activeFilterCount, icon: <Icons.Target size={20} />, accent: activeFilterCount > 0 ? 'yellow' : null },
                     ].map(stat => (
                         <div key={stat.label} className="stat-card" style={{ padding: '12px 18px', flex: '0 1 auto', minWidth: '120px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '1.2rem' }}>{stat.icon}</span>
+                            <span style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', color: stat.accent === 'green' ? 'var(--accent-green)' : stat.accent === 'blue' ? 'var(--accent-blue)' : stat.accent === 'yellow' ? 'var(--accent-yellow)' : 'var(--text-muted)' }}>{stat.icon}</span>
                             <div>
                                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>{stat.label}</div>
                                 <div style={{ fontSize: stat.value.length > 20 ? '0.85rem' : '1.1rem', fontWeight: 700, color: stat.accent === 'green' ? 'var(--accent-green)' : stat.accent === 'blue' ? 'var(--accent-blue)' : stat.accent === 'yellow' ? 'var(--accent-yellow)' : 'var(--text-primary)' }}>
@@ -298,7 +299,7 @@ const ScreenerPage = () => {
                     {/* Error Banner */}
                     {error && (
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px 16px', background: 'var(--accent-red-dim)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-md)', marginBottom: '16px' }}>
-                            <AlertTriangle size={16} style={{ color: 'var(--accent-red)', flexShrink: 0, marginTop: '2px' }} />
+                            <Icons.AlertTriangle size={16} style={{ color: 'var(--accent-red)', flexShrink: 0, marginTop: '2px' }} />
                             <div>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--accent-red)', margin: '0 0 8px' }}>{error}</p>
                                 <button onClick={() => loadData()} className="btn btn-secondary" style={{ fontSize: '0.78rem', padding: '4px 12px' }}>Coba Lagi</button>
@@ -329,7 +330,7 @@ const ScreenerPage = () => {
                         </div>
                     ) : !error ? (
                         <div className="card" style={{ padding: '60px 24px', textAlign: 'center' }}>
-                            <div className="empty-state-icon">🔍</div>
+                            <div className="empty-state-icon"><Icons.Search size={48} /></div>
                             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>Tidak Ada Saham yang Cocok</h3>
                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '360px', margin: '0 auto 24px' }}>
                                 Coba longgarkan filter indikator.

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from '@/modules/auth/AuthContext';
 import { DataProvider, useData } from '@/modules/shared/context/DataContext';
 import { PermissionProvider, usePermissions } from '@/modules/shared/context/PermissionContext';
@@ -40,11 +41,13 @@ const IpoListPage = lazy(() => import('@/modules/ipo/pages/IpoListPage'));
 const IpoDetailPage = lazy(() => import('@/modules/ipo/pages/IpoDetailPage'));
 const IpoSummaryPage = lazy(() => import('@/modules/ipo/pages/IpoSummaryPage'));
 const IpoAccountsPage = lazy(() => import('@/modules/ipo/pages/IpoAccountsPage'));
+const AdminDashboardPage = lazy(() => import('@/modules/admin/pages/AdminDashboardPage'));
 const AdminUsersPage = lazy(() => import('@/modules/admin/pages/AdminUsersPage'));
-const AdminWorkspacesPage = lazy(() => import('@/modules/admin/pages/AdminWorkspacesPage'));
+// const AdminWorkspacesPage = lazy(() => import('@/modules/admin/pages/AdminWorkspacesPage'));
 const AdminAuditLogsPage = lazy(() => import('@/modules/admin/pages/AdminAuditLogsPage'));
 const ReportsPage = lazy(() => import('@/modules/reports/pages/ReportsPage'));
 const SharedReportPage = lazy(() => import('@/modules/reports/pages/SharedReportPage'));
+const WealthDashboardPage = lazy(() => import('@/modules/finance/pages/WealthDashboardPage'));
 // [MENTOR DISABLED] const MentorTradersPage = lazy(() => import('@/modules/mentor/pages/MentorTradersPage'));
 // [MENTOR DISABLED] const MentorTraderDetailPage = lazy(() => import('@/modules/mentor/pages/MentorTraderDetailPage'));
 
@@ -147,6 +150,7 @@ function AppRoutes() {
       <Route path="/shared/:shareId" element={<LazyPage><SharedReportPage /></LazyPage>} />
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<PermissionRoute permission="dashboard:read"><LazyPage><DashboardPage /></LazyPage></PermissionRoute>} />
+        <Route path="/wealth" element={<PermissionRoute permission="dashboard:read"><LazyPage><WealthDashboardPage /></LazyPage></PermissionRoute>} />
         <Route path="/trades" element={<PermissionRoute permission="journal:write"><LazyPage><TradesPage /></LazyPage></PermissionRoute>} />
         <Route path="/bsjp-recap" element={<PermissionRoute permission="dashboard:read"><LazyPage><BsjpRecapPage /></LazyPage></PermissionRoute>} />
         <Route path="/trades/new" element={<PermissionRoute permission="journal:write"><LazyPage><NewTradePage /></LazyPage></PermissionRoute>} />
@@ -174,9 +178,10 @@ function AppRoutes() {
         <Route path="/ipo/summary" element={<LazyPage><IpoSummaryPage /></LazyPage>} />
         <Route path="/ipo/accounts" element={<LazyPage><IpoAccountsPage /></LazyPage>} />
         <Route path="/ipo/:id" element={<LazyPage><IpoDetailPage /></LazyPage>} />
+        <Route path="/admin" element={<AdminRoute><LazyPage><AdminDashboardPage /></LazyPage></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><LazyPage><AdminUsersPage /></LazyPage></AdminRoute>} />
-        <Route path="/admin/workspaces" element={<AdminRoute><LazyPage><AdminWorkspacesPage /></LazyPage></AdminRoute>} />
         <Route path="/admin/audit-logs" element={<AdminRoute><LazyPage><AdminAuditLogsPage /></LazyPage></AdminRoute>} />
+        {/* <Route path="/admin/workspaces" element={<AdminRoute><LazyPage><AdminWorkspacesPage /></LazyPage></AdminRoute>} /> */}
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -190,6 +195,7 @@ export default function App() {
         <BrowserRouter>
           <AuthProvider>
             <AppRoutes />
+            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
           </AuthProvider>
         </BrowserRouter>
       </DialogProvider>

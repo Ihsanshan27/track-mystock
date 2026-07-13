@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import SortableTableHeader from '@/modules/shared/components/SortableTableHeader';
 import { useTableSort } from '@/modules/shared/hooks/useTableSort';
+import * as Icons from 'lucide-react';
 import { formatCompactNumber, formatDateTime, formatPercent, formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 
 function resolveMoneyFormatter(currency) {
@@ -83,7 +84,7 @@ export default function ReportView({
   if (!report) {
     return (
       <div className="empty-state">
-        <div className="empty-state-icon">📄</div>
+        <div className="empty-state-icon"><Icons.FileText size={48} style={{ color: 'var(--text-muted)' }} /></div>
         <div className="empty-state-title">Report belum tersedia</div>
         <div className="empty-state-desc">{emptyMessage}</div>
       </div>
@@ -105,7 +106,7 @@ export default function ReportView({
     <div>
       <div className="page-header" style={{ alignItems: 'flex-start' }}>
         <div>
-          <h1 className="page-title">📄 {title || 'Trading Report'}</h1>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.FileText size={24} /> {title || 'Trading Report'}</h1>
           <p className="page-subtitle">
             {report.ownerName} · {report.market === 'US' ? 'Pasar Amerika' : 'Pasar Indonesia'}
           </p>

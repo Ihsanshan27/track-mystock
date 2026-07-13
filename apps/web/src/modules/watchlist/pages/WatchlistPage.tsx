@@ -9,6 +9,7 @@ import { Eye, Plus, X, Trash2, Save, TrendingUp, TrendingDown, Edit3 } from 'luc
 import { fetchQuotesBatch, fetchStockOHLCV } from '@/modules/shared/services/yahooFinanceService';
 import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
 import { calculateIndicators, isMacdGoldenCross, isEmaGoldenCross, getLatestEmaValues } from '@/modules/shared/utils/technicalIndicators';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 const MANUAL_RECOMMENDATIONS = [
   { value: 'NONE', label: 'Otomatis (Sinyal Teknikal)' },
@@ -492,21 +493,21 @@ export default function WatchlistPage() {
               <div className="form-row" style={{ marginTop: 12 }}>
                 <div className="form-group">
                   <label className="form-label">Prioritas</label>
-                  <select className="form-select" value={form.priority} onChange={e => set('priority', e.target.value)}>
+                  <CustomSelect className="form-select" value={form.priority} onChange={e => set('priority', e.target.value)}>
                     {WATCHLIST_PRIORITY.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Status</label>
-                  <select className="form-select" value={form.status} onChange={e => set('status', e.target.value)}>
+                  <CustomSelect className="form-select" value={form.status} onChange={e => set('status', e.target.value)}>
                     {WATCHLIST_STATUS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Rekomendasi Manual</label>
-                  <select className="form-select" value={form.manualRecommendation} onChange={e => set('manualRecommendation', e.target.value)}>
+                  <CustomSelect className="form-select" value={form.manualRecommendation} onChange={e => set('manualRecommendation', e.target.value)}>
                     {MANUAL_RECOMMENDATIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
               </div>
               <div className="form-group" style={{ marginBottom: 12 }}>
@@ -828,14 +829,14 @@ export default function WatchlistPage() {
                         <td style={{ maxWidth: 200, fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.reason}>{item.reason || '-'}</td>
                         <td><span className={`badge badge-${priority?.color || 'blue'}`}>{priority?.label || item.priority}</span></td>
                         <td>
-                          <select
+                          <CustomSelect
                             className="form-select"
                             style={{ width: 130, padding: '4px 10px', fontSize: '0.8rem' }}
                             value={item.status}
                             onChange={e => handleStatusChange(item.id, e.target.value)}
                           >
                             {WATCHLIST_STATUS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                          </select>
+                          </CustomSelect>
                         </td>
                         <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{formatDate(item.createdAt)}</td>
                         <td>

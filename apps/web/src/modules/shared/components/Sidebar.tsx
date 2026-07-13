@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { NAV_ITEMS } from '@/modules/shared/utils/constants';
 import { usePermissions } from '@/modules/shared/context/PermissionContext';
 import * as Icons from 'lucide-react';
@@ -7,6 +8,7 @@ import * as Icons from 'lucide-react';
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
   const { role } = usePermissions();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -37,12 +39,12 @@ export default function Sidebar({ isOpen, onClose }) {
           <div className="sidebar-logo-icon">
             <Icons.TrendingUp size={18} strokeWidth={2.5} style={{ color: '#ffffff' }} />
           </div>
-          <h1>Jurnal Saham</h1>
+          <h1>StockLife</h1>
         </div>
         <nav className="sidebar-nav">
           {Object.entries(sections).map(([section, items]) => (
             <div key={section}>
-              <div className="sidebar-section-title">{section}</div>
+              <div className="sidebar-section-title">{t(section)}</div>
               {items.map(item => {
                 const IconComponent = (Icons as any)[item.icon];
                 return (
@@ -58,7 +60,7 @@ export default function Sidebar({ isOpen, onClose }) {
                     <span className="nav-item-icon">
                       {IconComponent && <IconComponent size={18} strokeWidth={2} />}
                     </span>
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                   </NavLink>
                 );
               })}
@@ -67,7 +69,7 @@ export default function Sidebar({ isOpen, onClose }) {
         </nav>
         <div className="sidebar-footer">
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-            Jurnal Saham v1.0
+            StockLife v1.0
           </div>
         </div>
       </aside>

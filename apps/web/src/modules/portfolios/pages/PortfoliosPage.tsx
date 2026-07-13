@@ -7,6 +7,7 @@ import { formatDate, formatRupiah, formatUSD } from '@/modules/shared/utils/form
 import { calculatePortfolioAssetIdrEquivalent, calculatePortfolioAssetMetrics } from '@/modules/trades/calculations';
 import MarketTabBar from '@/modules/shared/components/MarketTabBar';
 import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 import '@/modules/portfolios/portfolios.css';
 
 function getPortfolioMetrics(portfolioId, defaultPortfolioId, trades, cashflows, dividends, settings, marketPrices) {
@@ -230,7 +231,7 @@ export default function PortfoliosPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Hubungkan ke Rekening Finance</label>
-              <select
+              <CustomSelect
                 className="form-select"
                 value={form.financeAccountId}
                 onChange={e => setForm(prev => ({ ...prev, financeAccountId: e.target.value }))}
@@ -241,7 +242,7 @@ export default function PortfoliosPage() {
                     {account.name} • {account.institutionName}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
               <div className="portfolio-form-note">
                 Satu dompet hanya bisa pilih satu rekening. Satu rekening boleh dipakai banyak dompet.
               </div>

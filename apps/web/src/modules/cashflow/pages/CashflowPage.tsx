@@ -7,6 +7,7 @@ import { calculatePortfolioBalance } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatDate } from '@/modules/shared/utils/formatters';
 import { Coins, Plus, X, Trash2, Save, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react';
 import CurrencyInput from '@/modules/shared/components/CurrencyInput';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 export default function CashflowPage() {
   const {
@@ -205,10 +206,10 @@ export default function CashflowPage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Jenis Transaksi</label>
-                  <select className="form-select" value={form.type} onChange={e => set('type', e.target.value)}>
+                  <CustomSelect className="form-select" value={form.type} onChange={e => set('type', e.target.value)}>
                     <option value="deposit">Deposit (Top-up)</option>
                     <option value="withdraw">Withdraw (Penarikan)</option>
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Jumlah ({isUS ? 'USD' : 'IDR'}) *</label>

@@ -8,6 +8,7 @@ import * as Icons from 'lucide-react';
 import { useTheme } from '@/modules/shared/context/ThemeContext';
 import { calculatePortfolioAssetIdrEquivalent, calculatePortfolioAssetMetrics } from '@/modules/trades/calculations';
 import { formatRupiah } from '@/modules/shared/utils/formatters';
+import { useTranslation } from 'react-i18next';
 
 export default function Header({ pageTitle, onMenuToggle }) {
   const { user, logout } = useAuth();
@@ -15,6 +16,7 @@ export default function Header({ pageTitle, onMenuToggle }) {
   useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const { portfolios, activePortfolioId: activePortId, defaultPortfolioId, selectPortfolio, allTrades, allCashflows, allDividends, settings } = useData();
+  const { t, i18n } = useTranslation();
   const [profileOpen, setProfileOpen] = useState(false);
   const [portfolioOpen, setPortfolioOpen] = useState(false);
   const menuRef = useRef(null);
@@ -137,6 +139,16 @@ export default function Header({ pageTitle, onMenuToggle }) {
         >
           {roleLabel}
         </span>
+
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon"
+          onClick={() => i18n.changeLanguage(i18n.resolvedLanguage === 'id' ? 'en' : 'id')}
+          title={t('header.language')}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 600, width: '36px' }}
+        >
+          {i18n.resolvedLanguage === 'id' ? 'ID' : 'EN'}
+        </button>
 
         <button
           type="button"

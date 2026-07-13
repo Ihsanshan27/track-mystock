@@ -17,6 +17,7 @@ import {
 } from '@/modules/admin/services/workspaceService';
 import { formatDate } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 const ROLE_LABELS = {
   admin: 'Admin',
@@ -258,7 +259,7 @@ export default function AdminWorkspacesPage() {
             <form onSubmit={handleInviteMember}>
               <div className="form-group">
                 <label className="form-label" htmlFor="workspace-select">Workspace</label>
-                <select
+                <CustomSelect
                   id="workspace-select"
                   className="form-select"
                   aria-label="Pilih workspace"
@@ -269,11 +270,11 @@ export default function AdminWorkspacesPage() {
                   {workspaceList.map(workspace => (
                     <option key={workspace.id} value={workspace.id}>{workspace.name}</option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="workspace-user-select">User</label>
-                <select
+                <CustomSelect
                   id="workspace-user-select"
                   className="form-select"
                   aria-label="Pilih user untuk workspace"
@@ -289,11 +290,11 @@ export default function AdminWorkspacesPage() {
                       {profile.displayName} ({profile.email || 'tanpa email'})
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="workspace-role-select">Role Workspace</label>
-                <select
+                <CustomSelect
                   id="workspace-role-select"
                   className="form-select"
                   aria-label="Pilih role workspace"
@@ -303,7 +304,7 @@ export default function AdminWorkspacesPage() {
                   {WORKSPACE_ROLES.map(role => (
                     <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
               <button
                 className="btn btn-primary"

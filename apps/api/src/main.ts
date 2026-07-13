@@ -25,8 +25,8 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const port = Number(process.env.PORT || 3001);
-  await app.listen(port, '127.0.0.1');
-  console.log(`API ready on http://127.0.0.1:${port}/api/v1`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`API ready on http://localhost:${port}/api/v1`);
 }
 
 bootstrap();

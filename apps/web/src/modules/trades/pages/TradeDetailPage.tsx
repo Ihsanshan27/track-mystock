@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/modules/auth/AuthContext';
 import TradeReviewPanel from '@/modules/trades/components/TradeReviewPanel';
 import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 export default function TradeDetailPage() {
   const { id } = useParams();
@@ -172,9 +173,9 @@ export default function TradeDetailPage() {
                 <>
                   <div className="form-group" style={{ marginBottom: 16 }}>
                     <label className="form-label">Portofolio</label>
-                    <select className="form-select" value={form.portfolioId || defaultPortfolioId} onChange={e => set('portfolioId', e.target.value)}>
+                    <CustomSelect className="form-select" value={form.portfolioId || defaultPortfolioId} onChange={e => set('portfolioId', e.target.value)}>
                       {portfolios.map((portfolio) => <option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>)}
-                    </select>
+                    </CustomSelect>
                   </div>
 
                   <div className="form-row">
@@ -210,17 +211,17 @@ export default function TradeDetailPage() {
                   <div className="form-row">
                     <div className="form-group">
                       <label className="form-label">Strategi</label>
-                      <select className="form-select" value={form.strategy || ''} onChange={e => set('strategy', e.target.value)}>
+                      <CustomSelect className="form-select" value={form.strategy || ''} onChange={e => set('strategy', e.target.value)}>
                         <option value="">Pilih strategi...</option>
                         {strategiesList.map((strategy) => <option key={strategy} value={strategy}>{strategy}</option>)}
-                      </select>
+                      </CustomSelect>
                     </div>
                     <div className="form-group">
                       <label className="form-label">Emosi</label>
-                      <select className="form-select" value={form.emotion || ''} onChange={e => set('emotion', e.target.value)}>
+                      <CustomSelect className="form-select" value={form.emotion || ''} onChange={e => set('emotion', e.target.value)}>
                         <option value="">Pilih emosi...</option>
                         {emotionsList.map((emotionItem) => <option key={emotionItem.value} value={emotionItem.value}>{emotionItem.label}</option>)}
-                      </select>
+                      </CustomSelect>
                       {form.emotion && ['fearful', 'greedy', 'revenge', 'doubtful', 'fomo'].includes(form.emotion) && (settings.behaviorNegativeEmotionWarning || settings.behaviorBlockNegativeEmotion) ? (
                         <div style={{
                           marginTop: 6,
@@ -429,10 +430,10 @@ export default function TradeDetailPage() {
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 6 }}>
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        👤 Penyunting: <span style={{ color: 'var(--accent-blue-light)' }}>{log.editedBy}</span>
+                        <Icons.User size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> Penyunting: <span style={{ color: 'var(--accent-blue-light)' }}>{log.editedBy}</span>
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        📅 Waktu: {new Date(log.editedAt).toLocaleString('id-ID')}
+                        <Icons.Calendar size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }} /> Waktu: {new Date(log.editedAt).toLocaleString('id-ID')}
                       </div>
                     </div>
                     {changes.length === 0 ? (

@@ -1,0 +1,36 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "wealth": "Wealth",
+    "trades": "Trades",
+    "portfolio": "Portfolio",
+    "history": "History",
+    "cashflow": "Cash Balance",
+    "finance": "Finance Tracker",
+    "dividends": "Dividends",
+    "analytics": "Analytics",
+    "reports": "Reports",
+    "portfolios": "Wallets",
+    "ipo": "IPO Journey",
+    "ipoAccounts": "IPO Accounts",
+    "bsjp": "BSJP Recap",
+    "notes": "Notes",
+    "calculator": "Calculator",
+    "watchlist": "Watchlist",
+    "plans": "Trading Plans",
+    "users": "Users",
+    "workspaces": "Workspaces",
+    "auditLogs": "Audit Logs",
+    "profile": "My Profile",
+    "settings": "Settings"
+  },
+  "section": {
+    "menu": "MAIN MENU",
+    "tools": "TOOLS",
+    "admin": "ADMINISTRATOR",
+    "other": "OTHERS"
+  },
+  "header": {
+    "language": "Language"
+  }
+}

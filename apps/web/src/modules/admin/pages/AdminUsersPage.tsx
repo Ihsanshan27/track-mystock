@@ -9,6 +9,7 @@ import { createAuditLog, createAuditLogSafe } from '@/modules/admin/services/aud
 import { createUserAsAdmin } from '@/modules/admin/services/adminUserService';
 import { getRegistrationEnabled, setRegistrationEnabled } from '@/modules/shared/services/appSettingsService';
 import { formatDate } from '@/modules/shared/utils/formatters';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 const ROLE_LABELS = {
   admin: 'Admin',
@@ -237,7 +238,7 @@ export default function AdminUsersPage() {
                     {profile.createdAt ? formatDate(profile.createdAt) : '-'}
                   </td>
                   <td>
-                    <select
+                    <CustomSelect
                       className="form-select admin-role-select"
                       title={`Ubah role untuk ${profile.displayName || profile.email || 'user'}`}
                       aria-label={`Ubah role untuk ${profile.displayName || profile.email || 'user'}`}
@@ -248,7 +249,7 @@ export default function AdminUsersPage() {
                       {USER_ROLES.map(role => (
                         <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                       ))}
-                    </select>
+                    </CustomSelect>
                   </td>
                 </tr>
               ))}
@@ -306,7 +307,7 @@ export default function AdminUsersPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Role</label>
-                  <select
+                  <CustomSelect
                     className="form-select"
                     title="Pilih role user baru"
                     aria-label="Pilih role user baru"
@@ -316,7 +317,7 @@ export default function AdminUsersPage() {
                     {USER_ROLES.map(role => (
                       <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="admin-form-note">
                   User dibuat langsung lewat backend admin flow dan bisa login memakai kredensial yang diberikan.

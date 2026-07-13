@@ -5,6 +5,7 @@ import SortableTableHeader from '@/modules/shared/components/SortableTableHeader
 import { calculateTradePnL, calculateUnrealizedPnL } from '@/modules/trades/calculations';
 import { formatRupiah, formatUSD, formatPercent, formatDate } from '@/modules/shared/utils/formatters';
 import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 export default function BsjpRecapPage() {
   const { 
@@ -423,7 +424,7 @@ export default function BsjpRecapPage() {
       {/* Filter and Sort Bar */}
       <div className="filter-bar" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
         {/* Year Filter */}
-        <select 
+        <CustomSelect 
           className="form-select" 
           style={{ width: 140 }} 
           value={filterYear} 
@@ -433,10 +434,10 @@ export default function BsjpRecapPage() {
           {availableYears.map(y => (
             <option key={y} value={y}>{y}</option>
           ))}
-        </select>
+        </CustomSelect>
 
         {/* Month Filter */}
-        <select 
+        <CustomSelect 
           className="form-select" 
           style={{ width: 150 }} 
           value={filterMonth} 
@@ -446,7 +447,7 @@ export default function BsjpRecapPage() {
           {monthNames.map(m => (
             <option key={m.value} value={m.value}>{m.label}</option>
           ))}
-        </select>
+        </CustomSelect>
 
         {/* Specific Date Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -461,7 +462,7 @@ export default function BsjpRecapPage() {
         </div>
 
         {/* Broker Filter */}
-        <select 
+        <CustomSelect 
           className="form-select" 
           style={{ width: 160 }} 
           value={filterBroker} 
@@ -471,7 +472,7 @@ export default function BsjpRecapPage() {
           {availableBrokers.map(b => (
             <option key={b} value={b}>{b}</option>
           ))}
-        </select>
+        </CustomSelect>
 
         {/* Clear Filter Button */}
         {(filterYear || filterMonth || filterDate || filterBroker) && (
@@ -488,7 +489,7 @@ export default function BsjpRecapPage() {
       {/* Recap Table */}
       {pagedRows.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">📊</div>
+          <div className="empty-state-icon"><Icons.BarChart2 size={48} /></div>
           <div className="empty-state-title">Tidak ada transaksi terdaftar</div>
           <div className="empty-state-desc">Silakan sesuaikan penyaringan filter Anda atau tambahkan transaksi baru.</div>
         </div>
@@ -639,7 +640,7 @@ export default function BsjpRecapPage() {
                 <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                   <div className="form-group">
                     <label className="form-label">Pasar</label>
-                    <select 
+                    <CustomSelect 
                       className="form-select" 
                       value={form.market} 
                       onChange={e => {
@@ -653,7 +654,7 @@ export default function BsjpRecapPage() {
                     >
                       <option value="ID">Indonesia (IDR)</option>
                       <option value="US">Amerika (USD)</option>
-                    </select>
+                    </CustomSelect>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tanggal Beli</label>

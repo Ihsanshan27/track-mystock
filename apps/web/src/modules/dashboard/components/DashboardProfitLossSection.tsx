@@ -12,6 +12,7 @@ import { BarChart3 } from 'lucide-react';
 import ChartTooltip from '@/modules/shared/components/ChartTooltip';
 import type { ProfitLossChartPoint, RangeSummaryItem } from '@/modules/dashboard/types/dashboard';
 import type { PerformanceRangeKey, RangeKey } from '@/modules/dashboard/utils/dashboardDate';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 type DashboardProfitLossSectionProps = {
   customEndDate: string;
@@ -70,7 +71,7 @@ export default function DashboardProfitLossSection({
           <span>Profit/Loss</span>
         </div>
         <div className="dashboard-profit-filter-group">
-          <select
+          <CustomSelect
             className="form-select"
             aria-label="Pilih periode profit loss"
             title="Pilih periode profit loss"
@@ -82,7 +83,7 @@ export default function DashboardProfitLossSection({
                 {range.label}
               </option>
             ))}
-          </select>
+          </CustomSelect>
           {isCustomRangeSelected && (
             <>
               <input

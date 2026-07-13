@@ -4,6 +4,7 @@ import { useData } from '@/modules/shared/context/DataContext';
 import { useDialog } from '@/modules/shared/context/DialogContext';
 import { STRATEGIES, EMOTIONS } from '@/modules/shared/utils/constants';
 import { formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 import { getTradeQuantityLabel } from '@/modules/trades/calculations';
 
 export default function NewTradePage() {
@@ -58,6 +59,7 @@ export default function NewTradePage() {
       rating: 0,
       tags: plan ? 'rencana-trading' : '',
       notes: '',
+      setupImageUrl: '',
       portfolioId: plan?.portfolioId || activePortfolioId || defaultPortfolioId,
     };
 
@@ -227,7 +229,7 @@ export default function NewTradePage() {
               <div className="card-body">
                 <div className="form-group" style={{ marginBottom: 16 }}>
                   <label className="form-label">Pilih Portofolio</label>
-                  <select
+                  <CustomSelect
                     className="form-select"
                     value={form.portfolioId}
                     onChange={e => set('portfolioId', e.target.value)}
@@ -235,7 +237,7 @@ export default function NewTradePage() {
                     {portfolios.map((portfolio) => (
                       <option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 16 }}>
@@ -267,7 +269,6 @@ export default function NewTradePage() {
                           setForm((prev) => ({
                             ...prev,
                             assetType: 'mutual_fund',
-                            market: 'ID',
                             buyFee: 0,
                             sellFee: 0,
                           }));
@@ -286,7 +287,6 @@ export default function NewTradePage() {
                         type="radio"
                         name="market"
                         checked={form.market === 'ID'}
-                        disabled={isMutualFund}
                         onChange={() => {
                           setForm((prev) => ({
                             ...prev,
@@ -303,7 +303,6 @@ export default function NewTradePage() {
                         type="radio"
                         name="market"
                         checked={form.market === 'US'}
-                        disabled={isMutualFund}
                         onChange={() => {
                           setForm((prev) => ({
                             ...prev,
@@ -316,11 +315,6 @@ export default function NewTradePage() {
                       Amerika (USD)
                     </label>
                   </div>
-                  {isMutualFund ? (
-                    <div style={{ fontSize: '0.75rem', marginTop: 6, color: 'var(--text-muted)' }}>
-                      Reksadana saat ini dicatat sebagai instrumen IDR dengan jumlah unit.
-                    </div>
-                  ) : null}
                 </div>
 
                 <div className="form-row">
@@ -391,17 +385,17 @@ export default function NewTradePage() {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Strategi</label>
-                    <select className="form-select" value={form.strategy} onChange={e => set('strategy', e.target.value)}>
-                      <option value="">Pilih strategi...</option>
+                    <CustomSelect className="form-select" value={form.strategy} onChange={e => set('strategy', e.target.value)}>
+                      <option value="">Tidak ada spesifik</option>
                       {strategiesList.map((strategy: string) => <option key={strategy} value={strategy}>{strategy}</option>)}
-                    </select>
+                    </CustomSelect>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Emosi</label>
-                    <select className="form-select" value={form.emotion} onChange={e => set('emotion', e.target.value)}>
-                      <option value="">Pilih emosi...</option>
+                    <CustomSelect className="form-select" value={form.emotion} onChange={e => set('emotion', e.target.value)}>
+                      <option value="">Netral / Normal</option>
                       {emotionsList.map((emotion: any) => <option key={emotion.value} value={emotion.value}>{emotion.label}</option>)}
-                    </select>
+                    </CustomSelect>
                     {form.emotion && ['fearful', 'greedy', 'revenge', 'doubtful', 'fomo'].includes(form.emotion) && (settings.behaviorNegativeEmotionWarning || settings.behaviorBlockNegativeEmotion) ? (
                       <div style={{
                         marginTop: 6,

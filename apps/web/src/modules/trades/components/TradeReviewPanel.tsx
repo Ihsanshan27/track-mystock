@@ -3,6 +3,7 @@ import { createAuditLogSafe } from '@/modules/admin/services/auditLogService';
 import { listProfilesByIds } from '@/modules/shared/services/profileService';
 import { listTradeReviews, saveTradeReview } from '@/modules/shared/services/tradeReviewService';
 import { formatDateTime } from '@/modules/shared/utils/formatters';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 const EMPTY_FORM = {
   comment: '',
@@ -231,11 +232,11 @@ function ScoreField({ label, value, onChange }) {
   return (
     <div className="form-group">
       <label className="form-label">{label}</label>
-      <select className="form-select" value={value} onChange={(event) => onChange(event.target.value)}>
+      <CustomSelect className="form-select" value={value} onChange={(event) => onChange(event.target.value)}>
         {[1, 2, 3, 4, 5].map((score) => (
           <option key={score} value={score}>{score} / 5</option>
         ))}
-      </select>
+      </CustomSelect>
     </div>
   );
 }

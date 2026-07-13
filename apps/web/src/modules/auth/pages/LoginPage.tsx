@@ -64,8 +64,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <div className="login-logo-icon">📈</div>
-          <h1>Jurnal Saham</h1>
+          <h1>StockLife</h1>
         </div>
         <p className="login-subtitle">Catat, analisis, dan tingkatkan performa trading Anda</p>
 

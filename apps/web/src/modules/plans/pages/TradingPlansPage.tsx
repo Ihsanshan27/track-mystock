@@ -8,6 +8,7 @@ import { formatRupiah, formatUSD } from '@/modules/shared/utils/formatters';
 import { usePrivacyStyle } from '@/modules/shared/hooks/usePrivacyStyle';
 import { useTableSort } from '@/modules/shared/hooks/useTableSort';
 import * as Icons from 'lucide-react';
+import CustomSelect from '@/modules/shared/components/CustomSelect';
 
 export default function TradingPlansPage() {
   const {
@@ -233,10 +234,10 @@ export default function TradingPlansPage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Pasar</label>
-                  <select className="form-select" value={form.market} onChange={e => set('market', e.target.value)}>
+                  <CustomSelect className="form-select" value={form.market} onChange={e => set('market', e.target.value)}>
                     <option value="ID">Pasar Indonesia (Rp)</option>
                     <option value="US">Pasar Amerika ($)</option>
-                  </select>
+                  </CustomSelect>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Kode Saham *</label>
@@ -250,9 +251,9 @@ export default function TradingPlansPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Pilih Dompet / Portofolio</label>
-                  <select className="form-select" value={form.portfolioId} onChange={e => set('portfolioId', e.target.value)}>
+                  <CustomSelect className="form-select" value={form.portfolioId} onChange={e => set('portfolioId', e.target.value)}>
                     {portfolios.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  </CustomSelect>
                 </div>
               </div>
 
@@ -324,7 +325,7 @@ export default function TradingPlansPage() {
               {/* Position Preview */}
               {entry > 0 && sl > 0 && tp > 0 && (
                 <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 20 }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-primary)' }}>📊 Preview Kalkulasi Posisi</h4>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icons.BarChart2 size={16} /> Preview Kalkulasi Posisi</h4>
                   <div className="form-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
                     <div>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Rasio Risk:Reward</div>
@@ -353,7 +354,7 @@ export default function TradingPlansPage() {
                   </div>
                   {requiredCapital > buyingPower && (
                     <div style={{ color: 'var(--accent-red)', fontSize: '0.75rem', marginTop: 10, fontWeight: 500 }}>
-                      ⚠️ Peringatan: Modal yang dibutuhkan melebihi Buying Power yang tersedia!
+                      <Icons.AlertTriangle size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Peringatan: Modal yang dibutuhkan melebihi Buying Power yang tersedia!
                     </div>
                   )}
                 </div>

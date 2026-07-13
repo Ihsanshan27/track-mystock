@@ -48,12 +48,15 @@ import { AppSettingsService } from './app-settings/app-settings.service';
 import { AnalyticsController } from './analytics/analytics.controller';
 import { AnalyticsService } from './analytics/analytics.service';
 
+import { MailModule } from './mail/mail.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', '.env.local'],
+      envFilePath: ['.env', '.env.local', '../../.env', '../../.env.local'],
     }),
+    MailModule,
   ],
   controllers: [
     ApiHomeController,

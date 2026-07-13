@@ -113,7 +113,7 @@ function renderApiHomeHtml(baseUrl: string) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Jurnal Saham API</title>
+    <title>StockLife API</title>
     <style>
       :root {
         color-scheme: dark;
@@ -384,7 +384,7 @@ function renderApiHomeHtml(baseUrl: string) {
     <main class="shell">
       <section class="hero">
         <span class="eyebrow">NestJS / Prisma 7 / PostgreSQL</span>
-        <h1>Jurnal Saham Backend is live and ready for the pure client frontend.</h1>
+        <h1>StockLife Backend is live and ready for the pure client frontend.</h1>
         <p class="lead">
           Endpoint ini sekarang jadi landing page kecil untuk ngebantu kita cek state backend,
           ngelihat route inti, dan ngerti alur transisi dari frontend lama yang tadinya masih banyak
@@ -446,7 +446,7 @@ export class ApiHomeController {
       return response.json({
         ok: true,
         data: {
-          name: 'Jurnal Saham API',
+          name: 'StockLife API',
           version: 'v1',
           baseUrl,
           docsPath: 'docs/backend-api-reference.md',
