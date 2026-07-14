@@ -32,12 +32,10 @@ export class AppSettingsService {
   async updatePublicRegistrationEnabled(actorUserId: string, enabled: boolean) {
     await this.assertAdmin(actorUserId);
 
-    const existing = await this.prisma.appSetting.findUnique({
+    const existing = await this.prisma.appSetting.findFirst({
       where: {
-        ownerUserId_workspaceId: {
-          ownerUserId: actorUserId,
-          workspaceId: null,
-        },
+        ownerUserId: actorUserId,
+        workspaceId: null,
       },
     });
 
@@ -46,30 +44,28 @@ export class AppSettingsService {
       [REGISTRATION_ENABLED_KEY]: enabled,
     };
 
-    await this.prisma.appSetting.upsert({
-      where: {
-        ownerUserId_workspaceId: {
+    if (existing) {
+      await this.prisma.appSetting.update({
+        where: { id: existing.id },
+        data: { extra },
+      });
+    } else {
+      await this.prisma.appSetting.create({
+        data: {
           ownerUserId: actorUserId,
           workspaceId: null,
+          initialCapital: 10000000,
+          monthlyTarget: 5,
+          defaultBuyFee: 0.15,
+          defaultSellFee: 0.25,
+          themePreference: 'system',
+          privacyMode: false,
+          defaultRiskPercent: 2,
+          defaultTargetRr: 2,
+          extra,
         },
-      },
-      update: {
-        extra,
-      },
-      create: {
-        ownerUserId: actorUserId,
-        workspaceId: null,
-        initialCapital: 10000000,
-        monthlyTarget: 5,
-        defaultBuyFee: 0.15,
-        defaultSellFee: 0.25,
-        themePreference: 'system',
-        privacyMode: false,
-        defaultRiskPercent: 2,
-        defaultTargetRr: 2,
-        extra,
-      },
-    });
+      });
+    }
 
     await this.prisma.auditLog.create({
       data: {
