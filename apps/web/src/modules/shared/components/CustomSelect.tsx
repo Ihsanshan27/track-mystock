@@ -7,6 +7,7 @@ export interface SelectOption {
 }
 
 interface CustomSelectProps {
+  id?: string;
   name?: string;
   value?: string | number;
   onChange?: (e: any) => void;

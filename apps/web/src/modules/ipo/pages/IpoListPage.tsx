@@ -424,7 +424,7 @@ export default function IpoListPage() {
                   <label className="form-label" htmlFor="ipo-list-target-board">Papan Pencatatan</label>
                   <CustomSelect
                      id="ipo-list-target-board"
-                     className="form-input"
+                     className="form-select"
                      value={form.targetBoard}
                      onChange={(e) => set("targetBoard", e.target.value)}
                   >
@@ -438,7 +438,7 @@ export default function IpoListPage() {
                   <label className="form-label" htmlFor="ipo-list-sector">Sektor Industri</label>
                   <CustomSelect
                      id="ipo-list-sector"
-                     className="form-input"
+                     className="form-select"
                      value={form.sector}
                      onChange={(e) => set("sector", e.target.value)}
                   >
@@ -699,7 +699,7 @@ export default function IpoListPage() {
                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.72rem' }}>Status</label>
                   <CustomSelect
-                     className="form-input"
+                     className="form-select"
                      value={statusFilter}
                      onChange={(e) => setStatusFilter(e.target.value)}
                   >
@@ -712,7 +712,7 @@ export default function IpoListPage() {
                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.72rem' }}>Underwriter</label>
                   <CustomSelect
-                     className="form-input"
+                     className="form-select"
                      value={underwriterFilter}
                      onChange={(e) => setUnderwriterFilter(e.target.value)}
                   >
@@ -727,7 +727,7 @@ export default function IpoListPage() {
                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontSize: '0.72rem' }}>Tahun</label>
                   <CustomSelect
-                     className="form-input"
+                     className="form-select"
                      value={yearFilter}
                      onChange={(e) => setYearFilter(e.target.value)}
                   >

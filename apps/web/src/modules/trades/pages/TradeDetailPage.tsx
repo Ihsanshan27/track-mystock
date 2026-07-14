@@ -96,8 +96,10 @@ export default function TradeDetailPage() {
       stockCode: form.assetType === 'mutual_fund' ? form.stockCode?.trim() : form.stockCode?.toUpperCase(),
       buyPrice: parseFloat(form.buyPrice),
       sellPrice: form.sellPrice ? parseFloat(form.sellPrice) : null,
+      dateSell: form.dateSell ? form.dateSell : null,
       lots: parseFloat(form.lots),
       portfolioId: form.portfolioId || defaultPortfolioId,
+      rating: form.rating > 0 ? form.rating : null,
       tags: typeof form.tags === 'string' ? form.tags.split(',').map((tag) => tag.trim()).filter(Boolean) : form.tags,
       setupImageUrl: form.setupImageUrl ? form.setupImageUrl.trim() : '',
     });

@@ -20,6 +20,15 @@ export class PortfoliosService {
       ],
     });
 
+    if (portfolios.length === 0) {
+      const defaultPortfolio = await this.create(ownerUserId, workspaceId, {
+        name: 'Portofolio Utama',
+        isDefault: true,
+        displayOrder: 0,
+      });
+      return [defaultPortfolio];
+    }
+
     return portfolios.map((portfolio) => ({
       id: portfolio.id,
       name: portfolio.name,

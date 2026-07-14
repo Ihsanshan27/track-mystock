@@ -161,10 +161,11 @@ export default function NewTradePage() {
       stockCode: isMutualFund ? form.stockCode.trim() : form.stockCode.toUpperCase(),
       buyPrice: parseFloat(form.buyPrice),
       sellPrice: form.sellPrice ? parseFloat(form.sellPrice) : null,
+      dateSell: form.dateSell ? form.dateSell : null,
       lots: parseFloat(form.lots),
       buyFee: parseFloat(form.buyFee),
       sellFee: parseFloat(form.sellFee),
-      rating: form.rating,
+      rating: form.rating > 0 ? form.rating : null,
       tags: form.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       setupImageUrl: form.setupImageUrl ? form.setupImageUrl.trim() : '',
     });
