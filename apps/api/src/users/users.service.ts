@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { hashPassword } from '../auth/auth-crypto';
+import { hashPassword, verifyPassword } from '../auth/auth-crypto';
 import { AccessControlService } from '../auth/access-control.service';
 import { AdminCreateUserDto } from './dto/admin-create-user.dto';
 import { toNumber } from '../common/prisma.utils';
@@ -235,6 +235,43 @@ export class UsersService {
     });
 
     return this.listDirectory([updated.userId]).then((rows) => rows[0] ?? null);
+  }
+
+  async updateMyPassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User tidak ditemukan.');
+    }
+
+    if (!verifyPassword(currentPassword, user.passwordHash)) {
+      throw new BadRequestException('Password saat ini salah.');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: hashPassword(newPassword),
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorUserId: userId,
+        action: 'profile.password_updated',
+        targetType: 'profile',
+        targetId: userId,
+        metadata: {
+          provider: 'backend',
+        },
+      },
+    });
+
+    return {
+      message: 'Password berhasil diubah.',
+    };
   }
 
   async updateUserRole(actorUserId: string, targetUserId: string, role: 'admin' | 'mentor' | 'trader' | 'viewer') {

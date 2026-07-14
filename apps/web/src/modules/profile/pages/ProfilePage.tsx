@@ -11,7 +11,7 @@ import SelectionToggleCard from '@/modules/shared/components/SelectionToggleCard
 import * as Icons from 'lucide-react';
 
 export default function ProfilePage() {
-  const { user, updateUsername } = useAuth();
+  const { user, updateUsername, changePassword } = useAuth();
   const { profile, roleLabel, role, roleError, permissions, permissionDefinitions, refreshProfile } = usePermissions();
   const { availableWorkspaces, activeWorkspaceId } = useWorkspace();
   const {
@@ -30,6 +30,9 @@ export default function ProfilePage() {
   } = useData();
 
   const [newUsername, setNewUsername] = useState(profile?.displayName || user?.username || '');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const activePort = portfolios.find((p) => p.id === activePortfolioId)?.name || 'Utama';
   const activeWS = availableWorkspaces.find((w: any) => w.id === activeWorkspaceId)?.name || 'Workspace Pribadi';
@@ -135,6 +138,34 @@ export default function ProfilePage() {
       }
     } catch (err: any) {
       showToast(err.message || 'Gagal memperbarui profil', 'error');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      showToast('Mohon isi password saat ini dan password baru', 'error');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      showToast('Password baru minimal 6 karakter', 'error');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const result = await changePassword(currentPassword, newPassword);
+      if (result.success) {
+        showToast(result.message || 'Password berhasil diubah');
+        setCurrentPassword('');
+        setNewPassword('');
+      } else {
+        showToast(result.error || 'Gagal mengubah password', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Gagal mengubah password', 'error');
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -326,6 +357,43 @@ export default function ProfilePage() {
                   Ganti nama tampilan yang akan dilihat oleh mentor atau admin ketika berkolaborasi.
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Ganti Password</h3>
+            </div>
+            <div className="card-body">
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="form-label">Password Saat Ini</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  value={currentPassword}
+                  onChange={e => setCurrentPassword(e.target.value)}
+                  placeholder="Masukkan password saat ini..."
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="form-label">Password Baru</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Masukkan password baru..."
+                />
+              </div>
+              <button
+                className="btn btn-primary"
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {isChangingPassword ? <Icons.Loader2 size={16} className="spin" /> : <Icons.Key size={16} />}
+                {isChangingPassword ? 'Memproses...' : 'Simpan Password'}
+              </button>
             </div>
           </div>
 

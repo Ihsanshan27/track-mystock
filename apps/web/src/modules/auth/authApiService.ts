@@ -3,7 +3,7 @@ import { clearAuthSession, getAuthSession, setAuthSession } from '@/modules/auth
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '';
 
-async function request(path, options = {}) {
+async function request(path: string, options: RequestInit = {}) {
   if (!isApiConfigured) {
     throw new Error('API backend belum dikonfigurasi.');
   }
@@ -152,5 +152,15 @@ export async function backendResetPassword(email, token, newPassword) {
   return request('/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify({ email, token, newPassword }),
+  });
+}
+
+export async function backendChangePassword(accessToken, currentPassword, newPassword) {
+  return request('/users/me/password', {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }

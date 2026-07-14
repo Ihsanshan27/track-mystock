@@ -6,6 +6,7 @@ import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { AdminCreateUserDto } from './dto/admin-create-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller()
 @UseGuards(DevAuthGuard)
@@ -40,6 +41,11 @@ export class UsersController {
   @Patch('users/me/profile')
   async updateMyProfile(@CurrentUser() user: RequestUser, @Body() payload: UpdateProfileDto) {
     return ok(await this.usersService.updateMyProfile(user.userId, payload.displayName));
+  }
+
+  @Patch('users/me/password')
+  async updateMyPassword(@CurrentUser() user: RequestUser, @Body() payload: ChangePasswordDto) {
+    return ok(await this.usersService.updateMyPassword(user.userId, payload.currentPassword, payload.newPassword));
   }
 
   @Patch('users/:id/role')

@@ -17,7 +17,9 @@ import {
   backendResendEmailOtp,
   backendResetPassword,
   backendVerifyEmailOtp,
+  backendChangePassword,
 } from '@/modules/auth/authApiService';
+
 import {
   clearAuthSession,
   clearPendingPasswordReset,
@@ -37,6 +39,7 @@ const DEFAULT_AUTH_CONTEXT = {
   resendEmailOtp: async (email?: string): Promise<{ success: boolean; error?: string; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
   requestPasswordRecovery: async (email?: string): Promise<{ success: boolean; error?: string; email?: string; resetToken?: string; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
   resetPassword: async (newPassword?: string, options?: any): Promise<{ success: boolean; error?: string; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
+  changePassword: async (currentPassword?: string, newPassword?: string): Promise<{ success: boolean; error?: string; message?: string }> => ({ success: false, error: 'Auth context belum siap.' }),
 };
 
 const AuthContext = createContext(DEFAULT_AUTH_CONTEXT);
@@ -298,6 +301,35 @@ export function AuthProvider({ children }) {
     };
   };
 
+  const changePassword = async (currentPassword, newPassword) => {
+    if (isApiConfigured) {
+      try {
+        const session = getAuthSession();
+        if (!session?.accessToken) {
+          throw new Error('Sesi tidak valid.');
+        }
+        
+        const data = await backendChangePassword(session.accessToken, currentPassword, newPassword);
+        
+        // Optional: Logout user after password change or keep them logged in
+        // If the user did not specify their preference, we will keep them logged in for now,
+        // or just logout for security. I will keep them logged in.
+        
+        return {
+          success: true,
+          message: data.message,
+        };
+      } catch (error) {
+        return { success: false, error: getAuthErrorMessage(error.message) };
+      }
+    }
+
+    return {
+      success: false,
+      error: 'Ganti password hanya tersedia saat backend API aktif.',
+    };
+  };
+
   const logout = async () => {
     if (isApiConfigured) {
       try {
@@ -388,6 +420,7 @@ export function AuthProvider({ children }) {
         resendEmailOtp,
         requestPasswordRecovery,
         resetPassword,
+        changePassword,
       }}
     >
       {children}

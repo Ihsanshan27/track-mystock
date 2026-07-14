@@ -104,3 +104,67 @@ Jika suatu saat Anda mengubah kode (menambah fitur, memperbaiki bug) dan ingin m
    ```bash
    docker exec -it stocklife-api npm run prisma:deploy
    ```
+
+---
+
+## 🌐 Custom Domain & Reverse Proxy (Multi-Aplikasi di 1 VPS)
+
+Jika VPS Anda sudah menjalankan aplikasi lain di Port `80` (misalnya web server Nginx lain), Anda akan mengalami bentrok saat menjalankan kontainer Jurnal Saham. Solusinya adalah dengan mengubah port aplikasi Jurnal Saham, lalu membuat Nginx Proxy untuk mengarahkan nama domain ke port tersebut.
+
+### 1. Ubah Port di docker-compose.yml
+1. Buka file konfigurasi: `nano docker-compose.yml`
+2. Cari bagian `web:`, lalu ubah port-nya ke port yang kosong (misal `8080`):
+   ```yaml
+   web:
+     # ... konfigurasi lain ...
+     ports:
+       - "8080:80"
+   ```
+3. Jangan lupa buka/izinkan port `8080` pada setelan Firewall (Security Group) VPS Anda.
+4. Restart docker: `sudo docker compose up -d --build`.
+
+### 2. Setup Domain Gratis (Misal: DuckDNS)
+Jika Anda belum punya domain, Anda bisa mendapatkannya secara gratis:
+1. Buat akun di [DuckDNS.org](https://www.duckdns.org/).
+2. Buat domain (contoh: `stocklife.duckdns.org`).
+3. Ganti IP-nya dengan IP Publik VPS Anda, lalu simpan.
+
+### 3. Konfigurasi Nginx di Ubuntu (Reverse Proxy)
+Beri tahu Nginx utama di VPS untuk melayani domain tersebut:
+1. Buat file konfigurasi baru: 
+   ```bash
+   sudo nano /etc/nginx/sites-available/stocklife
+   ```
+2. Isikan dengan konfigurasi berikut:
+   ```nginx
+   server {
+       listen 80;
+       server_name stocklife.duckdns.org; # Ganti dengan domain Anda
+
+       location / {
+           proxy_pass http://localhost:8080;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_cache_bypass $http_upgrade;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
+3. Simpan, lalu aktifkan konfigurasi dan restart Nginx:
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/stocklife /etc/nginx/sites-enabled/
+   sudo nginx -t
+   sudo systemctl restart nginx
+   ```
+
+### 4. Amankan dengan HTTPS (Gembok Hijau Gratis)
+Agar web aman, pasang Sertifikat SSL Let's Encrypt menggunakan Certbot:
+```bash
+sudo apt-get install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d stocklife.duckdns.org
+```
+Ikuti instruksi di layar, dan web Jurnal Saham Anda akan langsung bisa diakses lewat `https://stocklife.duckdns.org`!
