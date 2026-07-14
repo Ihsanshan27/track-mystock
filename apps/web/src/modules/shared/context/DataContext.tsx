@@ -325,11 +325,11 @@ export function DataProvider({ children }) {
 
   const [initialPricesFetched, setInitialPricesFetched] = useState(false);
 
-  const fetchLivePrices = useCallback(async (stockCodes: string[]) => {
+  const fetchLivePrices = useCallback(async (stockCodes: string[], force = false) => {
     if (!stockCodes || stockCodes.length === 0) return;
     try {
-      console.log('[DataContext] Auto-fetching live prices for tickers:', stockCodes);
-      const quotes = await fetchQuotesBatch(stockCodes);
+      console.log(`[DataContext] Auto-fetching live prices for tickers:`, stockCodes, `force:`, force);
+      const quotes = await fetchQuotesBatch(stockCodes, 150, force);
       let updated = false;
       const pricesToMerge: Record<string, number> = {};
       for (const ticker of stockCodes) {

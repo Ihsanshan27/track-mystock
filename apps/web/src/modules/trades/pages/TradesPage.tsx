@@ -173,7 +173,7 @@ export default function TradesPage() {
     const selectedTrades = trades.filter(t => selectedIds.includes(t.id));
     const tickers = Array.from(new Set(selectedTrades.map(t => t.stockCode).filter(Boolean)));
     if (tickers.length > 0) {
-      fetchLivePrices(tickers);
+      fetchLivePrices(tickers, true);
       showToast(`Memperbarui harga live untuk ${tickers.length} ticker...`);
       setSelectedIds([]);
     }

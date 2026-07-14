@@ -23,6 +23,7 @@ export default function PortfolioPage() {
   const { trades, cashflows, dividends, settings, updateSettings, activePortfolioId, defaultPortfolioId, marketPrices, updateMarketPrice, fetchLivePrices, canWrite } = useData();
   const { isViewer } = usePermissions();
   const [activeTab, setActiveTab] = useState('ID');
+  const [isFetchingPrices, setIsFetchingPrices] = useState(false);
 
   const isDefaultPort = activePortfolioId === defaultPortfolioId;
   const initialCap = isDefaultPort ? (activeTab === 'US' ? (settings.initialCapitalUS ?? 1000) : (settings.initialCapital ?? 10000000)) : 0;
@@ -58,21 +59,25 @@ export default function PortfolioPage() {
   const totalInvested = openTrades.reduce((sum, trade) => sum + trade.totalBuy, 0);
   const totalFloating = openTrades.reduce((sum, trade) => sum + trade.floatingPnL, 0);
   const tradingBalance = totalInvested + totalFloating;
+  const totalPortfolioCapital = totalInvested + balanceStats.buyingPower;
+
   const pieData = useMemo(() => {
     const grouped = new Map<string, number>();
     openTrades.forEach((trade) => {
       grouped.set(trade.stockCode, (grouped.get(trade.stockCode) || 0) + trade.totalBuy);
     });
+    if (balanceStats.buyingPower > 0) {
+      grouped.set('Cash (BP)', balanceStats.buyingPower);
+    }
     return Array.from(grouped.entries()).map(([name, value]) => ({ name, value }));
-  }, [openTrades]);
+  }, [openTrades, balanceStats.buyingPower]);
   const formatMoney = activeTab === 'US' ? formatUSD : formatRupiah;
   const { sortConfig, sortedItems: sortedOpenTrades, requestSort } = useTableSort(openTrades, {
     initialKey: 'stockCode',
     getValue: (trade: any, key: 'stockCode' | 'buyPrice' | 'lots' | 'totalBuy' | 'currentPrice' | 'floatingPnL' | 'allocationPercent') => {
       if (key === 'allocationPercent') {
-        const totalCurrentValue = openTrades.reduce((sum: number, t: any) => sum + (t.totalBuy + t.floatingPnL), 0);
-        const positionCurrentValue = trade.totalBuy + trade.floatingPnL;
-        return totalCurrentValue > 0 ? (positionCurrentValue / totalCurrentValue) * 100 : 0;
+        const totalCapital = openTrades.reduce((sum: number, t: any) => sum + t.totalBuy, 0) + balanceStats.buyingPower;
+        return totalCapital > 0 ? (trade.totalBuy / totalCapital) * 100 : 0;
       }
       return trade[key] || 0;
     },
@@ -113,15 +118,22 @@ export default function PortfolioPage() {
           {canWrite && openTrades.length > 0 ? (
             <button
               type="button"
-              onClick={() => {
+              disabled={isFetchingPrices}
+              onClick={async () => {
                 const tickers = openTrades.map(t => t.stockCode).filter(Boolean);
-                fetchLivePrices(tickers);
+                setIsFetchingPrices(true);
+                // Assume showToast is available from useData. If not we should check. Wait, is it?
+                try {
+                  await fetchLivePrices(tickers, true);
+                } finally {
+                  setIsFetchingPrices(false);
+                }
               }}
               className="btn btn-secondary"
               title="Perbarui harga dari Yahoo Finance"
             >
-              <Icons.RefreshCw size={16} />
-              <span>Perbarui Harga Live</span>
+              {isFetchingPrices ? <Icons.Loader className="spin" size={16} /> : <Icons.RefreshCw size={16} />}
+              <span>{isFetchingPrices ? 'Memperbarui...' : 'Perbarui Harga Live'}</span>
             </button>
           ) : null}
           <Link to="/history" className="btn btn-secondary">
@@ -231,7 +243,7 @@ export default function PortfolioPage() {
                           <span style={blurStyle}>{formatMoney(trade.totalBuy)}</span>
                           <br />
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            {totalInvested > 0 ? ((trade.totalBuy / totalInvested) * 100).toFixed(1) : '0.0'}% alokasi
+                            {totalPortfolioCapital > 0 ? ((trade.totalBuy / totalPortfolioCapital) * 100).toFixed(1) : '0.0'}% alokasi
                           </span>
                         </td>
                         <td>

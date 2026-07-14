@@ -124,12 +124,14 @@ export async function fetchStockOHLCV(ticker, range = '60d') {
 /**
  * Fetch latest quote (cached)
  */
-export async function fetchQuote(ticker) {
+export async function fetchQuote(ticker, force = false) {
     const symbol = normalizeYahooSymbol(ticker);
     const cacheKey = `quote_${symbol}`;
 
-    const cached = getCache(cacheKey);
-    if (cached) return cached;
+    if (!force) {
+        const cached = getCache(cacheKey);
+        if (cached) return cached;
+    }
 
     const url = `${YF_CHART}/${symbol}?interval=1d&range=5d`;
     try {
@@ -158,14 +160,17 @@ export async function fetchQuote(ticker) {
  * for public proxy connections. To circumvent this, we fall back to querying the
  * v8/chart API (fetchQuote) in parallel batches, which remains fully operational.
  */
-export async function fetchQuotesBatch(tickers, delayMs = 150) {
+export async function fetchQuotesBatch(tickers, delayMs = 150, force = false) {
     const results = {};
     const uncachedTickers = [];
 
     // 1. Fill from cache first
     for (const ticker of tickers) {
         const symbol = normalizeYahooSymbol(ticker);
-        const cached = getCache(`quote_${symbol}`);
+        let cached = null;
+        if (!force) {
+            cached = getCache(`quote_${symbol}`);
+        }
         if (cached) {
             results[ticker] = cached;
         } else {
@@ -184,7 +189,7 @@ export async function fetchQuotesBatch(tickers, delayMs = 150) {
         await Promise.all(
             batch.map(async (ticker) => {
                 try {
-                    const data = await fetchQuote(ticker);
+                    const data = await fetchQuote(ticker, force);
                     if (data && data.ok) {
                         results[ticker] = data;
                     }
