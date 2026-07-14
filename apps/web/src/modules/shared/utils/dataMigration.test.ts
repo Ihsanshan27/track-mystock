@@ -73,12 +73,12 @@ describe('dataMigration utils', () => {
       expect(migrated.ipoEvents![0].sector).toBe('');
       expect(migrated.ipoEvents![0].registrar).toBe('');
       expect(migrated.ipoEvents![0].targetBoard).toBe('Utama');
-      expect(migrated.ipoEvents![0].bookbuildingStartDate).toBe('');
-      expect(migrated.ipoEvents![0].bookbuildingEndDate).toBe('');
+      expect(migrated.ipoEvents![0].bookbuildingStartDate).toBeNull();
+      expect(migrated.ipoEvents![0].bookbuildingEndDate).toBeNull();
       expect(migrated.ipoEvents![0].lotPoolingAmount).toBeUndefined();
-      expect(migrated.ipoEvents![0].allotmentDate).toBe('');
-      expect(migrated.ipoEvents![0].refundDate).toBe('');
-      expect(migrated.ipoEvents![0].distributionDate).toBe('');
+      expect(migrated.ipoEvents![0].allotmentDate).toBeNull();
+      expect(migrated.ipoEvents![0].refundDate).toBeNull();
+      expect(migrated.ipoEvents![0].distributionDate).toBeNull();
     });
 
     it('retains existing field values for ipoEvents during migration', () => {

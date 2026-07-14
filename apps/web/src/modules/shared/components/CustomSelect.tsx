@@ -31,7 +31,7 @@ export default function CustomSelect({ name, value, onChange, options, children,
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  let finalOptions: SelectOption[] = options || [];
+  const finalOptions: SelectOption[] = options ? [...options] : [];
   if (!options && children) {
     const childrenArray = React.Children.toArray(children);
     
@@ -41,11 +41,11 @@ export default function CustomSelect({ name, value, onChange, options, children,
         
         if (child.type === 'option') {
           finalOptions.push({
-             value: String(child.props.value ?? ''),
-             label: String(child.props.children)
+             value: String((child as any).props.value ?? ''),
+             label: String((child as any).props.children)
           });
         } else if (child.type === React.Fragment) {
-          extractOptions(React.Children.toArray(child.props.children));
+          extractOptions(React.Children.toArray((child as any).props.children));
         }
       });
     };

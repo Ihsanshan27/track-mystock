@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildIpoDomain } from '@/modules/shared/context/dataContextIpoDomain';
 import type { IpoAccount, IpoEntry, IpoEvent } from '@/modules/ipo/types/ipo';
 
+vi.mock('@/modules/shared/services/apiClient', () => ({
+  isApiConfigured: false,
+}));
+
 function createEvent(overrides: Partial<IpoEvent> = {}): IpoEvent {
   return {
     id: 'event-1',
@@ -49,11 +53,12 @@ describe('buildIpoDomain', () => {
       setIpoEntries,
       setIpoEvents,
       showToast: vi.fn(),
+      cacheLocalState: vi.fn(),
     });
 
     const createdEntry = domain.addIpoEntry(
       createEntry({ id: 'entry-seed', buyPrice: 120, createdAt: '2026-06-02T00:00:00.000Z' }),
-    );
+    ) as IpoEntry;
 
     expect(createdEntry?.buyPrice).toBe(168);
     expect(setIpoEntries).toHaveBeenCalled();
@@ -87,6 +92,7 @@ describe('buildIpoDomain', () => {
       setIpoEntries,
       setIpoEvents: vi.fn(),
       showToast: vi.fn(),
+      cacheLocalState: vi.fn(),
     });
 
     domain.updateIpoEvent('event-1', { offeringPrice: 175 });
