@@ -19,7 +19,12 @@ export async function loadApiJournalSnapshot() {
 
   return {
     cashflows: cashflows || [],
-    dividends: dividends || [],
+    dividends: (dividends || []).map((d: any) => ({
+      ...d,
+      shareCount: d.lots,
+      dividendPerShare: d.amountPerShare,
+      payDate: d.dateReceived,
+    })),
     watchlist: watchlist || [],
     notes: notes || [],
     trades: trades || [],
@@ -182,7 +187,12 @@ export async function createDividendApi(payload) {
   return apiRequest('/dividends', {
     method: 'POST',
     body: JSON.stringify(payload),
-  });
+  }).then((d: any) => d ? {
+    ...d,
+    shareCount: d.lots,
+    dividendPerShare: d.amountPerShare,
+    payDate: d.dateReceived,
+  } : null);
 }
 
 export async function updateDividendApi(id, payload) {
@@ -190,7 +200,12 @@ export async function updateDividendApi(id, payload) {
   return apiRequest(`/dividends/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
-  });
+  }).then((d: any) => d ? {
+    ...d,
+    shareCount: d.lots,
+    dividendPerShare: d.amountPerShare,
+    payDate: d.dateReceived,
+  } : null);
 }
 
 export async function deleteDividendApi(id) {

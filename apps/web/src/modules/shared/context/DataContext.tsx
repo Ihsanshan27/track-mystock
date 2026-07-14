@@ -1297,8 +1297,11 @@ export function DataProvider({ children }) {
         let linkedCashflow = null;
 
         if (baseTransaction.linkToCashflow || isRdnSync) {
+          const cashflowPayload = buildCashflowPayloadFromFinanceTransaction(baseTransaction);
+          delete cashflowPayload.linkedFinanceTransactionId; // Prevent invalid UUID error in DB
+
           linkedCashflow = await createCashflowApi({
-            ...buildCashflowPayloadFromFinanceTransaction(baseTransaction),
+            ...cashflowPayload,
             portfolioId: baseTransaction.linkedPortfolioId || activePortfolioId,
           });
         }
@@ -1414,12 +1417,15 @@ export function DataProvider({ children }) {
         let linkedCashflowId = updatedTransaction.linkedCashflowId;
 
         if (wantsLink) {
-          const cashflowPayload = {
-            ...buildCashflowPayloadFromFinanceTransaction(updatedTransaction),
+          const cashflowPayload = buildCashflowPayloadFromFinanceTransaction(updatedTransaction);
+          delete cashflowPayload.linkedFinanceTransactionId; // Prevent invalid UUID error in DB
+          
+          const fullCashflowPayload = {
+            ...cashflowPayload,
             portfolioId: linkedPortfolioId,
           };
           if (existingTransaction.linkedCashflowId) {
-            const updatedCashflow = await updateCashflowApi(existingTransaction.linkedCashflowId, cashflowPayload);
+            const updatedCashflow = await updateCashflowApi(existingTransaction.linkedCashflowId, fullCashflowPayload);
             linkedCashflowId = updatedCashflow?.id || existingTransaction.linkedCashflowId;
             if (updatedCashflow) {
               const updatedCashflows = allCashflows.map((item: any) => item.id === updatedCashflow.id ? updatedCashflow : item);
@@ -1427,7 +1433,7 @@ export function DataProvider({ children }) {
               setScopedItem('cashflows', userId, updatedCashflows);
             }
           } else {
-            const createdCashflow = await createCashflowApi(cashflowPayload);
+            const createdCashflow = await createCashflowApi(fullCashflowPayload);
             linkedCashflowId = createdCashflow?.id;
             if (createdCashflow) {
               const updatedCashflows = [createdCashflow, ...allCashflows];
@@ -1678,6 +1684,13 @@ export function DataProvider({ children }) {
     if (isApiConfigured) {
       createDividendApi({
         ...div,
+        amountPerShare: Number(div.dividendPerShare) || 0,
+        lots: Number(div.shareCount) || 0,
+        totalAmount: Number(div.totalAmount) || 0,
+        dateReceived: div.payDate ? new Date(div.payDate).toISOString() : new Date().toISOString(),
+        market: div.market || 'ID',
+        cumDate: div.cumDate ? new Date(div.cumDate).toISOString() : undefined,
+        notes: div.notes || undefined,
         portfolioId: div.portfolioId || activePortfolioId,
       })
         .then((createdDividend) => {
@@ -1722,7 +1735,14 @@ export function DataProvider({ children }) {
     const existingDividend = allDividends.find(d => d.id === id);
     if (!existingDividend) return;
     if (isApiConfigured) {
-      updateDividendApi(id, updates)
+      const apiUpdates = { ...updates };
+      if (apiUpdates.dividendPerShare !== undefined) apiUpdates.amountPerShare = Number(apiUpdates.dividendPerShare) || 0;
+      if (apiUpdates.shareCount !== undefined) apiUpdates.lots = Number(apiUpdates.shareCount) || 0;
+      if (apiUpdates.totalAmount !== undefined) apiUpdates.totalAmount = Number(apiUpdates.totalAmount) || 0;
+      if (apiUpdates.payDate !== undefined) apiUpdates.dateReceived = new Date(apiUpdates.payDate).toISOString();
+      if (apiUpdates.cumDate !== undefined) apiUpdates.cumDate = apiUpdates.cumDate ? new Date(apiUpdates.cumDate).toISOString() : null;
+
+      updateDividendApi(id, apiUpdates)
         .then((updatedDividend) => {
           if (!updatedDividend) return;
           const updated = allDividends.map(d => d.id === id ? updatedDividend : d);
@@ -2385,6 +2405,7 @@ export function DataProvider({ children }) {
       cacheLocalData(userId, mergedData, LOCAL_DATA_KEYS);
       Object.entries(mergedData).forEach(([key, value]) => setScopedItem(key, userId, value));
       setScopedItem('active_portfolio', userId, runtimeDefaultPortfolioId);
+      setActivePortfolioId(runtimeDefaultPortfolioId);
       return;
     }
 

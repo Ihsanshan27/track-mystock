@@ -10,6 +10,8 @@ interface CustomSelectProps {
   id?: string;
   name?: string;
   value?: string | number;
+  defaultValue?: string | number;
+  required?: boolean;
   onChange?: (e: any) => void;
   options?: SelectOption[];
   children?: React.ReactNode;
