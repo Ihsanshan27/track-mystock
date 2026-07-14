@@ -22,6 +22,9 @@ export class DividendsService {
       lots: row.lots,
       totalAmount: toNumber(row.totalAmount),
       dateReceived: row.dateReceived.toISOString().slice(0, 10),
+      cumDate: row.cumDate ? row.cumDate.toISOString().slice(0, 10) : null,
+      notes: row.notes,
+      market: row.market,
       portfolioId: row.portfolioId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -42,6 +45,9 @@ export class DividendsService {
           lots: Number(payload.lots),
           totalAmount: new Prisma.Decimal(payload.totalAmount),
           dateReceived: new Date(payload.dateReceived),
+          cumDate: payload.cumDate ? new Date(payload.cumDate) : null,
+          notes: payload.notes ?? null,
+          market: payload.market ?? 'ID',
         },
       });
 
@@ -86,6 +92,9 @@ export class DividendsService {
           lots: payload.lots ?? undefined,
           totalAmount: payload.totalAmount == null ? undefined : new Prisma.Decimal(payload.totalAmount),
           dateReceived: payload.dateReceived ? new Date(payload.dateReceived) : undefined,
+          cumDate: payload.cumDate !== undefined ? (payload.cumDate ? new Date(payload.cumDate) : null) : undefined,
+          notes: payload.notes !== undefined ? payload.notes : undefined,
+          market: payload.market ?? undefined,
         },
       });
 
@@ -142,6 +151,9 @@ export class DividendsService {
     lots: number;
     totalAmount: Prisma.Decimal;
     dateReceived: Date;
+    cumDate: Date | null;
+    notes: string | null;
+    market: string;
     portfolioId: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -153,6 +165,9 @@ export class DividendsService {
       lots: row.lots,
       totalAmount: toNumber(row.totalAmount),
       dateReceived: row.dateReceived.toISOString().slice(0, 10),
+      cumDate: row.cumDate ? row.cumDate.toISOString().slice(0, 10) : null,
+      notes: row.notes,
+      market: row.market,
       portfolioId: row.portfolioId,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

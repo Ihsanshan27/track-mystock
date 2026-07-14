@@ -382,10 +382,13 @@ model Dividend {
   workspaceId    String?     @map("workspace_id") @db.Uuid
   portfolioId    String      @map("portfolio_id") @db.Uuid
   stockCode      String      @map("stock_code") @db.VarChar(20)
+  market         MarketCode  @default(ID)
   amountPerShare Decimal     @map("amount_per_share") @db.Decimal(18, 4)
   lots           Int
   totalAmount    Decimal     @map("total_amount") @db.Decimal(18, 2)
   dateReceived   DateTime    @map("date_received") @db.Date
+  cumDate        DateTime?   @map("cum_date") @db.Date
+  notes          String?
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
   owner          User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
