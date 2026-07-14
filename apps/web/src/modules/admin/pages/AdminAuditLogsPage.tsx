@@ -105,13 +105,13 @@ export default function AdminAuditLogsPage() {
     if (!keyword) return logs;
 
     return logs.filter(log => {
-      const actor = profileById[log.actor_id];
+      const actor = profileById[log.actorUserId];
       const haystack = [
         log.action,
         getActionLabel(log.action),
-        log.target_type,
-        getTargetTypeLabel(log.target_type),
-        log.target_id,
+        log.targetType,
+        getTargetTypeLabel(log.targetType),
+        log.targetId,
         actor?.email,
         actor?.displayName,
         JSON.stringify(log.metadata || {}),
@@ -120,12 +120,12 @@ export default function AdminAuditLogsPage() {
     });
   }, [logs, profileById, search]);
   const { sortConfig, sortedItems: sortedLogs, requestSort } = useTableSort(filteredLogs, {
-    initialKey: 'created_at',
+    initialKey: 'createdAt',
     initialDirection: 'desc',
-    getValue: (log: any, key: 'created_at' | 'actor' | 'action' | 'target' | 'detail') => {
-      const actor = profileById[log.actor_id];
-      if (key === 'actor') return actor?.displayName || actor?.email || log.actor_id || 'System';
-      if (key === 'target') return `${log.target_type || ''} ${log.target_id || ''}`;
+    getValue: (log: any, key: 'createdAt' | 'actor' | 'action' | 'target' | 'detail') => {
+      const actor = profileById[log.actorUserId];
+      if (key === 'actor') return actor?.displayName || actor?.email || log.actorUserId || 'System';
+      if (key === 'target') return `${log.targetType || ''} ${log.targetId || ''}`;
       if (key === 'detail') return JSON.stringify(log.metadata || {});
       return log[key] || '';
     },
@@ -198,7 +198,7 @@ export default function AdminAuditLogsPage() {
           <table className="table">
             <thead>
               <tr>
-                <th><SortableTableHeader label="Waktu" sortKey="created_at" sortConfig={sortConfig} onSort={requestSort} /></th>
+                <th><SortableTableHeader label="Waktu" sortKey="createdAt" sortConfig={sortConfig} onSort={requestSort} /></th>
                 <th><SortableTableHeader label="Actor" sortKey="actor" sortConfig={sortConfig} onSort={requestSort} /></th>
                 <th><SortableTableHeader label="Aktivitas" sortKey="action" sortConfig={sortConfig} onSort={requestSort} /></th>
                 <th><SortableTableHeader label="Target" sortKey="target" sortConfig={sortConfig} onSort={requestSort} /></th>
@@ -207,17 +207,17 @@ export default function AdminAuditLogsPage() {
             </thead>
             <tbody>
               {sortedLogs.map(log => {
-                const actor = profileById[log.actor_id];
+                const actor = profileById[log.actorUserId];
                 const metadataEntries = Object.entries(log.metadata || {});
                 return (
                   <tr key={log.id}>
                     <td className="admin-audit-time-cell">
-                      {formatDateTime(log.created_at)}
+                      {formatDateTime(log.createdAt)}
                     </td>
                     <td>
                       <strong>{actor?.displayName || 'System'}</strong>
                       <div className="admin-audit-subtext">
-                        {actor?.email || log.actor_id || '-'}
+                        {actor?.email || log.actorUserId || '-'}
                       </div>
                     </td>
                     <td>
@@ -227,8 +227,8 @@ export default function AdminAuditLogsPage() {
                       </div>
                     </td>
                     <td>
-                      <div>{getTargetTypeLabel(log.target_type)}</div>
-                      <div className="admin-audit-subtext">{log.target_id || '-'}</div>
+                      <div>{getTargetTypeLabel(log.targetType)}</div>
+                      <div className="admin-audit-subtext">{log.targetId || '-'}</div>
                     </td>
                     <td>
                       {metadataEntries.length === 0 ? (

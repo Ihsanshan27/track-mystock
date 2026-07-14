@@ -28,12 +28,14 @@ async function main() {
       email: DEV_SEED_USER_EMAIL,
       passwordHash: devPasswordHash,
       status: 'active',
+      emailVerifiedAt: new Date(),
     },
     create: {
       id: DEV_SEED_USER_ID,
       email: DEV_SEED_USER_EMAIL,
       passwordHash: devPasswordHash,
       status: 'active',
+      emailVerifiedAt: new Date(),
     },
   });
 

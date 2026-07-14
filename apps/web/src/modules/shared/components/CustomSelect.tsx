@@ -15,9 +15,11 @@ interface CustomSelectProps {
   className?: string;
   style?: React.CSSProperties;
   disabled?: boolean;
+  title?: string;
+  'aria-label'?: string;
 }
 
-export default function CustomSelect({ name, value, onChange, options, children, className = 'form-select', style, disabled }: CustomSelectProps) {
+export default function CustomSelect({ name, value, onChange, options, children, className = 'form-select', style, disabled, title, 'aria-label': ariaLabel }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -68,6 +70,8 @@ export default function CustomSelect({ name, value, onChange, options, children,
       ref={containerRef} 
       style={{ position: 'relative', width: '100%', minWidth: '120px', ...style }} 
       className={className ? className.replace('form-select', '') : ''} // Remove form-select from container, apply to trigger
+      title={title}
+      aria-label={ariaLabel}
     >
       <div 
         className={`form-select ${isOpen ? 'open' : ''} ${disabled ? 'disabled' : ''} ${className.includes('form-select') ? '' : className}`}

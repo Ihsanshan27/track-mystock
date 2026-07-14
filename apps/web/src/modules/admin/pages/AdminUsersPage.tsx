@@ -243,7 +243,7 @@ export default function AdminUsersPage() {
                       title={`Ubah role untuk ${profile.displayName || profile.email || 'user'}`}
                       aria-label={`Ubah role untuk ${profile.displayName || profile.email || 'user'}`}
                       value={profile.role}
-                      disabled={savingId === profile.id}
+                      disabled={savingId === profile.id || profile.id === user?.id}
                       onChange={e => handleRoleChange(profile, e.target.value)}
                     >
                       {USER_ROLES.map(role => (
